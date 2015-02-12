@@ -1,5 +1,5 @@
 package transport
 
 type Transport interface {
-	Connect() chan *Transport
+	Init() chan bool
 }

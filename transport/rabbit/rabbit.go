@@ -18,26 +18,31 @@ func init() {
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 }
 
-func NewRabbitTransport() chan *RabbitTransport {
-	conn := &RabbitTransport{}
-	result := make(chan *RabbitTransport, 1)
-	go conn.Connect(result)
-	return result
+func NewRabbitTransport() *RabbitTransport {
+	return &RabbitTransport{
+		notify: make(chan bool, 1),
+	}
 }
 
 type RabbitTransport struct {
 	Connection     *amqp.Connection
 	Channel        *RabbitChannel
 	DefaultChannel *RabbitChannel
+	notify         chan bool
 }
 
-func (r *RabbitTransport) Connect(connected chan *RabbitTransport) {
+func (r *RabbitTransport) Init() chan bool {
+	go r.Connect(r.notify)
+	return r.notify
+}
+
+func (r *RabbitTransport) Connect(connected chan bool) {
 	for {
 		if err := r.tryToConnect(); err != nil {
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		connected <- r
+		connected <- true
 		notifyClose := make(chan *amqp.Error)
 		r.Connection.NotifyClose(notifyClose)
 		<-notifyClose

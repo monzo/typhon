@@ -1,16 +1,14 @@
 package endpoint
 
-import "github.com/streadway/amqp"
-
 type JsonEndpoint struct {
 	EndpointName string
-	Handler      func(delivery *amqp.Delivery) (interface{}, error)
+	Handler      func(interface{}) ([]byte, error)
 }
 
 func (j *JsonEndpoint) Name() string {
 	return j.EndpointName
 }
 
-func (j *JsonEndpoint) HandleRequest(delivery *amqp.Delivery) ([]byte, error) {
+func (j *JsonEndpoint) HandleRequest(delivery interface{}) ([]byte, error) {
 	return j.Handler(delivery)
 }
