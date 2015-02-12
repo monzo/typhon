@@ -53,4 +53,6 @@ func (r *RabbitConnection) tryToConnect() error {
 	}
 	r.Channel, err = NewRabbitChannel(r.Connection)
 	r.Channel.DeclareExchange(Exchange)
+
+	return nil
 }

@@ -58,11 +58,13 @@ func (r *RabbitChannel) DeclareExchange(exchange string) error {
 }
 
 func (r *RabbitChannel) DeclareQueue(queue string) error {
-	return r.channel.QueueDeclare(queue, false, false, false, false, nil)
+	_, err := r.channel.QueueDeclare(queue, false, false, false, false, nil)
+	return err
 }
 
-func (r *RabbitChannel) DeclareDurableQueue(queue string) {
-	return r.channel.QueueDeclare(queue, true, false, false, false, nil)
+func (r *RabbitChannel) DeclareDurableQueue(queue string) error {
+	_, err := r.channel.QueueDeclare(queue, true, false, false, false, nil)
+	return err
 }
 
 func (r *RabbitChannel) ConsumeQueue(queue string) (<-chan amqp.Delivery, error) {
@@ -70,5 +72,5 @@ func (r *RabbitChannel) ConsumeQueue(queue string) (<-chan amqp.Delivery, error)
 }
 
 func (r *RabbitChannel) BindQueue(queue, exchange string) error {
-	return r.channel.QueueBind(queue, fmt.Sprintf("%s.#", queueName), exchange, false, nil)
+	return r.channel.QueueBind(queue, fmt.Sprintf("%s.#", queue), exchange, false, nil)
 }
