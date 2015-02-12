@@ -3,14 +3,13 @@ package endpoint
 import (
 	"errors"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/vinceprignano/bunny/transport"
 )
 
 type JsonEndpoint struct {
 	EndpointName string
 	Transport    transport.Transport
-	Handler      func(delivery *transport.Request) (proto.Message, error)
+	Handler      func(delivery *transport.Request) ([]byte, error)
 }
 
 func (j *JsonEndpoint) Name() string {
@@ -22,5 +21,5 @@ func (j *JsonEndpoint) HandleRequest(req *transport.Request) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("Failed")
 	}
-	return proto.Marshal(res)
+	return res
 }
