@@ -2,9 +2,10 @@ package main
 
 import (
 	"github.com/vinceprignano/bunny/server"
-	"github.com/vinceprignano/bunny/transport/rabbit"
+	"github.com/vinceprignano/bunny/transport"
 )
 
 func main() {
-	server.NewServer("hello", rabbit.NewRabbitTransport())
+	bunnyServer := server.NewServer("hello", transport.NewRabbitTransport())
+	bunnyServer.Init()
 }

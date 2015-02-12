@@ -32,3 +32,7 @@ func (s *Server) Init() {
 		os.Exit(1)
 	}
 }
+
+func (s *Server) Run() {
+	log.Flush()
+}
