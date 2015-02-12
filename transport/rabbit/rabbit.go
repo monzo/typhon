@@ -6,6 +6,7 @@ import (
 
 	log "github.com/cihub/seelog"
 	"github.com/streadway/amqp"
+	"github.com/vinceprignano/bunny/transport"
 )
 
 var (
@@ -60,4 +61,23 @@ func (r *RabbitTransport) tryToConnect() error {
 	r.Channel.DeclareExchange(Exchange)
 
 	return nil
+}
+
+func (r *RabbitTransport) Consume(serverName string) <-chan *transport.Request {
+	consumerChannel, err := NewRabbitChannel(r.Connection)
+	consumerChannel.DeclareQueue(serverName)
+	consumer := make(chan *transport.Request)
+	consumerChannel.BindQueue(serverName, Exchange)
+	messages, err := consumerChannel.ConsumeQueue(serverName)
+	if err != nil {
+		close(consumer)
+		log.Errorf("[Rabbit] Failed to consume from %s queue", serverName)
+		log.Error(err.Error())
+	}
+	go func() {
+		for msg := range messages {
+			consumer <- transport.NewRequest(msg)
+		}
+	}()
+	return consumer
 }
