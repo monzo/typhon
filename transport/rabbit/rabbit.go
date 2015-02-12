@@ -18,20 +18,20 @@ func init() {
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 }
 
-func NewConnection() chan *RabbitConnection {
-	conn := &RabbitConnection{}
-	result := make(chan *RabbitConnection, 1)
+func NewRabbitTransport() chan *RabbitTransport {
+	conn := &RabbitTransport{}
+	result := make(chan *RabbitTransport, 1)
 	go conn.Connect(result)
 	return result
 }
 
-type RabbitConnection struct {
+type RabbitTransport struct {
 	Connection     *amqp.Connection
 	Channel        *RabbitChannel
 	DefaultChannel *RabbitChannel
 }
 
-func (r *RabbitConnection) Connect(connected chan *RabbitConnection) {
+func (r *RabbitTransport) Connect(connected chan *RabbitTransport) {
 	for {
 		if err := r.tryToConnect(); err != nil {
 			time.Sleep(1 * time.Second)
@@ -44,7 +44,7 @@ func (r *RabbitConnection) Connect(connected chan *RabbitConnection) {
 	}
 }
 
-func (r *RabbitConnection) tryToConnect() error {
+func (r *RabbitTransport) tryToConnect() error {
 	var err error
 	r.Connection, err = amqp.Dial(RabbitURL)
 	if err != nil {
