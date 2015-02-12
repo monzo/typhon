@@ -1,1 +1,6 @@
-# bunny
+# Bunny
+A wrapper around RabbitMQ to write micro-services
+
+## Requirements
+- Golang
+- RabbitMQ
