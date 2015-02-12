@@ -5,14 +5,14 @@ import (
 	"time"
 
 	log "github.com/cihub/seelog"
-	"github.com/vinceprignano/bunny/server/endpoint"
+	"github.com/vinceprignano/bunny/server/registry"
 	"github.com/vinceprignano/bunny/transport"
 )
 
 type Server struct {
 	Name      string
-	endpoints map[string]endpoint.Endpoint
 	Transport transport.Transport
+	registry  *registry.Registry
 }
 
 func (s *Server) Init() {
