@@ -1,4 +1,4 @@
-package transport
+package rabbit
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 
 	log "github.com/cihub/seelog"
 	"github.com/streadway/amqp"
+	"github.com/vinceprignano/bunny/transport"
 )
 
 var (
@@ -62,10 +63,10 @@ func (r *RabbitTransport) tryToConnect() error {
 	return nil
 }
 
-func (r *RabbitTransport) Consume(serverName string) <-chan *Request {
+func (r *RabbitTransport) Consume(serverName string) <-chan transport.Request {
 	consumerChannel, err := NewRabbitChannel(r.Connection)
 	consumerChannel.DeclareQueue(serverName)
-	consumer := make(chan *Request)
+	consumer := make(chan transport.Request)
 	consumerChannel.BindQueue(serverName, Exchange)
 	messages, err := consumerChannel.ConsumeQueue(serverName)
 	if err != nil {
@@ -75,7 +76,7 @@ func (r *RabbitTransport) Consume(serverName string) <-chan *Request {
 	}
 	go func() {
 		for msg := range messages {
-			consumer <- NewRequest(&msg)
+			consumer <- NewRabbitRequest(&msg)
 		}
 	}()
 	return consumer

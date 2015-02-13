@@ -6,8 +6,8 @@ type RabbitRequest struct {
 	delivery *amqp.Delivery
 }
 
-func NewRabbitRequest() *RabbitRequest {
-	return &Request{
+func NewRabbitRequest(delivery *amqp.Delivery) *RabbitRequest {
+	return &RabbitRequest{
 		delivery: delivery,
 	}
 }
@@ -16,14 +16,18 @@ func (r *RabbitRequest) Body() []byte {
 	return r.delivery.Body
 }
 
-func (r *Request) CorrelationID() string {
+func (r *RabbitRequest) CorrelationID() string {
 	return r.delivery.CorrelationId
 }
 
-func (r *Request) ReplyTo() string {
+func (r *RabbitRequest) ReplyTo() string {
 	return r.delivery.ReplyTo
 }
 
-func (r *Request) RoutingKey() string {
+func (r *RabbitRequest) RoutingKey() string {
 	return r.delivery.RoutingKey
+}
+
+func (r *RabbitRequest) Interface() interface{} {
+	return r.delivery
 }
