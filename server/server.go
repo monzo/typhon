@@ -1,7 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -38,5 +40,26 @@ func (s *Server) RegisterEndpoint(endpoint transport.Endpoint) {
 }
 
 func (s *Server) Run() {
+	log.Infof("[Server] Listening for deliveries")
+
+	// Range over deliveries from channel
+	// This blocks until the channel closes
+	for req := range s.Transport.Consume(s.Name) {
+		log.Info("[Server] Recevied new request")
+		go s.handleRequest(req)
+	}
+
+	log.Infof("Exiting")
 	log.Flush()
+}
+
+func (s *Server) handleRequest(req transport.Request) {
+	endpointName := strings.Replace(req.RoutingKey(), fmt.Sprintf("%s.", s.Name), "", -1)
+	endpoint := s.registry.GetEndpoint(endpointName)
+	if endpoint == nil {
+		log.Error("[Server] Endpoint not found, cannot handle request")
+		return
+	}
+	rsp, err := endpoint.HandleRequest(req)
+	s.Transport.PublishFromRequest(req, rsp, err)
 }

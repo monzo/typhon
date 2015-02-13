@@ -58,7 +58,7 @@ func (r *RabbitChannel) DeclareExchange(exchange string) error {
 }
 
 func (r *RabbitChannel) DeclareQueue(queue string) error {
-	_, err := r.channel.QueueDeclare(queue, false, false, false, false, nil)
+	_, err := r.channel.QueueDeclare(queue, false, true, false, false, nil)
 	return err
 }
 
