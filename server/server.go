@@ -33,6 +33,10 @@ func (s *Server) Init() {
 	}
 }
 
+func (s *Server) RegisterEndpoint(endpoint transport.Endpoint) {
+	s.registry.RegisterEndpoint(endpoint)
+}
+
 func (s *Server) Run() {
 	log.Flush()
 }
