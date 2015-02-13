@@ -7,21 +7,20 @@ import (
 	"time"
 
 	log "github.com/cihub/seelog"
-	"github.com/vinceprignano/bunny/server/registry"
 	"github.com/vinceprignano/bunny/transport"
 )
 
 type Server struct {
 	Name      string
 	Transport transport.Transport
-	registry  *registry.Registry
+	registry  *Registry
 }
 
 func NewServer(name string, tp transport.Transport) *Server {
 	return &Server{
 		Name:      name,
 		Transport: tp,
-		registry:  registry.NewRegistry(),
+		registry:  NewRegistry(),
 	}
 }
 
@@ -35,7 +34,7 @@ func (s *Server) Init() {
 	}
 }
 
-func (s *Server) RegisterEndpoint(endpoint transport.Endpoint) {
+func (s *Server) RegisterEndpoint(endpoint Endpoint) {
 	s.registry.RegisterEndpoint(endpoint)
 }
 

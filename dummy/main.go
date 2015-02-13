@@ -7,13 +7,12 @@ import (
 
 	"github.com/vinceprignano/bunny"
 	"github.com/vinceprignano/bunny/server"
-	"github.com/vinceprignano/bunny/transport/rabbit"
-	"github.com/vinceprignano/bunny/transport/rabbit/endpoint"
+	"github.com/vinceprignano/bunny/transport"
 )
 
 var bunnyServer *server.Server
 
-func HelloHandler(req *rabbit.RabbitRequest) ([]byte, error) {
+func HelloHandler(req transport.Request) ([]byte, error) {
 	reqBody := make(map[string]interface{})
 	json.Unmarshal(req.Body(), &reqBody)
 	return json.Marshal(map[string]interface{}{
@@ -31,7 +30,7 @@ func testBunny() {
 
 func main() {
 	bunnyServer = bunny.NewRabbitServer("helloworld")
-	bunnyServer.RegisterEndpoint(&endpoint.JsonEndpoint{
+	bunnyServer.RegisterEndpoint(&server.DefaultEndpoint{
 		EndpointName: "sayhello",
 		Handler:      HelloHandler,
 	})
