@@ -1,40 +1,25 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
-
-	"github.com/vinceprignano/bunny"
+	"github.com/golang/protobuf/proto"
+	"github.com/vinceprignano/bunny/dummy/foo"
 	"github.com/vinceprignano/bunny/server"
-	"github.com/vinceprignano/bunny/transport"
 )
 
 var bunnyServer *server.Server
 
-func HelloHandler(req transport.Request) ([]byte, error) {
-	reqBody := make(map[string]interface{})
-	json.Unmarshal(req.Body(), &reqBody)
-	return json.Marshal(map[string]interface{}{
-		"Value": fmt.Sprintf("Hello, %s!", reqBody["Value"].(string)),
-	})
-}
-
-func testBunny() {
-	time.Sleep(1 * time.Second)
-	body, _ := json.Marshal(map[string]interface{}{
-		"Value": "Bunny",
-	})
-	bunnyServer.Transport.Publish("helloworld.sayhello", body)
+func HelloHandler(req *server.Request) (proto.Message, error) {
+	foo := &foo.Foo{}
+	proto.Unmarshal(req.Body(), foo)
+	return foo, nil
 }
 
 func main() {
-	bunnyServer = bunny.NewRabbitServer("helloworld")
+	bunnyServer = server.NewServer("helloworld")
 	bunnyServer.RegisterEndpoint(&server.DefaultEndpoint{
 		EndpointName: "sayhello",
 		Handler:      HelloHandler,
 	})
 	bunnyServer.Init()
-	go testBunny()
 	bunnyServer.Run()
 }
