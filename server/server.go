@@ -18,7 +18,7 @@ type Server struct {
 	connection *rabbit.RabbitConnection
 }
 
-func NewServer(name string) *Server {
+var NewServer = func(name string) *Server {
 	return &Server{
 		Name:       name,
 		registry:   NewRegistry(),

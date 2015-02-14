@@ -67,6 +67,11 @@ func (r *RabbitChannel) DeclareDurableQueue(queue string) error {
 	return err
 }
 
+func (r *RabbitChannel) DeclareReplyQueue(queue string) error {
+	_, err := r.channel.QueueDeclare(queue, false, true, true, false, nil)
+	return err
+}
+
 func (r *RabbitChannel) ConsumeQueue(queue string) (<-chan amqp.Delivery, error) {
 	return r.channel.Consume(queue, r.uuid, false, false, false, false, nil)
 }
