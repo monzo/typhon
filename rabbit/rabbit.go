@@ -83,8 +83,12 @@ func (r *RabbitConnection) Consume(serverName string) (<-chan amqp.Delivery, err
 	}
 	err = consumerChannel.DeclareQueue(serverName)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to declare queue")
+		log.Errorf("[Rabbit] Failed to declare queue %s", serverName)
 		log.Error(err.Error())
+	}
+	err = consumerChannel.BindQueue(serverName, Exchange)
+	if err != nil {
+		log.Errorf("[Rabbit] Failed to bind %s to %s exchange", serverName, Exchange)
 	}
 	return consumerChannel.ConsumeQueue(serverName)
 }

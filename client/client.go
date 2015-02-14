@@ -13,11 +13,17 @@ import (
 	"github.com/vinceprignano/bunny/rabbit"
 )
 
+var Exchange string
+
 type Client struct {
 	Name       string
 	dispatcher *dispatcher
 	replyTo    string
 	connection *rabbit.RabbitConnection
+}
+
+func init() {
+	Exchange = os.Getenv("RABBIT_EXCHANGE")
 }
 
 var NewClient = func(name string) *Client {
@@ -30,7 +36,7 @@ var NewClient = func(name string) *Client {
 		Name:       name,
 		dispatcher: newDispatcher(),
 		connection: rabbit.NewRabbitConnection(),
-		replyTo:    fmt.Sprintf("reply-%s-%s", name, uuidQueue.String()),
+		replyTo:    fmt.Sprintf("replyTo-%s-%s", name, uuidQueue.String()),
 	}
 }
 
@@ -59,6 +65,7 @@ func (c *Client) initConsume() {
 		os.Exit(1)
 	}
 	go func() {
+		log.Infof("[Client] Listening for deliveries on %s", c.replyTo)
 		for delivery := range deliveries {
 			go c.handleDelivery(delivery)
 		}
@@ -101,7 +108,7 @@ func (c *Client) Call(routingKey string, req proto.Message, res proto.Message) e
 		ReplyTo:       c.replyTo,
 	}
 
-	err = c.connection.Publish("hydra", routingKey, message)
+	err = c.connection.Publish(Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish to %s", routingKey)
 		return fmt.Errorf("client.call.publish.%s.error", routingKey)
@@ -114,7 +121,7 @@ func (c *Client) Call(routingKey string, req proto.Message, res proto.Message) e
 		}
 		return nil
 	case <-time.After(10 * time.Second):
-		log.Criticalf("[Client]")
+		log.Criticalf("[Client] Client timeout on delivery")
 		return fmt.Errorf("client.call.timeout.%s.error", routingKey)
 	}
 }

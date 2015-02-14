@@ -41,7 +41,7 @@ func (s *Server) RegisterEndpoint(endpoint Endpoint) {
 }
 
 func (s *Server) Run() {
-	log.Infof("[Server] Listening for deliveries")
+	log.Infof("[Server] Listening for deliveries on %s.#", s.Name)
 
 	deliveries, err := s.connection.Consume(s.Name)
 	if err != nil {

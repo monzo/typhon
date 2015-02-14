@@ -46,7 +46,7 @@ func (r *RabbitChannel) Close() error {
 	return r.channel.Close()
 }
 
-func (r *RabbitChannel) Publish(exchange string, routingKey string, message amqp.Publishing) error {
+func (r *RabbitChannel) Publish(exchange, routingKey string, message amqp.Publishing) error {
 	if r.channel == nil {
 		return errors.New("Channel is nil")
 	}
