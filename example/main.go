@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/vinceprignano/bunny/client"
-	"github.com/vinceprignano/bunny/dummy/foo"
+	"github.com/vinceprignano/bunny/example/foo"
 	"github.com/vinceprignano/bunny/server"
 )
 

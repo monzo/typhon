@@ -15,10 +15,14 @@ var (
 
 func init() {
 	RabbitURL = os.Getenv("RABBIT_URL")
+	if RabbitURL == "" {
+		RabbitURL = "amqp://localhost:5672"
+		log.Infof("Setting RABBIT_URL to default value %s", RabbitURL)
+	}
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 	if Exchange == "" {
-		log.Criticalf("RABBIT_EXCHANGE is required and cannot be empty")
-		os.Exit(1)
+		Exchange = "bunny"
+		log.Infof("Setting RABBIT_EXCHANGE to default value %s", Exchange)
 	}
 }
 
