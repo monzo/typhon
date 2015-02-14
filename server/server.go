@@ -14,16 +14,16 @@ import (
 
 type Server struct {
 	// this is the routing key prefix for all endpoints
-	ServiceName string
-	registry    *Registry
-	connection  *rabbit.RabbitConnection
+	ServiceName      string
+	endpointRegistry *EndpointRegistry
+	connection       *rabbit.RabbitConnection
 }
 
 var NewServer = func(name string) *Server {
 	return &Server{
-		ServiceName: name,
-		registry:    NewRegistry(),
-		connection:  rabbit.NewRabbitConnection(),
+		ServiceName:      name,
+		endpointRegistry: NewEndpointRegistry(),
+		connection:       rabbit.NewRabbitConnection(),
 	}
 }
 
@@ -38,7 +38,7 @@ func (s *Server) Init() {
 }
 
 func (s *Server) RegisterEndpoint(endpoint Endpoint) {
-	s.registry.RegisterEndpoint(endpoint)
+	s.endpointRegistry.RegisterEndpoint(endpoint)
 }
 
 func (s *Server) Run() {
@@ -65,7 +65,7 @@ func (s *Server) handleRequest(delivery amqp.Delivery) {
 	// ServiceName = "api.test" and routingKey = "api.test.something.do", then
 	// endpointName = "something.do"
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
-	endpoint := s.registry.GetEndpoint(endpointName)
+	endpoint := s.endpointRegistry.GetEndpoint(endpointName)
 	if endpoint == nil {
 		log.Error("[Server] Endpoint not found, cannot handle request")
 		return

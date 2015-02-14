@@ -2,24 +2,24 @@ package server
 
 import "sync"
 
-type Registry struct {
+type EndpointRegistry struct {
 	sync.Mutex
 	endpoints map[string]Endpoint
 }
 
-func NewRegistry() *Registry {
-	return &Registry{
+func NewEndpointRegistry() *EndpointRegistry {
+	return &EndpointRegistry{
 		endpoints: make(map[string]Endpoint),
 	}
 }
 
-func (r *Registry) RegisterEndpoint(endpoint Endpoint) {
+func (r *EndpointRegistry) RegisterEndpoint(endpoint Endpoint) {
 	r.Lock()
 	defer r.Unlock()
 	r.endpoints[endpoint.Name()] = endpoint
 }
 
-func (r *Registry) GetEndpoint(name string) Endpoint {
+func (r *EndpointRegistry) GetEndpoint(name string) Endpoint {
 	r.Lock()
 	defer r.Unlock()
 	return r.endpoints[name]
