@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	RabbitUrl string
+	RabbitURL string
 	Exchange  string
 )
 
 func init() {
-	RabbitUrl = os.Getenv("RABBIT_URL")
-	if RabbitUrl == "" {
-		RabbitUrl = "amqp://localhost:5672"
-		log.Infof("Setting RABBIT_URL to default value %s", RabbitUrl)
+	RabbitURL = os.Getenv("RABBIT_URL")
+	if RabbitURL == "" {
+		RabbitURL = "amqp://localhost:5672"
+		log.Infof("Setting RABBIT_URL to default value %s", RabbitURL)
 	}
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 	if Exchange == "" {
@@ -59,7 +59,7 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 
 func (r *RabbitConnection) tryToConnect() error {
 	var err error
-	r.Connection, err = amqp.Dial(RabbitUrl)
+	r.Connection, err = amqp.Dial(RabbitURL)
 	if err != nil {
 		log.Error("[Rabbit] Failed to establish connection with RabbitMQ")
 		return err
