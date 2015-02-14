@@ -13,17 +13,11 @@ import (
 	"github.com/vinceprignano/bunny/rabbit"
 )
 
-var Exchange string
-
 type Client struct {
 	Name       string
 	dispatcher *dispatcher
 	replyTo    string
 	connection *rabbit.RabbitConnection
-}
-
-func init() {
-	Exchange = os.Getenv("RABBIT_EXCHANGE")
 }
 
 var NewClient = func(name string) *Client {
@@ -108,7 +102,7 @@ func (c *Client) Call(routingKey string, req proto.Message, res proto.Message) e
 		ReplyTo:       c.replyTo,
 	}
 
-	err = c.connection.Publish(Exchange, routingKey, message)
+	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish to %s", routingKey)
 		return fmt.Errorf("client.call.publish.%s.error", routingKey)
