@@ -13,16 +13,17 @@ import (
 )
 
 type Server struct {
-	Name       string
-	registry   *Registry
-	connection *rabbit.RabbitConnection
+	// this is the routing key prefix for all endpoints
+	ServiceName string
+	registry    *Registry
+	connection  *rabbit.RabbitConnection
 }
 
 var NewServer = func(name string) *Server {
 	return &Server{
-		Name:       name,
-		registry:   NewRegistry(),
-		connection: rabbit.NewRabbitConnection(),
+		ServiceName: name,
+		registry:    NewRegistry(),
+		connection:  rabbit.NewRabbitConnection(),
 	}
 }
 
@@ -41,17 +42,17 @@ func (s *Server) RegisterEndpoint(endpoint Endpoint) {
 }
 
 func (s *Server) Run() {
-	log.Infof("[Server] Listening for deliveries on %s.#", s.Name)
+	log.Infof("[Server] Listening for deliveries on %s.#", s.ServiceName)
 
-	deliveries, err := s.connection.Consume(s.Name)
+	deliveries, err := s.connection.Consume(s.ServiceName)
 	if err != nil {
-		log.Criticalf("[Server] [%s] Failed to consume from Rabbit", s.Name)
+		log.Criticalf("[Server] [%s] Failed to consume from Rabbit", s.ServiceName)
 	}
 
 	// Range over deliveries from channel
 	// This blocks until the channel closes
 	for req := range deliveries {
-		log.Infof("[Server] [%s] Received new delivery", s.Name)
+		log.Infof("[Server] [%s] Received new delivery", s.ServiceName)
 		go s.handleRequest(req)
 	}
 
@@ -60,7 +61,10 @@ func (s *Server) Run() {
 }
 
 func (s *Server) handleRequest(delivery amqp.Delivery) {
-	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.Name), "", -1)
+	// endpointName is everything after the ServiceName. For example if
+	// ServiceName = "api.test" and routingKey = "api.test.something.do", then
+	// endpointName = "something.do"
+	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
 	endpoint := s.registry.GetEndpoint(endpointName)
 	if endpoint == nil {
 		log.Error("[Server] Endpoint not found, cannot handle request")
