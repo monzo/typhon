@@ -51,7 +51,7 @@ func (s *Server) Run() {
 	// Range over deliveries from channel
 	// This blocks until the channel closes
 	for req := range deliveries {
-		log.Info("[Server] [%s] Received new delivery", s.Name)
+		log.Infof("[Server] [%s] Received new delivery", s.Name)
 		go s.handleRequest(req)
 	}
 
