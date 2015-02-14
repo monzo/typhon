@@ -29,9 +29,9 @@ var NewServer = func(name string) *Server {
 func (s *Server) Init() {
 	select {
 	case <-s.connection.Init():
-		log.Info("[Server] Connected to transport")
+		log.Info("[Server] Connected to RabbitMQ")
 	case <-time.After(10 * time.Second):
-		log.Critical("[Server] Failed to connect to transport")
+		log.Critical("[Server] Failed to connect to RabbitMQ")
 		os.Exit(1)
 	}
 }

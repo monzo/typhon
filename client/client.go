@@ -37,9 +37,9 @@ var NewClient = func(name string) *Client {
 func (c *Client) Init() {
 	select {
 	case <-c.connection.Init():
-		log.Info("[Client] Connected to transport")
+		log.Info("[Client] Connected to RabbitMQ")
 	case <-time.After(10 * time.Second):
-		log.Critical("[Client] Failed to connect to transport")
+		log.Critical("[Client] Failed to connect to RabbitMQ")
 		os.Exit(1)
 	}
 	c.initConsume()
