@@ -13,20 +13,25 @@ import (
 	"github.com/vinceprignano/bunny/rabbit"
 )
 
-type Client struct {
+type Client interface {
+	Init()
+	Call(routingKey string, req proto.Message, res proto.Message) error
+}
+
+type RabbitClient struct {
 	Name       string
 	dispatcher *dispatcher
 	replyTo    string
 	connection *rabbit.RabbitConnection
 }
 
-var NewClient = func(name string) *Client {
+func NewRabbitClient(name string) Client {
 	uuidQueue, err := uuid.NewV4()
 	if err != nil {
 		log.Criticalf("[Client] Failed to create UUID for reply queue")
 		os.Exit(1)
 	}
-	return &Client{
+	return &RabbitClient{
 		Name:       name,
 		dispatcher: newDispatcher(),
 		connection: rabbit.NewRabbitConnection(),
@@ -34,7 +39,7 @@ var NewClient = func(name string) *Client {
 	}
 }
 
-func (c *Client) Init() {
+func (c *RabbitClient) Init() {
 	select {
 	case <-c.connection.Init():
 		log.Info("[Client] Connected to RabbitMQ")
@@ -45,7 +50,7 @@ func (c *Client) Init() {
 	c.initConsume()
 }
 
-func (c *Client) initConsume() {
+func (c *RabbitClient) initConsume() {
 	err := c.connection.Channel.DeclareReplyQueue(c.replyTo)
 	if err != nil {
 		log.Critical("[Client] Failed to declare reply queue")
@@ -66,7 +71,7 @@ func (c *Client) initConsume() {
 	}()
 }
 
-func (c *Client) handleDelivery(delivery amqp.Delivery) {
+func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	channel := c.dispatcher.pop(delivery.CorrelationId)
 	if channel == nil {
 		log.Errorf("[Client] CorrelationID -> %s does not exist in dispatcher", delivery.CorrelationId)
@@ -79,7 +84,7 @@ func (c *Client) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *Client) Call(routingKey string, req proto.Message, res proto.Message) error {
+func (c *RabbitClient) Call(routingKey string, req proto.Message, res proto.Message) error {
 	correlation, err := uuid.NewV4()
 	if err != nil {
 		log.Error("[Client] Failed to create correlationId in client")

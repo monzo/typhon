@@ -8,15 +8,15 @@ import (
 
 type BunnyTestServer struct {
 	mock.Mock
-	server.Server
-	registry *server.Registry
+	ServiceName      string
+	endpointRegistry *server.EndpointRegistry
 }
 
 func NewBunnyTestServer(name string) *BunnyTestServer {
 	srv := &BunnyTestServer{
-		registry: server.NewRegistry(),
+		endpointRegistry: server.NewEndpointRegistry(),
 	}
-	srv.Name = name
+	srv.ServiceName = name
 	return srv
 }
 
@@ -25,7 +25,7 @@ func (b *BunnyTestServer) Init() {
 }
 
 func (b *BunnyTestServer) RegisterEndpoint(endpoint server.Endpoint) {
-	b.registry.RegisterEndpoint(endpoint)
+	b.endpointRegistry.RegisterEndpoint(endpoint)
 	b.Called(endpoint)
 }
 
