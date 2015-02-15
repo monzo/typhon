@@ -3,7 +3,8 @@ package test
 import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vinceprignano/bunny"
+	"github.com/vinceprignano/bunny/client"
+	"github.com/vinceprignano/bunny/server"
 )
 
 type BunnyTest struct {
@@ -20,10 +21,11 @@ func (b *BunnyTest) SetupSuite() {
 	b.server.On("RegisterEndpoint", mock.Anything).Return(nil)
 	b.client.On("Init").Return(nil)
 
-	bunny.NewService = func(name string) *bunny.Service {
-		return &bunny.Service{
-			Server: b.server,
-			Client: b.client,
-		}
+	server.NewRabbitServer = func(name string) Server {
+		return NewBunnyTestServer(name)
+	}
+
+	client.NewRabbitClient = func(name string) Client {
+		return NewBunnyTestClient(name)
 	}
 }

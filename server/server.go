@@ -25,7 +25,7 @@ type RabbitServer struct {
 	connection       *rabbit.RabbitConnection
 }
 
-func NewRabbitServer(name string) Server {
+var NewRabbitServer = func(name string) Server {
 	return &RabbitServer{
 		ServiceName:      name,
 		endpointRegistry: NewEndpointRegistry(),

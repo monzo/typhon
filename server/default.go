@@ -1,20 +1,13 @@
 package server
 
-import (
-	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny/rabbit"
-)
+import "github.com/golang/protobuf/proto"
 
-var defaultServer *RabbitServer
+var defaultServer Server
 
 type defaultHandler func(req *Request) (proto.Message, error)
 
 var InitDefault = func(name string) {
-	defaultServer = &RabbitServer{
-		ServiceName:      name,
-		endpointRegistry: NewEndpointRegistry(),
-		connection:       rabbit.NewRabbitConnection(),
-	}
+	defaultServer = NewRabbitServer(name)
 	defaultServer.Init()
 }
 

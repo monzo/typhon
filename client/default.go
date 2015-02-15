@@ -1,23 +1,11 @@
 package client
 
-import (
-	"fmt"
+import "github.com/golang/protobuf/proto"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/nu7hatch/gouuid"
-	"github.com/vinceprignano/bunny/rabbit"
-)
-
-var defaultClient *RabbitClient
+var defaultClient Client
 
 var InitDefault = func(name string) {
-	uuidQueue, _ := uuid.NewV4()
-	defaultClient = &RabbitClient{
-		Name:       name,
-		dispatcher: newDispatcher(),
-		connection: rabbit.NewRabbitConnection(),
-		replyTo:    fmt.Sprintf("replyTo-%s-%s", name, uuidQueue.String()),
-	}
+	defaultClient = NewRabbitClient(name)
 	defaultClient.Init()
 }
 

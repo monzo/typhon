@@ -25,7 +25,7 @@ type RabbitClient struct {
 	connection *rabbit.RabbitConnection
 }
 
-func NewRabbitClient(name string) Client {
+var NewRabbitClient = func(name string) Client {
 	uuidQueue, err := uuid.NewV4()
 	if err != nil {
 		log.Criticalf("[Client] Failed to create UUID for reply queue")
