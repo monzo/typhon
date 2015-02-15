@@ -2,13 +2,13 @@ package client
 
 import "github.com/golang/protobuf/proto"
 
-var defaultClient Client
+var DefaultClient Client
 
 var InitDefault = func(name string) {
-	defaultClient = NewRabbitClient(name)
-	defaultClient.Init()
+	DefaultClient = NewRabbitClient(name)
+	DefaultClient.Init()
 }
 
 func Request(routingKey string, req proto.Message, res proto.Message) error {
-	return defaultClient.Call(routingKey, req, res)
+	return DefaultClient.Call(routingKey, req, res)
 }
