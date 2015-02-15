@@ -6,12 +6,10 @@ import (
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny"
+	"github.com/vinceprignano/bunny/client"
 	"github.com/vinceprignano/bunny/example/foo"
 	"github.com/vinceprignano/bunny/server"
 )
-
-var service *bunny.Service
 
 func HelloHandler(req *server.Request) (proto.Message, error) {
 	foo := &foo.Foo{}
@@ -24,16 +22,14 @@ func testHandler() {
 	time.Sleep(1 * time.Second)
 	req := &foo.Foo{Value: proto.String("Bunny")}
 	res := &foo.Foo{}
-	service.Client.Call("helloworld.sayhello", req, res)
+	client.Request("helloworld.sayhello", req, res)
 	log.Infof("[testHandler] received %s", res)
 }
 
 func main() {
-	service = bunny.NewService("helloworld")
-	service.Server.RegisterEndpoint(&server.DefaultEndpoint{
-		EndpointName: "sayhello",
-		Handler:      HelloHandler,
-	})
+	client.InitDefault("helloworld")
+	server.InitDefault("helloworld")
+	server.RegisterDefaultEndpoint("sayhello", HelloHandler)
 	go testHandler()
-	service.Server.Run()
+	server.Run()
 }
