@@ -21,11 +21,11 @@ func (b *BunnyTest) SetupSuite() {
 	b.server.On("RegisterEndpoint", mock.Anything).Return(nil)
 	b.client.On("Init").Return(nil)
 
-	server.NewRabbitServer = func(name string) Server {
+	server.NewRabbitServer = func(name string) server.Server {
 		return NewBunnyTestServer(name)
 	}
 
-	client.NewRabbitClient = func(name string) Client {
+	client.NewRabbitClient = func(name string) client.Client {
 		return NewBunnyTestClient(name)
 	}
 }
