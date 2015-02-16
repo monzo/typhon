@@ -12,22 +12,28 @@ import (
 	"github.com/vinceprignano/bunny/rabbit"
 )
 
-type Server struct {
+type Server interface {
+	Init()
+	Run()
+	RegisterEndpoint(endpoint Endpoint)
+}
+
+type RabbitServer struct {
 	// this is the routing key prefix for all endpoints
 	ServiceName      string
 	endpointRegistry *EndpointRegistry
 	connection       *rabbit.RabbitConnection
 }
 
-var NewServer = func(name string) *Server {
-	return &Server{
+var NewRabbitServer = func(name string) Server {
+	return &RabbitServer{
 		ServiceName:      name,
 		endpointRegistry: NewEndpointRegistry(),
 		connection:       rabbit.NewRabbitConnection(),
 	}
 }
 
-func (s *Server) Init() {
+func (s *RabbitServer) Init() {
 	select {
 	case <-s.connection.Init():
 		log.Info("[Server] Connected to RabbitMQ")
@@ -37,11 +43,11 @@ func (s *Server) Init() {
 	}
 }
 
-func (s *Server) RegisterEndpoint(endpoint Endpoint) {
+func (s *RabbitServer) RegisterEndpoint(endpoint Endpoint) {
 	s.endpointRegistry.RegisterEndpoint(endpoint)
 }
 
-func (s *Server) Run() {
+func (s *RabbitServer) Run() {
 	log.Infof("[Server] Listening for deliveries on %s.#", s.ServiceName)
 
 	deliveries, err := s.connection.Consume(s.ServiceName)
@@ -60,7 +66,7 @@ func (s *Server) Run() {
 	log.Flush()
 }
 
-func (s *Server) handleRequest(delivery amqp.Delivery) {
+func (s *RabbitServer) handleRequest(delivery amqp.Delivery) {
 	// endpointName is everything after the ServiceName. For example if
 	// ServiceName = "api.test" and routingKey = "api.test.something.do", then
 	// endpointName = "something.do"
