@@ -25,8 +25,13 @@ func (b *BunnyTestServer) Init() {
 }
 
 func (b *BunnyTestServer) RegisterEndpoint(endpoint server.Endpoint) {
-	b.endpointRegistry.RegisterEndpoint(endpoint)
+	b.endpointRegistry.Register(endpoint)
 	b.Called(endpoint)
+}
+
+func (b *BunnyTestServer) DeregisterEndpoint(endpointName string) {
+	b.endpointRegistry.Deregister(endpointName)
+	b.Called(endpointName)
 }
 
 func (b *BunnyTestServer) Run() {

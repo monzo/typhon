@@ -5,4 +5,5 @@ type Server interface {
 	Run()
 
 	RegisterEndpoint(endpoint Endpoint)
+	DeregisterEndpoint(pattern string)
 }
