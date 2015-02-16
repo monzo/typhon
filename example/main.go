@@ -7,8 +7,9 @@ import (
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 	"github.com/vinceprignano/bunny/client"
-	"github.com/vinceprignano/bunny/example/foo"
 	"github.com/vinceprignano/bunny/server"
+
+	"github.com/vinceprignano/bunny/example/foo"
 )
 
 func HelloHandler(req server.Request) (proto.Message, error) {
