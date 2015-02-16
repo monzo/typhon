@@ -71,7 +71,7 @@ func (s *RabbitServer) handleRequest(delivery amqp.Delivery) {
 		log.Error("[Server] Endpoint not found, cannot handle request")
 		return
 	}
-	req := NewRequest(&delivery)
+	req := NewAMQPRequest(&delivery)
 	rsp, err := endpoint.HandleRequest(req)
 	if err != nil {
 		log.Errorf("[Server] Endpoint %s returned an error", endpointName)

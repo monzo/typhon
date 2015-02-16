@@ -11,7 +11,7 @@ import (
 	"github.com/vinceprignano/bunny/server"
 )
 
-func HelloHandler(req *server.Request) (proto.Message, error) {
+func HelloHandler(req server.Request) (proto.Message, error) {
 	foo := &foo.Foo{}
 	proto.Unmarshal(req.Body(), foo)
 	foo.Value = proto.String(fmt.Sprintf("Hello, %s!", *foo.Value))

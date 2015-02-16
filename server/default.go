@@ -4,7 +4,7 @@ import "github.com/golang/protobuf/proto"
 
 var DefaultServer Server
 
-type defaultHandler func(req *Request) (proto.Message, error)
+type defaultHandler func(req Request) (proto.Message, error)
 
 var InitDefault = func(name string) {
 	DefaultServer = NewRabbitServer(name)
