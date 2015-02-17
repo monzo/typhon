@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -10,27 +9,31 @@ import (
 	"github.com/vinceprignano/bunny/server"
 
 	"github.com/vinceprignano/bunny/example/foo"
+	"github.com/vinceprignano/bunny/example/handler"
 )
 
-func HelloHandler(req server.Request) (proto.Message, error) {
-	foo := &foo.Foo{}
-	proto.Unmarshal(req.Body(), foo)
-	foo.Value = proto.String(fmt.Sprintf("Hello, %s!", *foo.Value))
-	return foo, nil
+// main is the definition of our server
+func main() {
+
+	// Initialise our Server
+	server.DefaultServer = server.NewRabbitServer("helloworld")
+
+	// Register and endpoint
+	server.RegisterEndpoint("sayhello", handler.HelloHandler)
+
+	// Fire off a request to be sent back to us in 1 second
+	go testHandler()
+
+	// Start our server and serve requests
+	server.Run()
 }
 
+// testHandler sends a request to our example server
 func testHandler() {
+	client.InitDefault("helloworld")
 	time.Sleep(1 * time.Second)
 	req := &foo.Foo{Value: proto.String("Bunny")}
 	res := &foo.Foo{}
 	client.Request("helloworld.sayhello", req, res)
 	log.Infof("[testHandler] received %s", res)
-}
-
-func main() {
-	client.InitDefault("helloworld")
-	server.InitDefault("helloworld")
-	server.RegisterDefaultEndpoint("sayhello", HelloHandler)
-	go testHandler()
-	server.Run()
 }
