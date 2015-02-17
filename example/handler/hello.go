@@ -4,13 +4,26 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny/example/foo"
+	"github.com/vinceprignano/bunny/example/proto/hello"
 	"github.com/vinceprignano/bunny/server"
 )
 
 func HelloHandler(req server.Request) (proto.Message, error) {
-	foo := &foo.Foo{}
-	proto.Unmarshal(req.Body(), foo)
-	foo.Value = proto.String(fmt.Sprintf("Hello, %s!", *foo.Value))
-	return foo, nil
+
+	f := &hello.Request{}
+	if err := proto.Unmarshal(req.Body(), f); err != nil {
+		return nil, fmt.Errorf("Count not unmarshal request")
+	}
+
+	// Get a value from our unmarshalled protobuf
+	name := f.GetName()
+
+	// Do something here
+
+	// Build response
+	rsp := &hello.Response{
+		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
+	}
+
+	return rsp, nil
 }

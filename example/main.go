@@ -8,8 +8,8 @@ import (
 	"github.com/vinceprignano/bunny/client"
 	"github.com/vinceprignano/bunny/server"
 
-	"github.com/vinceprignano/bunny/example/foo"
 	"github.com/vinceprignano/bunny/example/handler"
+	"github.com/vinceprignano/bunny/example/proto/hello"
 )
 
 // main is the definition of our server
@@ -32,8 +32,8 @@ func main() {
 func testHandler() {
 	client.InitDefault("helloworld")
 	time.Sleep(1 * time.Second)
-	req := &foo.Foo{Value: proto.String("Bunny")}
-	res := &foo.Foo{}
+	req := &hello.Request{Name: proto.String("Bunny")}
+	res := &hello.Response{}
 	client.Request("helloworld.sayhello", req, res)
 	log.Infof("[testHandler] received %s", res)
 }
