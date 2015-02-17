@@ -25,5 +25,5 @@ func HelloHandler(req server.Request) (proto.Message, error) {
 		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
 	}
 
-	return rsp, nil
+	return resp, nil
 }
