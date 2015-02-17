@@ -32,8 +32,16 @@ func main() {
 func testHandler() {
 	client.InitDefault("helloworld")
 	time.Sleep(1 * time.Second)
+
+	// Build and dispatch request
 	req := &hello.Request{Name: proto.String("Bunny")}
 	resp := &hello.Response{}
-	client.Request("helloworld.sayhello", req, resp)
+	client.Request(
+		"helloworld.sayhello",
+		req,
+		resp,
+	)
+
+	// Log the response we receive
 	log.Infof("[testHandler] received %s", resp)
 }
