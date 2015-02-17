@@ -10,7 +10,7 @@ The endpoint _handler_ is located in the `handler` package
     └── handler
         └── hello.go
 
-Protocol Buffers are used for message formats, and are located in the `proto` directory, with a folder per endpoint:
+Protocol Buffers are used for message formats, and are located in the `proto` directory, with a folder per endpoint. The `hello.proto` file has a `Request` type and a `Response` type, which are the input and output message envelopes of the endpoint.
 
     .
     └── proto
@@ -18,4 +18,3 @@ Protocol Buffers are used for message formats, and are located in the `proto` di
             ├── hello.pb.go
             └── hello.proto
 
-The `hello.proto` file has a `Request` type and a `Response` type, which are the input and output message envelopes of the endpoint.
