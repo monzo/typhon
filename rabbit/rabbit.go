@@ -21,7 +21,7 @@ func init() {
 	}
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 	if Exchange == "" {
-		Exchange = "amq.topic"
+		Exchange = "typhon"
 		log.Infof("Setting RABBIT_EXCHANGE to default value %s", Exchange)
 	}
 }
