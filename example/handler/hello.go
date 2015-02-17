@@ -21,7 +21,7 @@ func HelloHandler(req server.Request) (proto.Message, error) {
 	// Do something here
 
 	// Build response
-	rsp := &hello.Response{
+	resp := &hello.Response{
 		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
 	}
 

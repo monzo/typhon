@@ -33,7 +33,7 @@ func testHandler() {
 	client.InitDefault("helloworld")
 	time.Sleep(1 * time.Second)
 	req := &hello.Request{Name: proto.String("Bunny")}
-	res := &hello.Response{}
-	client.Request("helloworld.sayhello", req, res)
-	log.Infof("[testHandler] received %s", res)
+	resp := &hello.Response{}
+	client.Request("helloworld.sayhello", req, resp)
+	log.Infof("[testHandler] received %s", resp)
 }
