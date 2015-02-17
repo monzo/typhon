@@ -1,7 +1,5 @@
 package server
 
-import "github.com/golang/protobuf/proto"
-
 type Server interface {
 	Init()
 	Run()
@@ -12,15 +10,12 @@ type Server interface {
 
 var DefaultServer Server
 
-type defaultHandler func(req Request) (proto.Message, error)
-
-func RegisterEndpoint(name string, handler defaultHandler) {
-	DefaultServer.RegisterEndpoint(&DefaultEndpoint{
-		EndpointName: name,
-		Handler:      handler,
-	})
+// RegisterEndpoint with the DefaultServer
+func RegisterEndpoint(endpoint Endpoint) {
+	DefaultServer.RegisterEndpoint(endpoint)
 }
 
+// Run the DefaultServer
 func Run() {
 	DefaultServer.Run()
 }

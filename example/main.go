@@ -18,8 +18,11 @@ func main() {
 	// Initialise our Server
 	server.DefaultServer = server.NewRabbitServer("helloworld")
 
-	// Register and endpoint
-	server.RegisterEndpoint("sayhello", handler.HelloHandler)
+	// Register an example endpoint
+	server.RegisterEndpoint(&server.DefaultEndpoint{
+		EndpointName: "sayhello",           // Routing Key
+		Handler:      handler.HelloHandler, // HandlerFunc
+	})
 
 	// Fire off a request to be sent back to us in 1 second
 	go testHandler()
