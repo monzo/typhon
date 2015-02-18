@@ -16,7 +16,10 @@ import (
 func main() {
 
 	// Initialise our Server
-	server.DefaultServer = server.NewRabbitServer("helloworld")
+	server.Initialise(&server.Config{
+		Name:        "helloworld",
+		Description: "Demo service which replies to a name with a greeting",
+	})
 
 	// Register an example endpoint
 	server.RegisterEndpoint(&server.DefaultEndpoint{

@@ -15,27 +15,36 @@ import (
 
 type RabbitServer struct {
 	// this is the routing key prefix for all endpoints
-	ServiceName      string
-	endpointRegistry *EndpointRegistry
-	connection       *rabbit.RabbitConnection
+	ServiceName        string
+	ServiceDescription string
+	endpointRegistry   *EndpointRegistry
+	connection         *rabbit.RabbitConnection
 }
 
-var NewRabbitServer = func(name string) Server {
+func NewRabbitServer() Server {
 	return &RabbitServer{
-		ServiceName:      name,
 		endpointRegistry: NewEndpointRegistry(),
 		connection:       rabbit.NewRabbitConnection(),
 	}
 }
 
-func (s *RabbitServer) Init() {
-	select {
-	case <-s.connection.Init():
-		log.Info("[Server] Connected to RabbitMQ")
-	case <-time.After(10 * time.Second):
-		log.Critical("[Server] Failed to connect to RabbitMQ")
-		os.Exit(1)
+func (s *RabbitServer) Name() string {
+	if s == nil {
+		return ""
 	}
+	return s.ServiceName
+}
+
+func (s *RabbitServer) Description() string {
+	if s == nil {
+		return ""
+	}
+	return s.ServiceDescription
+}
+
+func (s *RabbitServer) Initialise(c *Config) {
+	s.ServiceName = c.Name
+	s.ServiceDescription = c.Description
 }
 
 func (s *RabbitServer) RegisterEndpoint(endpoint Endpoint) {
@@ -46,14 +55,26 @@ func (s *RabbitServer) DeregisterEndpoint(endpointName string) {
 	s.endpointRegistry.Deregister(endpointName)
 }
 
+// Run the server, connecting to our transport and serving requests
 func (s *RabbitServer) Run() {
-	log.Infof("[Server] Listening for deliveries on %s.#", s.ServiceName)
 
+	// Connect to AMQP
+	select {
+	case <-s.connection.Init():
+		log.Info("[Server] Connected to RabbitMQ")
+	case <-time.After(10 * time.Second):
+		log.Critical("[Server] Failed to connect to RabbitMQ")
+		os.Exit(1)
+	}
+
+	// Get a delivery channel from the connection
+	log.Infof("[Server] Listening for deliveries on %s.#", s.ServiceName)
 	deliveries, err := s.connection.Consume(s.ServiceName)
 	if err != nil {
 		log.Criticalf("[Server] [%s] Failed to consume from Rabbit", s.ServiceName)
 	}
 
+	// Handle deliveries
 	for req := range deliveries {
 		log.Infof("[Server] [%s] Received new delivery", s.ServiceName)
 		go s.handleRequest(req)
