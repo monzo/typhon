@@ -14,16 +14,14 @@ type BunnyTest struct {
 }
 
 func (b *BunnyTest) SetupSuite() {
-	b.server = NewBunnyTestServer("bunnytest")
+	b.server = NewBunnyTestServer("bunnytest", "a test")
 	b.client = NewBunnyTestClient("bunnytest")
-	b.server.On("Init").Return(nil)
+	b.server.On("Initialise").Return(nil)
 	b.server.On("Run").Return(nil)
 	b.server.On("RegisterEndpoint", mock.Anything).Return(nil)
-	b.client.On("Init").Return(nil)
+	b.client.On("Initialise").Return(nil)
 
-	server.NewRabbitServer = func(name string) server.Server {
-		return NewBunnyTestServer(name)
-	}
+	server.DefaultServer = b.server
 
 	client.NewRabbitClient = func(name string) client.Client {
 		return NewBunnyTestClient(name)
