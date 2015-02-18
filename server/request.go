@@ -1,33 +1,46 @@
 package server
 
-import "github.com/streadway/amqp"
+import (
+	"github.com/streadway/amqp"
+	"golang.org/x/net/context"
+)
 
-type Request struct {
+type Request interface {
+	context.Context
+
+	Body() []byte
+}
+
+type AMQPRequest struct {
+	context.Context
+
 	delivery *amqp.Delivery
 }
 
-func NewRequest(delivery *amqp.Delivery) *Request {
-	return &Request{
+func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
+	return &AMQPRequest{
 		delivery: delivery,
 	}
 }
 
-func (r *Request) Body() []byte {
+// RabbitMQ / AMQP fields
+
+func (r *AMQPRequest) Body() []byte {
 	return r.delivery.Body
 }
 
-func (r *Request) CorrelationID() string {
+func (r *AMQPRequest) CorrelationID() string {
 	return r.delivery.CorrelationId
 }
 
-func (r *Request) ReplyTo() string {
+func (r *AMQPRequest) ReplyTo() string {
 	return r.delivery.ReplyTo
 }
 
-func (r *Request) RoutingKey() string {
+func (r *AMQPRequest) RoutingKey() string {
 	return r.delivery.RoutingKey
 }
 
-func (r *Request) Interface() interface{} {
+func (r *AMQPRequest) Interface() interface{} {
 	return r.delivery
 }

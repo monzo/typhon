@@ -8,25 +8,43 @@ import (
 
 type BunnyTestServer struct {
 	mock.Mock
-	ServiceName      string
-	endpointRegistry *server.EndpointRegistry
+	ServiceName        string
+	ServiceDescription string
+	endpointRegistry   *server.EndpointRegistry
 }
 
-func NewBunnyTestServer(name string) *BunnyTestServer {
+func NewBunnyTestServer(name string, description string) *BunnyTestServer {
 	srv := &BunnyTestServer{
-		endpointRegistry: server.NewEndpointRegistry(),
+		ServiceName:        name,
+		ServiceDescription: description,
+		endpointRegistry:   server.NewEndpointRegistry(),
 	}
 	srv.ServiceName = name
 	return srv
 }
 
-func (b *BunnyTestServer) Init() {
+func (b *BunnyTestServer) Initialise(s *server.Config) {
 	b.Called()
 }
 
+func (b *BunnyTestServer) Name() string {
+	b.Called()
+	return b.ServiceName
+}
+
+func (b *BunnyTestServer) Description() string {
+	b.Called()
+	return b.ServiceDescription
+}
+
 func (b *BunnyTestServer) RegisterEndpoint(endpoint server.Endpoint) {
-	b.endpointRegistry.RegisterEndpoint(endpoint)
+	b.endpointRegistry.Register(endpoint)
 	b.Called(endpoint)
+}
+
+func (b *BunnyTestServer) DeregisterEndpoint(endpointName string) {
+	b.endpointRegistry.Deregister(endpointName)
+	b.Called(endpointName)
 }
 
 func (b *BunnyTestServer) Run() {

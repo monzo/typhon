@@ -13,14 +13,20 @@ func NewEndpointRegistry() *EndpointRegistry {
 	}
 }
 
-func (r *EndpointRegistry) RegisterEndpoint(endpoint Endpoint) {
+func (r *EndpointRegistry) Get(pattern string) Endpoint {
+	r.Lock()
+	defer r.Unlock()
+	return r.endpoints[pattern]
+}
+
+func (r *EndpointRegistry) Register(endpoint Endpoint) {
 	r.Lock()
 	defer r.Unlock()
 	r.endpoints[endpoint.Name()] = endpoint
 }
 
-func (r *EndpointRegistry) GetEndpoint(name string) Endpoint {
+func (r *EndpointRegistry) Deregister(pattern string) {
 	r.Lock()
 	defer r.Unlock()
-	return r.endpoints[name]
+	delete(r.endpoints, pattern)
 }
