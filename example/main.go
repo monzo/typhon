@@ -23,8 +23,8 @@ func main() {
 
 	// Register an example endpoint
 	server.RegisterEndpoint(&server.DefaultEndpoint{
-		EndpointName: "sayhello",           // Routing Key
-		Handler:      handler.HelloHandler, // HandlerFunc
+		EndpointName: "sayhello",    // Routing Key
+		Handler:      handler.Hello, // HandlerFunc
 	})
 
 	// Fire off a request to be sent back to us in 1 second

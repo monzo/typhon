@@ -8,8 +8,10 @@ import (
 	"github.com/vinceprignano/bunny/server"
 )
 
-func HelloHandler(req server.Request) (proto.Message, error) {
+// Hello is a handler that responds to a hello request with a greeting
+func Hello(req server.Request) (proto.Message, error) {
 
+	// Unmarshal our request
 	f := &hello.Request{}
 	if err := proto.Unmarshal(req.Body(), f); err != nil {
 		return nil, fmt.Errorf("Count not unmarshal request")
