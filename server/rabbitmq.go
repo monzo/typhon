@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -107,5 +108,19 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		Timestamp:     time.Now().UTC(),
 		Body:          body,
 	}
+	s.connection.Publish("", delivery.ReplyTo, msg)
+}
+
+// respondWithError to a delivery, with the provided error
+func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
+
+	// Construct a return message with an error
+	msg := amqp.Publishing{
+		CorrelationId: delivery.CorrelationId,
+		Timestamp:     time.Now().UTC(),
+		Body:          []byte(err.Error()),
+	}
+
+	// Publish the error back to the client
 	s.connection.Publish("", delivery.ReplyTo, msg)
 }
