@@ -1,5 +1,7 @@
 package server
 
+// Server is an interface that all servers must implement
+// so that we can register endpoints, and serve requests
 type Server interface {
 	Initialise(*Config)
 	Run()
