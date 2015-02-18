@@ -11,7 +11,8 @@ type Server interface {
 	DeregisterEndpoint(pattern string)
 }
 
-var DefaultServer Server = NewRabbitServer()
+// DefaultServer stores a default implementation, for simple usage
+var DefaultServer Server = NewAMQPServer()
 
 // Initialise our DefaultServer with a Config
 func Initialise(c *Config) {

@@ -13,7 +13,7 @@ import (
 	"github.com/vinceprignano/bunny/rabbit"
 )
 
-type RabbitServer struct {
+type AMQPServer struct {
 	// this is the routing key prefix for all endpoints
 	ServiceName        string
 	ServiceDescription string
@@ -21,42 +21,42 @@ type RabbitServer struct {
 	connection         *rabbit.RabbitConnection
 }
 
-func NewRabbitServer() Server {
-	return &RabbitServer{
+func NewAMQPServer() Server {
+	return &AMQPServer{
 		endpointRegistry: NewEndpointRegistry(),
 		connection:       rabbit.NewRabbitConnection(),
 	}
 }
 
-func (s *RabbitServer) Name() string {
+func (s *AMQPServer) Name() string {
 	if s == nil {
 		return ""
 	}
 	return s.ServiceName
 }
 
-func (s *RabbitServer) Description() string {
+func (s *AMQPServer) Description() string {
 	if s == nil {
 		return ""
 	}
 	return s.ServiceDescription
 }
 
-func (s *RabbitServer) Initialise(c *Config) {
+func (s *AMQPServer) Initialise(c *Config) {
 	s.ServiceName = c.Name
 	s.ServiceDescription = c.Description
 }
 
-func (s *RabbitServer) RegisterEndpoint(endpoint Endpoint) {
+func (s *AMQPServer) RegisterEndpoint(endpoint Endpoint) {
 	s.endpointRegistry.Register(endpoint)
 }
 
-func (s *RabbitServer) DeregisterEndpoint(endpointName string) {
+func (s *AMQPServer) DeregisterEndpoint(endpointName string) {
 	s.endpointRegistry.Deregister(endpointName)
 }
 
 // Run the server, connecting to our transport and serving requests
-func (s *RabbitServer) Run() {
+func (s *AMQPServer) Run() {
 
 	// Connect to AMQP
 	select {
@@ -84,7 +84,7 @@ func (s *RabbitServer) Run() {
 	log.Flush()
 }
 
-func (s *RabbitServer) handleRequest(delivery amqp.Delivery) {
+func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
 	endpoint := s.endpointRegistry.Get(endpointName)
