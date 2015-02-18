@@ -91,6 +91,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	endpoint := s.endpointRegistry.Get(endpointName)
 	if endpoint == nil {
 		log.Error("[Server] Endpoint not found, cannot handle request")
+		s.respondWithError(delivery, errors.New("Endpoint not found"))
 		return
 	}
 	req := NewAMQPRequest(&delivery)
