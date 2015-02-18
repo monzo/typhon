@@ -85,8 +85,10 @@ func (s *AMQPServer) Run() {
 	log.Flush()
 }
 
+// handleRequest takes a delivery from AMQP, attempts to process it and return a response
 func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 
+	// See if we have a matching endpoint for this request
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
 	endpoint := s.endpointRegistry.Get(endpointName)
 	if endpoint == nil {
@@ -94,16 +96,22 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		s.respondWithError(delivery, errors.New("Endpoint not found"))
 		return
 	}
+
+	// Handle the delivery
 	req := NewAMQPRequest(&delivery)
 	rsp, err := endpoint.HandleRequest(req)
 	if err != nil {
 		log.Errorf("[Server] Endpoint %s returned an error", endpointName)
 		log.Error(err.Error())
 	}
+
+	// Marshal the response
 	body, err := proto.Marshal(rsp)
 	if err != nil {
 		log.Errorf("[Server] Failed to marshal response")
 	}
+
+	// Build return delivery, and publish
 	msg := amqp.Publishing{
 		CorrelationId: delivery.CorrelationId,
 		Timestamp:     time.Now().UTC(),
