@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny/example/proto/hello"
-	"github.com/vinceprignano/bunny/server"
+
+	"github.com/b2aio/typhon/example/proto/hello"
+	"github.com/b2aio/typhon/server"
 )
 
 // Hello is a handler that responds to a hello request with a greeting

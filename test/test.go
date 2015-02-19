@@ -1,10 +1,10 @@
 package test
 
 import (
+	"github.com/b2aio/typhon/client"
+	"github.com/b2aio/typhon/server"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vinceprignano/bunny/client"
-	"github.com/vinceprignano/bunny/server"
 )
 
 type BunnyTest struct {

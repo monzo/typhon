@@ -11,7 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 
-	"github.com/vinceprignano/bunny/rabbit"
+	"github.com/b2aio/typhon/rabbit"
 )
 
 type AMQPServer struct {

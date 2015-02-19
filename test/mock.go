@@ -1,9 +1,9 @@
 package test
 
 import (
+	"github.com/b2aio/typhon/server"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/mock"
-	"github.com/vinceprignano/bunny/server"
 )
 
 type BunnyTestServer struct {

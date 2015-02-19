@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/b2aio/typhon/rabbit"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 	"github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
-	"github.com/vinceprignano/bunny/rabbit"
 )
 
 type Client interface {

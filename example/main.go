@@ -3,13 +3,13 @@ package main
 import (
 	"time"
 
+	"github.com/b2aio/typhon/client"
+	"github.com/b2aio/typhon/server"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny/client"
-	"github.com/vinceprignano/bunny/server"
 
-	"github.com/vinceprignano/bunny/example/handler"
-	"github.com/vinceprignano/bunny/example/proto/hello"
+	"github.com/b2aio/typhon/example/handler"
+	"github.com/b2aio/typhon/example/proto/hello"
 )
 
 // main is the definition of our server
