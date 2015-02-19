@@ -15,8 +15,8 @@ import (
 // main is the definition of our server
 func main() {
 
-	// Initialise our Server
-	server.Initialise(&server.Config{
+	// Initialize our Server
+	server.Init(&server.Config{
 		Name:        "helloworld",
 		Description: "Demo service which replies to a name with a greeting",
 	})

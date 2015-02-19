@@ -43,7 +43,7 @@ func (s *AMQPServer) Description() string {
 	return s.ServiceDescription
 }
 
-func (s *AMQPServer) Initialise(c *Config) {
+func (s *AMQPServer) Init(c *Config) {
 	s.ServiceName = c.Name
 	s.ServiceDescription = c.Description
 }

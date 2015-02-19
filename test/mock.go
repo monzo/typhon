@@ -23,7 +23,7 @@ func NewBunnyTestServer(name string, description string) *BunnyTestServer {
 	return srv
 }
 
-func (b *BunnyTestServer) Initialise(s *server.Config) {
+func (b *BunnyTestServer) Init(s *server.Config) {
 	b.Called()
 }
 

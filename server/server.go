@@ -3,7 +3,7 @@ package server
 // Server is an interface that all servers must implement
 // so that we can register endpoints, and serve requests
 type Server interface {
-	Initialise(*Config)
+	Init(*Config)
 	Run()
 
 	Name() string
@@ -16,9 +16,9 @@ type Server interface {
 // DefaultServer stores a default implementation, for simple usage
 var DefaultServer Server = NewAMQPServer()
 
-// Initialise our DefaultServer with a Config
-func Initialise(c *Config) {
-	DefaultServer.Initialise(c)
+// Init our DefaultServer with a Config
+func Init(c *Config) {
+	DefaultServer.Init(c)
 }
 
 // RegisterEndpoint with the DefaultServer
