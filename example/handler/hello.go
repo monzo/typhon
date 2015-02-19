@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny/example/proto/hello"
-	"github.com/vinceprignano/bunny/server"
+
+	"github.com/b2aio/typhon/example/proto/hello"
+	"github.com/b2aio/typhon/server"
 )
 
-func HelloHandler(req server.Request) (proto.Message, error) {
+// Hello is a handler that responds to a hello request with a greeting
+func Hello(req server.Request) (server.Response, error) {
 
+	// Unmarshal our request
 	f := &hello.Request{}
 	if err := proto.Unmarshal(req.Body(), f); err != nil {
 		return nil, fmt.Errorf("Count not unmarshal request")
@@ -21,9 +24,9 @@ func HelloHandler(req server.Request) (proto.Message, error) {
 	// Do something here
 
 	// Build response
-	resp := &hello.Response{
+	resp := server.NewProtoResponse(&hello.Response{
 		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
-	}
+	})
 
 	return resp, nil
 }

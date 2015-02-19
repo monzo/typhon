@@ -3,28 +3,28 @@ package main
 import (
 	"time"
 
+	"github.com/b2aio/typhon/client"
+	"github.com/b2aio/typhon/server"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	"github.com/vinceprignano/bunny/client"
-	"github.com/vinceprignano/bunny/server"
 
-	"github.com/vinceprignano/bunny/example/handler"
-	"github.com/vinceprignano/bunny/example/proto/hello"
+	"github.com/b2aio/typhon/example/handler"
+	"github.com/b2aio/typhon/example/proto/hello"
 )
 
 // main is the definition of our server
 func main() {
 
-	// Initialise our Server
-	server.Initialise(&server.Config{
+	// Initialize our Server
+	server.Init(&server.Config{
 		Name:        "helloworld",
 		Description: "Demo service which replies to a name with a greeting",
 	})
 
 	// Register an example endpoint
 	server.RegisterEndpoint(&server.DefaultEndpoint{
-		EndpointName: "sayhello",           // Routing Key
-		Handler:      handler.HelloHandler, // HandlerFunc
+		EndpointName: "sayhello",    // Routing Key
+		Handler:      handler.Hello, // HandlerFunc
 	})
 
 	// Fire off a request to be sent back to us in 1 second
