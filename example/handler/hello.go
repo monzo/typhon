@@ -10,7 +10,7 @@ import (
 )
 
 // Hello is a handler that responds to a hello request with a greeting
-func Hello(req server.Request) (proto.Message, error) {
+func Hello(req server.Request) (server.Response, error) {
 
 	// Unmarshal our request
 	f := &hello.Request{}
@@ -24,9 +24,9 @@ func Hello(req server.Request) (proto.Message, error) {
 	// Do something here
 
 	// Build response
-	resp := &hello.Response{
+	resp := server.NewProtoResponse(&hello.Response{
 		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
-	}
+	})
 
 	return resp, nil
 }

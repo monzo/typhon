@@ -8,7 +8,6 @@ import (
 	"time"
 
 	log "github.com/cihub/seelog"
-	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 
 	"github.com/b2aio/typhon/rabbit"
@@ -106,7 +105,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	}
 
 	// Marshal the response
-	body, err := proto.Marshal(rsp)
+	body, err := rsp.Encode()
 	if err != nil {
 		log.Errorf("[Server] Failed to marshal response")
 	}
