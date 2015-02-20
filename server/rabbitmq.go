@@ -19,6 +19,7 @@ type AMQPServer struct {
 	ServiceDescription string
 	endpointRegistry   *EndpointRegistry
 	connection         *rabbit.RabbitConnection
+	notifyConnected    []chan bool
 }
 
 func NewAMQPServer() Server {
@@ -47,6 +48,12 @@ func (s *AMQPServer) Init(c *Config) {
 	s.ServiceDescription = c.Description
 }
 
+func (s *AMQPServer) NotifyConnected() chan bool {
+	ch := make(chan bool)
+	s.notifyConnected = append(s.notifyConnected, ch)
+	return ch
+}
+
 func (s *AMQPServer) RegisterEndpoint(endpoint Endpoint) {
 	s.endpointRegistry.Register(endpoint)
 }
@@ -62,6 +69,9 @@ func (s *AMQPServer) Run() {
 	select {
 	case <-s.connection.Init():
 		log.Info("[Server] Connected to RabbitMQ")
+		for _, notify := range s.notifyConnected {
+			notify <- true
+		}
 	case <-time.After(10 * time.Second):
 		log.Critical("[Server] Failed to connect to RabbitMQ")
 		os.Exit(1)
@@ -91,7 +101,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
 	endpoint := s.endpointRegistry.Get(endpointName)
 	if endpoint == nil {
-		log.Error("[Server] Endpoint not found, cannot handle request")
+		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", endpointName)
 		s.respondWithError(delivery, errors.New("Endpoint not found"))
 		return
 	}

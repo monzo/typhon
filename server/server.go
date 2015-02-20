@@ -5,6 +5,7 @@ package server
 type Server interface {
 	Init(*Config)
 	Run()
+	NotifyConnected() chan bool
 
 	Name() string
 	Description() string
