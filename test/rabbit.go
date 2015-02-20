@@ -43,6 +43,13 @@ func (r *RabbitTestSuite) NewRequestFromProto(message proto.Message) server.Requ
 	})
 }
 
+func (r *RabbitTestSuite) Unmarshal(res server.Response, v proto.Message) {
+	resBody, err := res.Encode()
+	r.NoError(err)
+	err = proto.Unmarshal(resBody, v)
+	r.NoError(err)
+}
+
 type handlerFunc func(request server.Request) (server.Response, error)
 
 func wrapHandler(returnValue server.Response, returnError error) handlerFunc {
