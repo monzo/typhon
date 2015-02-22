@@ -6,17 +6,21 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// inflightRegistry is a registry that keeps track of requests which are currently
+// inflight to other services, with a channel back to the originating client
 type inflightRegistry struct {
 	sync.RWMutex
 	requests map[string]chan amqp.Delivery
 }
 
+// newInflightRegistry creates an initialised inflight registry
 func newInflightRegistry() *inflightRegistry {
 	return &inflightRegistry{
 		requests: make(map[string]chan amqp.Delivery),
 	}
 }
 
+// add a request onto the stack
 func (r *inflightRegistry) add(requestId string) chan amqp.Delivery {
 	r.Lock()
 	defer r.Unlock()
@@ -25,6 +29,7 @@ func (r *inflightRegistry) add(requestId string) chan amqp.Delivery {
 	return ch
 }
 
+// pop a request off the stack
 func (r *inflightRegistry) pop(requestId string) chan amqp.Delivery {
 	r.Lock()
 	defer r.Unlock()
