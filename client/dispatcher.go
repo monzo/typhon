@@ -8,28 +8,28 @@ import (
 
 type dispatcher struct {
 	sync.RWMutex
-	routes map[string]chan amqp.Delivery
+	requests map[string]chan amqp.Delivery
 }
 
 func newDispatcher() *dispatcher {
 	return &dispatcher{
-		routes: make(map[string]chan amqp.Delivery),
+		requests: make(map[string]chan amqp.Delivery),
 	}
 }
 
-func (d *dispatcher) add(routingKey string) chan amqp.Delivery {
+func (d *dispatcher) add(requestId string) chan amqp.Delivery {
 	d.Lock()
 	defer d.Unlock()
 	ch := make(chan amqp.Delivery, 1)
-	d.routes[routingKey] = ch
+	d.requests[requestId] = ch
 	return ch
 }
 
-func (d *dispatcher) pop(routingKey string) chan amqp.Delivery {
+func (d *dispatcher) pop(requestId string) chan amqp.Delivery {
 	d.Lock()
 	defer d.Unlock()
-	if channel, ok := d.routes[routingKey]; ok {
-		delete(d.routes, routingKey)
+	if channel, ok := d.requests[requestId]; ok {
+		delete(d.requests, requestId)
 		return channel
 	}
 	return nil
