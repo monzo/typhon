@@ -19,7 +19,7 @@ import (
 
 type RabbitClient struct {
 	Name       string
-	dispatcher *dispatcher
+	dispatcher *inflightRegistry
 	replyTo    string
 	connection *rabbit.RabbitConnection
 }
@@ -32,7 +32,7 @@ var NewRabbitClient = func(name string) Client {
 	}
 	return &RabbitClient{
 		Name:       name,
-		dispatcher: newDispatcher(),
+		dispatcher: newInflightRegistry(),
 		connection: rabbit.NewRabbitConnection(),
 		replyTo:    fmt.Sprintf("replyTo-%s-%s", name, uuidQueue.String()),
 	}
