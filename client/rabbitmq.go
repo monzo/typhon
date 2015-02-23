@@ -110,18 +110,18 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish to %s", routingKey)
-		return fmt.Errorf("client.call.publish.%s.error", routingKey)
+		return errors.New("client.call.publish.error")
 	}
 
 	select {
 	case delivery := <-replyChannel:
 		if err := proto.Unmarshal(delivery.Body, res); err != nil {
-			return fmt.Errorf("client.unmarshal.%s-reply.error", routingKey)
+			return errors.New("client.unmarshal.badreply.error")
 		}
 		return nil
 	case <-time.After(defaultTimeout):
 		log.Criticalf("[Client] Client timeout on delivery")
-		return fmt.Errorf("client.call.timeout.%s.error", routingKey)
+		return errors.New("client.call.timeout.error")
 	}
 }
 
