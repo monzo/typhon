@@ -1,9 +1,12 @@
 package server
 
-import "sync"
+import (
+	"regexp"
+	"sync"
+)
 
 type EndpointRegistry struct {
-	sync.Mutex
+	sync.RWMutex
 	endpoints map[string]Endpoint
 }
 
@@ -13,10 +16,15 @@ func NewEndpointRegistry() *EndpointRegistry {
 	}
 }
 
-func (r *EndpointRegistry) Get(pattern string) Endpoint {
-	r.Lock()
-	defer r.Unlock()
-	return r.endpoints[pattern]
+func (r *EndpointRegistry) Get(endpointName string) Endpoint {
+	r.RLock()
+	defer r.RUnlock()
+	for pattern, endpoint := range r.endpoints {
+		if match, _ := regexp.Match(pattern, []byte(endpointName)); match == true {
+			return endpoint
+		}
+	}
+	return nil
 }
 
 func (r *EndpointRegistry) Register(endpoint Endpoint) {

@@ -5,6 +5,8 @@ type Endpoint interface {
 	HandleRequest(req Request) (Response, error)
 }
 
+type HandlerFunc func(Request) (Response, error)
+
 type DefaultEndpoint struct {
 	EndpointName string
 	Handler      func(req Request) (Response, error)

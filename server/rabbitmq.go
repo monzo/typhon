@@ -114,6 +114,8 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		log.Error(err.Error())
 	}
 
+	// TODO CHECK FOR rsp == nil
+
 	// Marshal the response
 	body, err := rsp.Encode()
 	if err != nil {
