@@ -9,7 +9,7 @@ import (
 // inflightRegistry is a registry that keeps track of requests which are currently
 // inflight to other services, with a channel back to the originating client
 type inflightRegistry struct {
-	sync.RWMutex
+	sync.Mutex
 	requests map[string]chan amqp.Delivery
 }
 
@@ -23,9 +23,9 @@ func newInflightRegistry() *inflightRegistry {
 // add a request onto the stack
 func (r *inflightRegistry) add(requestId string) chan amqp.Delivery {
 	r.Lock()
-	defer r.Unlock()
 	ch := make(chan amqp.Delivery, 1)
 	r.requests[requestId] = ch
+	r.Unlock()
 	return ch
 }
 
