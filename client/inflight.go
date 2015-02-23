@@ -20,8 +20,8 @@ func newInflightRegistry() *inflightRegistry {
 	}
 }
 
-// add a request onto the stack
-func (r *inflightRegistry) add(requestId string) chan amqp.Delivery {
+// push a request onto the stack
+func (r *inflightRegistry) push(requestId string) chan amqp.Delivery {
 	r.Lock()
 	ch := make(chan amqp.Delivery, 1)
 	r.requests[requestId] = ch

@@ -90,7 +90,7 @@ func (c *RabbitClient) Call(routingKey string, req proto.Message, res proto.Mess
 		return errors.New("client.call.uuid.error")
 	}
 
-	replyChannel := c.dispatcher.add(correlation.String())
+	replyChannel := c.dispatcher.push(correlation.String())
 	defer close(replyChannel)
 
 	requestBody, err := proto.Marshal(req)
