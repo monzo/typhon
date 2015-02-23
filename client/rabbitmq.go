@@ -17,6 +17,14 @@ import (
 	"github.com/b2aio/typhon/rabbit"
 )
 
+var (
+	ErrBadResponse    = errors.New("client.unmarshal.badreply.error")
+	ErrPublish        = errors.New("client.call.publish.error")
+	ErrRequestMarshal = errors.New("client.call.marshal.error")
+	ErrUuidGeneration = errors.New("client.call.uuid.error")
+	ErrTimeout        = errors.New("client.call.timeout.error")
+)
+
 type RabbitClient struct {
 	inflight   *inflightRegistry
 	replyTo    string
@@ -87,8 +95,8 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 
 	correlation, err := uuid.NewV4()
 	if err != nil {
-		log.Error("[Client] Failed to create correlationId in client")
-		return errors.New("client.call.uuid.error")
+		log.Errorf("[Client] Failed to create unique request id: %v", err)
+		return ErrUuidGeneration
 	}
 
 	replyChannel := c.inflight.push(correlation.String())
@@ -96,8 +104,8 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 
 	requestBody, err := proto.Marshal(req)
 	if err != nil {
-		log.Error("[Client] Failed to marshal request")
-		return errors.New("client.call.marshal.error")
+		log.Errorf("[Client] Failed to marshal request: %v", err)
+		return ErrRequestMarshal
 	}
 
 	message := amqp.Publishing{
@@ -109,19 +117,19 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 
 	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
-		log.Errorf("[Client] Failed to publish to %s", routingKey)
-		return errors.New("client.call.publish.error")
+		log.Errorf("[Client] Failed to publish to '%s': %v", routingKey, err)
+		return ErrPublish
 	}
 
 	select {
 	case delivery := <-replyChannel:
 		if err := proto.Unmarshal(delivery.Body, res); err != nil {
-			return errors.New("client.unmarshal.badreply.error")
+			return ErrBadResponse
 		}
 		return nil
 	case <-time.After(defaultTimeout):
 		log.Criticalf("[Client] Client timeout on delivery")
-		return errors.New("client.call.timeout.error")
+		return ErrTimeout
 	}
 }
 
