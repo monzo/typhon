@@ -19,7 +19,7 @@ import (
 
 type RabbitClient struct {
 	Name       string
-	dispatcher *inflightRegistry
+	inflight   *inflightRegistry
 	replyTo    string
 	connection *rabbit.RabbitConnection
 }
@@ -32,7 +32,7 @@ var NewRabbitClient = func(name string) Client {
 	}
 	return &RabbitClient{
 		Name:       name,
-		dispatcher: newInflightRegistry(),
+		inflight:   newInflightRegistry(),
 		connection: rabbit.NewRabbitConnection(),
 		replyTo:    fmt.Sprintf("replyTo-%s-%s", name, uuidQueue.String()),
 	}
@@ -71,9 +71,9 @@ func (c *RabbitClient) initConsume() {
 }
 
 func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
-	channel := c.dispatcher.pop(delivery.CorrelationId)
+	channel := c.inflight.pop(delivery.CorrelationId)
 	if channel == nil {
-		log.Errorf("[Client] CorrelationID -> %s does not exist in dispatcher", delivery.CorrelationId)
+		log.Errorf("[Client] CorrelationID '%s' does not exist in inflight registry", delivery.CorrelationId)
 		return
 	}
 	select {
@@ -90,7 +90,7 @@ func (c *RabbitClient) Call(routingKey string, req proto.Message, res proto.Mess
 		return errors.New("client.call.uuid.error")
 	}
 
-	replyChannel := c.dispatcher.push(correlation.String())
+	replyChannel := c.inflight.push(correlation.String())
 	defer close(replyChannel)
 
 	requestBody, err := proto.Marshal(req)
