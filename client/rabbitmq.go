@@ -83,7 +83,7 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *RabbitClient) Call(routingKey string, req proto.Message, res proto.Message) error {
+func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res proto.Message) error {
 	correlation, err := uuid.NewV4()
 	if err != nil {
 		log.Error("[Client] Failed to create correlationId in client")
