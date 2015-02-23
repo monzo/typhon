@@ -18,23 +18,21 @@ import (
 )
 
 type RabbitClient struct {
-	Name       string
 	inflight   *inflightRegistry
 	replyTo    string
 	connection *rabbit.RabbitConnection
 }
 
-var NewRabbitClient = func(name string) Client {
+var NewRabbitClient = func() Client {
 	uuidQueue, err := uuid.NewV4()
 	if err != nil {
 		log.Criticalf("[Client] Failed to create UUID for reply queue")
 		os.Exit(1)
 	}
 	return &RabbitClient{
-		Name:       name,
 		inflight:   newInflightRegistry(),
 		connection: rabbit.NewRabbitConnection(),
-		replyTo:    fmt.Sprintf("replyTo-%s-%s", name, uuidQueue.String()),
+		replyTo:    fmt.Sprintf("replyTo-%s", uuidQueue.String()),
 	}
 }
 
