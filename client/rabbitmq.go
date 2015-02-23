@@ -118,7 +118,7 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 			return fmt.Errorf("client.unmarshal.%s-reply.error", routingKey)
 		}
 		return nil
-	case <-time.After(1 * time.Second):
+	case <-time.After(defaultTimeout):
 		log.Criticalf("[Client] Client timeout on delivery")
 		return fmt.Errorf("client.call.timeout.%s.error", routingKey)
 	}
