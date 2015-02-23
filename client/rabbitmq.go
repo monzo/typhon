@@ -82,6 +82,9 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 }
 
 func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res proto.Message) error {
+
+	routingKey := c.buildRoutingKey(serviceName, endpoint)
+
 	correlation, err := uuid.NewV4()
 	if err != nil {
 		log.Error("[Client] Failed to create correlationId in client")
@@ -120,4 +123,8 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 		log.Criticalf("[Client] Client timeout on delivery")
 		return fmt.Errorf("client.call.timeout.%s.error", routingKey)
 	}
+}
+
+func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
+	return fmt.Sprintf("%s.%s", serviceName, endpoint)
 }
