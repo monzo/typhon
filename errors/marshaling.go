@@ -26,6 +26,8 @@ func Marshal(e *platformError) *pe.PlatformError {
 // Unmarshal a protobuf error into a local error
 func Unmarshal(p *pe.PlatformError) *platformError {
 	if p == nil {
+		// @todo should this actually be blank?
+		// or should we put a code and description in, like on marshaling
 		return &platformError{}
 	}
 
