@@ -3,30 +3,27 @@ package handler
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/b2aio/typhon/example/proto/hello"
 	"github.com/b2aio/typhon/server"
 )
 
+var Hello = &server.DefaultEndpoint{
+	EndpointName: "hello",
+	Handler:      helloHandler,
+	Request:      &hello.Request{},
+	Response:     &hello.Response{},
+}
+
 // Hello is a handler that responds to a hello request with a greeting
-func Hello(req server.Request) (server.Response, error) {
+func helloHandler(req server.Request) (server.Response, error) {
 
-	// Unmarshal our request
-	f := &hello.Request{}
-	if err := proto.Unmarshal(req.Body(), f); err != nil {
-		return nil, fmt.Errorf("Count not unmarshal request")
-	}
-
-	// Get a value from our unmarshalled protobuf
-	name := f.GetName()
-
-	// Do something here
+	// Cast req.Body() (unmarshalled for you by the server) into the type you're expecting
+	reqProto := req.Body().(*hello.Request)
 
 	// Build response
-	resp := server.NewProtoResponse(&hello.Response{
-		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
-	})
+	resp := &hello.Response{
+		Greeting: fmt.Sprintf("Hello, %s!", reqProto.Name),
+	}
 
-	return resp, nil
+	return server.NewProtoResponse(resp), nil
 }
