@@ -60,3 +60,8 @@ func TestErrorConstructors(t *testing.T) {
 		assert.Equal(t, tc.expectedErrType, err.Type())
 	}
 }
+
+func TestUnknownError(t *testing.T) {
+	err := &platformError{}
+	assert.Equal(t, ErrUnknown, err.Type())
+}

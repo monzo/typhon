@@ -52,7 +52,7 @@ func (p *platformError) Error() string {
 
 // Type of error that this error represents
 func (p *platformError) Type() ErrorType {
-	if p != nil {
+	if p != nil && p.errorType != "" {
 		return p.errorType
 	}
 
