@@ -15,12 +15,12 @@ const (
 	// @todo should this just be mapped to an internal server error?
 	ErrUnknown = ErrorType("UnknownError")
 
-	ErrBadRequest     = ErrorType("BadRequestError")
-	ErrBadResponse    = ErrorType("BadResponseError")
-	ErrForbidden      = ErrorType("ForbiddenError")
-	ErrInternalServer = ErrorType("InternalServerError")
-	ErrNotFound       = ErrorType("NotFoundError")
-	ErrTimeout        = ErrorType("TimeoutError")
+	ErrBadRequest     = ErrorType("ErrBadRequest")
+	ErrBadResponse    = ErrorType("ErrBadResponse")
+	ErrForbidden      = ErrorType("ErrForbidden")
+	ErrInternalServer = ErrorType("ErrInternalServer")
+	ErrNotFound       = ErrorType("ErrNotFound")
+	ErrTimeout        = ErrorType("ErrTimeout")
 )
 
 // platformError implements the Error interface, and is the internal type we
