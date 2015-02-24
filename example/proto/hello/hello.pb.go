@@ -15,43 +15,25 @@ It has these top-level messages:
 package hello
 
 import proto "github.com/golang/protobuf/proto"
-import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = math.Inf
 
 type Request struct {
-	Name             *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 }
 
 func (m *Request) Reset()         { *m = Request{} }
 func (m *Request) String() string { return proto.CompactTextString(m) }
 func (*Request) ProtoMessage()    {}
 
-func (m *Request) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
-	}
-	return ""
-}
-
 type Response struct {
-	Greeting         *string `protobuf:"bytes,1,opt,name=greeting" json:"greeting,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	Greeting string `protobuf:"bytes,1,opt,name=greeting" json:"greeting,omitempty"`
 }
 
 func (m *Response) Reset()         { *m = Response{} }
 func (m *Response) String() string { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()    {}
-
-func (m *Response) GetGreeting() string {
-	if m != nil && m.Greeting != nil {
-		return *m.Greeting
-	}
-	return ""
-}
 
 func init() {
 }

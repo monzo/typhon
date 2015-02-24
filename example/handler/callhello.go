@@ -3,8 +3,6 @@ package handler
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/b2aio/typhon/client"
 	"github.com/b2aio/typhon/example/proto/callhello"
 	"github.com/b2aio/typhon/example/proto/hello"
@@ -26,12 +24,12 @@ func callhelloHandler(req server.Request) (server.Response, error) {
 	client.Request(
 		"example.hello",
 		&hello.Request{
-			Name: proto.String(reqProto.GetValue()),
+			Name: reqProto.Value,
 		},
 		resp,
 	)
 
 	return server.NewProtoResponse(&callhello.Response{
-		Value: proto.String(fmt.Sprintf("example.hello says '%s'", resp.GetGreeting())),
+		Value: fmt.Sprintf("example.hello says '%s'", resp.Greeting),
 	}), nil
 }
