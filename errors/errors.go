@@ -11,13 +11,16 @@ type Error interface {
 type ErrorType string
 
 const (
-	ErrUnknown        = ErrorType("UnknownError")
-	ErrInternalServer = ErrorType("InternalServerError")
+	// ErrUnknown indicates an unknown type of error
+	// @todo should this just be mapped to an internal server error?
+	ErrUnknown = ErrorType("UnknownError")
+
 	ErrBadRequest     = ErrorType("BadRequestError")
 	ErrBadResponse    = ErrorType("BadResponseError")
-	ErrTimeout        = ErrorType("TimeoutError")
-	ErrNotFound       = ErrorType("NotFoundError")
 	ErrForbidden      = ErrorType("ForbiddenError")
+	ErrInternalServer = ErrorType("InternalServerError")
+	ErrNotFound       = ErrorType("NotFoundError")
+	ErrTimeout        = ErrorType("TimeoutError")
 )
 
 // platformError implements the Error interface, and is the internal type we
