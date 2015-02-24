@@ -51,6 +51,12 @@ func TestErrorConstructors(t *testing.T) {
 			"access.denied",
 			"user doesn't have permission to perform this action",
 		},
+		{
+			Unauthorized,
+			ErrUnauthorized,
+			"authentication.required",
+			"user needs to authenticate to perform this action",
+		},
 	}
 
 	for _, tc := range testCases {

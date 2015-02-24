@@ -18,6 +18,7 @@ const (
 	ErrBadRequest     = ErrorType("ErrBadRequest")
 	ErrBadResponse    = ErrorType("ErrBadResponse")
 	ErrForbidden      = ErrorType("ErrForbidden")
+	ErrUnauthorized   = ErrorType("ErrUnauthorized")
 	ErrInternalServer = ErrorType("ErrInternalServer")
 	ErrNotFound       = ErrorType("ErrNotFound")
 	ErrTimeout        = ErrorType("ErrTimeout")
@@ -113,6 +114,16 @@ func NotFound(code, description string, context ...string) Error {
 func Forbidden(code, description string, context ...string) Error {
 	return &platformError{
 		errorType:   ErrForbidden,
+		code:        code,
+		description: description,
+	}
+}
+
+// Unauthorized creates a new error indicating that authentication is required,
+// but has either failed or not been provided.
+func Unauthorized(code, description string, context ...string) Error {
+	return &platformError{
+		errorType:   ErrUnauthorized,
 		code:        code,
 		description: description,
 	}
