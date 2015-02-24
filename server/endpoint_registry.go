@@ -20,7 +20,7 @@ func (r *EndpointRegistry) Get(endpointName string) Endpoint {
 	r.RLock()
 	defer r.RUnlock()
 	for pattern, endpoint := range r.endpoints {
-		if match, _ := regexp.Match(pattern, []byte(endpointName)); match == true {
+		if match, _ := regexp.Match("^"+pattern+"$", []byte(endpointName)); match == true {
 			return endpoint
 		}
 	}

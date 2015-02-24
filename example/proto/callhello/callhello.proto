@@ -1,0 +1,10 @@
+// hello.proto
+syntax = "proto3";
+
+message Request {
+    string value = 1;
+}
+
+message Response {
+	string value = 1;
+}

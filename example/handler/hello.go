@@ -9,24 +9,26 @@ import (
 	"github.com/b2aio/typhon/server"
 )
 
-// Hello is a handler that responds to a hello request with a greeting
-func Hello(req server.Request) (server.Response, error) {
+var Hello = &server.DefaultEndpoint{
+	EndpointName: "hello",
+	Handler:      helloHandler,
+	Request:      &hello.Request{},
+	Response:     &hello.Response{},
+}
 
-	// Unmarshal our request
-	f := &hello.Request{}
-	if err := proto.Unmarshal(req.Body(), f); err != nil {
-		return nil, fmt.Errorf("Count not unmarshal request")
-	}
+// Hello is a handler that responds to a hello request with a greeting
+func helloHandler(req server.Request) (server.Response, error) {
+
+	// Cast req.Body() (unmarshalled for you by the server) into the type you're expecting
+	reqProto := req.Body().(*hello.Request)
 
 	// Get a value from our unmarshalled protobuf
-	name := f.GetName()
-
-	// Do something here
+	name := reqProto.GetName()
 
 	// Build response
-	resp := server.NewProtoResponse(&hello.Response{
+	resp := &hello.Response{
 		Greeting: proto.String(fmt.Sprintf("Hello, %s!", name)),
-	})
+	}
 
-	return resp, nil
+	return server.NewProtoResponse(resp), nil
 }
