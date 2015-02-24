@@ -32,6 +32,11 @@ func Run() {
 	DefaultServer.Run()
 }
 
+// NotifyConnected delegates to DefaultServer
+func NotifyConnected() chan bool {
+	return DefaultServer.NotifyConnected()
+}
+
 // Config defines the config a server needs to start up, and serve requests
 type Config struct {
 	Name        string

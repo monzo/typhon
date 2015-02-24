@@ -6,10 +6,6 @@ import (
 	"github.com/b2aio/typhon/example/handler"
 )
 
-func initExampleServer() {
-
-}
-
 // main is the definition of our server
 func main() {
 
