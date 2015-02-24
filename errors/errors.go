@@ -42,13 +42,19 @@ func (p *platformError) Code() string {
 	return ""
 }
 
-// Error returns a string description of the error
-func (p *platformError) Error() string {
+// Description returns a string description of the error
+func (p *platformError) Description() string {
 	if p != nil {
 		return p.description
 	}
 
 	return ""
+}
+
+// Error returns a string description of the error
+// This means the platformError implements the error interface
+func (p *platformError) Error() string {
+	return p.Description()
 }
 
 // Type of error that this error represents
