@@ -34,9 +34,8 @@ func (r *AMQPRequest) ServiceName() string {
 	lastDotIndex := strings.LastIndex(routingKey, ".")
 	if lastDotIndex == -1 {
 		return routingKey
-	} else {
-		return routingKey[:lastDotIndex]
 	}
+	return routingKey[:lastDotIndex]
 }
 
 func (r *AMQPRequest) Endpoint() string {
@@ -44,9 +43,8 @@ func (r *AMQPRequest) Endpoint() string {
 	lastDotIndex := strings.LastIndex(routingKey, ".")
 	if lastDotIndex == -1 {
 		return ""
-	} else {
-		return routingKey[lastDotIndex+1:]
 	}
+	return routingKey[lastDotIndex+1:]
 }
 
 func (r *AMQPRequest) Body() []byte {
