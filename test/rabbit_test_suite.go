@@ -30,6 +30,7 @@ func (t *RabbitTestSuite) StubError(serviceName, endpoint string, err error) {
 	t.StubResponseWithError(serviceName, endpoint, nil, err)
 }
 
+// Registers a stub response with the stubServer
 func (t *RabbitTestSuite) StubResponseWithError(serviceName, endpoint string, returnValue proto.Message, err error) {
 	t.lazyStubServer().RegisterStub(&ServiceStub{
 		ServiceName: serviceName,

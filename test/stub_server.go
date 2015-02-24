@@ -8,12 +8,8 @@ import (
 	"github.com/b2aio/typhon/server"
 )
 
-type ServiceStub struct {
-	ServiceName string
-	Endpoint    string
-	Handler     server.HandlerFunc
-}
-
+// Test cases can register stubs with this StubServer via the helpers
+// in `RabbitTestSuite`.
 type StubServer struct {
 	server.Server
 	testSuite *RabbitTestSuite
@@ -22,6 +18,14 @@ type StubServer struct {
 	stubs      []*ServiceStub
 }
 
+type ServiceStub struct {
+	ServiceName string
+	Endpoint    string
+	Handler     server.HandlerFunc
+}
+
+// The stub server boots up a regular typhon server and registers a single
+// endpoint that subscribes to every routing key
 func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
 
 	stubServer := &StubServer{
@@ -29,6 +33,7 @@ func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
 		testSuite: testSuite,
 	}
 
+	// TODO `Name: "#"` is rather hokey
 	stubServer.Init(&server.Config{Name: "#", Description: "Stub Server"})
 
 	go stubServer.Run()
@@ -36,7 +41,7 @@ func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
 	select {
 	case <-stubServer.NotifyConnected():
 	case <-time.After(1 * time.Second):
-		stubServer.testSuite.T().Fatalf("Couldn't connect to RabbitMQ")
+		stubServer.testSuite.T().Fatalf("StubServer couldn't connect to RabbitMQ")
 	}
 
 	stubServer.RegisterEndpoint(&server.DefaultEndpoint{
@@ -49,6 +54,7 @@ func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
 	return stubServer
 }
 
+// Finds the relevant endpoint stub (if any), and calls its handler function
 func (stubServer *StubServer) handleRequest(req server.Request) (server.Response, error) {
 	stubServer.stubsMutex.RLock()
 	defer stubServer.stubsMutex.RUnlock()
@@ -63,12 +69,14 @@ func (stubServer *StubServer) handleRequest(req server.Request) (server.Response
 	return nil, fmt.Errorf("No stub found for routing service name %s and endpoint %s", req.ServiceName(), req.Endpoint())
 }
 
+// Registers a stub with the server
 func (stubServer *StubServer) RegisterStub(stub *ServiceStub) {
 	stubServer.stubsMutex.Lock()
 	defer stubServer.stubsMutex.Unlock()
 	stubServer.stubs = append(stubServer.stubs, stub)
 }
 
+// Clear out all server stubs. Test suites should run this between tests
 func (stubServer *StubServer) ResetStubs() {
 	stubServer.stubsMutex.Lock()
 	defer stubServer.stubsMutex.Unlock()
