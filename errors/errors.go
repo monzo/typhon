@@ -13,15 +13,15 @@ type ErrorType string
 const (
 	// ErrUnknown indicates an unknown type of error
 	// @todo should this just be mapped to an internal server error?
-	ErrUnknown = ErrorType("UnknownError")
+	ErrUnknown = ErrorType("UNKNOWN")
 
-	ErrBadRequest     = ErrorType("ErrBadRequest")
-	ErrBadResponse    = ErrorType("ErrBadResponse")
-	ErrForbidden      = ErrorType("ErrForbidden")
-	ErrUnauthorized   = ErrorType("ErrUnauthorized")
-	ErrInternalServer = ErrorType("ErrInternalServer")
-	ErrNotFound       = ErrorType("ErrNotFound")
-	ErrTimeout        = ErrorType("ErrTimeout")
+	ErrBadRequest     = ErrorType("BAD_REQUEST")
+	ErrBadResponse    = ErrorType("BAD_RESPONSE")
+	ErrForbidden      = ErrorType("FORBIDDEN")
+	ErrUnauthorized   = ErrorType("UNAUTHORIZED")
+	ErrInternalServer = ErrorType("INTERNAL_SERVER_ERROR")
+	ErrNotFound       = ErrorType("NOT_FOUND")
+	ErrTimeout        = ErrorType("TIMEOUT")
 )
 
 // platformError implements the Error interface, and is the internal type we
