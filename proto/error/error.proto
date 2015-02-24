@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+enum ErrorType {
+	UNKNOWN = 0;
+	INTERNAL_SERVICE = 1;
+	BAD_REQUEST = 2;
+	BAD_RESPONSE = 3;
+	TIMEOUT = 4;
+	NOT_FOUND = 5;
+	FORBIDDEN = 6;
+	UNAUTHORIZED = 7;
+}
+
+message PlatformError {
+	ErrorType type = 1;
+	string code  = 2;
+	string description = 3;
+	repeated string context = 4;
+}
