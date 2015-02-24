@@ -97,6 +97,8 @@ func (s *AMQPServer) Run() {
 // handleRequest takes a delivery from AMQP, attempts to process it and return a response
 func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 
+	log.Infof("Received delivery for %+v", delivery)
+
 	// See if we have a matching endpoint for this request
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
 	endpoint := s.endpointRegistry.Get(endpointName)
@@ -110,11 +112,11 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	req := NewAMQPRequest(&delivery)
 	rsp, err := endpoint.HandleRequest(req)
 	if err != nil {
-		log.Errorf("[Server] Endpoint %s returned an error", endpointName)
-		log.Error(err.Error())
+		s.respondWithError(delivery, err)
+		return
 	}
 
-	// TODO CHECK FOR rsp == nil
+	// TODO deal with rsp == nil (programmer error, but still)
 
 	// Marshal the response
 	body, err := rsp.Encode()

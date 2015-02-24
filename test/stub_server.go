@@ -3,16 +3,17 @@ package test
 import (
 	"fmt"
 	"sync"
+	"testing"
 	"time"
+
+	"github.com/golang/protobuf/proto"
 
 	"github.com/b2aio/typhon/server"
 )
 
-// Test cases can register stubs with this StubServer via the helpers
-// in `RabbitTestSuite`.
 type StubServer struct {
 	server.Server
-	testSuite *RabbitTestSuite
+	t *testing.T
 
 	stubsMutex sync.RWMutex
 	stubs      []*ServiceStub
@@ -26,11 +27,11 @@ type ServiceStub struct {
 
 // The stub server boots up a regular typhon server and registers a single
 // endpoint that subscribes to every routing key
-func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
+func NewStubServer(t *testing.T) *StubServer {
 
 	stubServer := &StubServer{
-		Server:    server.NewAMQPServer(),
-		testSuite: testSuite,
+		Server: server.NewAMQPServer(),
+		t:      t,
 	}
 
 	// TODO `Name: "#"` is rather hokey
@@ -41,8 +42,10 @@ func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
 	select {
 	case <-stubServer.NotifyConnected():
 	case <-time.After(1 * time.Second):
-		stubServer.testSuite.T().Fatalf("StubServer couldn't connect to RabbitMQ")
+		t.Fatalf("StubServer couldn't connect to RabbitMQ")
 	}
+
+	t.Log("[StubServer] Connected to RabbitMQ")
 
 	stubServer.RegisterEndpoint(&server.DefaultEndpoint{
 		EndpointName: ".*", // TODO EndpointName is not well-named
@@ -54,24 +57,31 @@ func NewStubServer(testSuite *RabbitTestSuite) *StubServer {
 	return stubServer
 }
 
-// Finds the relevant endpoint stub (if any), and calls its handler function
-func (stubServer *StubServer) handleRequest(req server.Request) (server.Response, error) {
-	stubServer.stubsMutex.RLock()
-	defer stubServer.stubsMutex.RUnlock()
+// StubResponse is a convenience method to quickly set up stubs that return a fixed value
+func (stubServer *StubServer) StubResponse(serviceName, endpoint string, returnValue proto.Message) {
+	stubServer.stubResponseAndError(serviceName, endpoint, returnValue, nil)
+}
 
-	// determine which endpoint to use
-	for _, stub := range stubServer.stubs {
-		if stub.ServiceName == req.ServiceName() && stub.Endpoint == req.Endpoint() {
-			return stub.Handler(req)
-		}
-	}
+// StubError is a convenience method to stub out a service error
+func (stubServer *StubServer) StubError(serviceName, endpoint string, err error) {
+	stubServer.stubResponseAndError(serviceName, endpoint, nil, err)
+}
 
-	return nil, fmt.Errorf("No stub found for routing service name %s and endpoint %s", req.ServiceName(), req.Endpoint())
+// stubResponseAndError registers a stub that returns the passed response and error
+func (stubServer *StubServer) stubResponseAndError(serviceName, endpoint string, returnValue proto.Message, err error) {
+	stubServer.RegisterStub(&ServiceStub{
+		ServiceName: serviceName,
+		Endpoint:    endpoint,
+		Handler: func(_ server.Request) (server.Response, error) {
+			return server.NewProtoResponse(returnValue), err
+		},
+	})
 }
 
 // Registers a stub with the server
 func (stubServer *StubServer) RegisterStub(stub *ServiceStub) {
 	stubServer.stubsMutex.Lock()
+	stubServer.t.Logf("[StubServer] Registered stub for %s.%s", stub.ServiceName, stub.Endpoint)
 	defer stubServer.stubsMutex.Unlock()
 	stubServer.stubs = append(stubServer.stubs, stub)
 }
@@ -81,4 +91,21 @@ func (stubServer *StubServer) ResetStubs() {
 	stubServer.stubsMutex.Lock()
 	defer stubServer.stubsMutex.Unlock()
 	stubServer.stubs = nil
+	stubServer.t.Log("[StubServer] Stubs cleared")
+}
+
+// Finds the relevant endpoint stub (if any), and calls its handler function
+func (stubServer *StubServer) handleRequest(req server.Request) (server.Response, error) {
+
+	stubServer.t.Logf("[StubServer] Handling request for %s", req.ServiceName(), req.Endpoint())
+	stubServer.stubsMutex.RLock()
+	defer stubServer.stubsMutex.RUnlock()
+
+	// determine which endpoint to use
+	for _, stub := range stubServer.stubs {
+		if stub.ServiceName == req.ServiceName() && stub.Endpoint == req.Endpoint() {
+			return stub.Handler(req)
+		}
+	}
+	return nil, fmt.Errorf("No stub found for routing service name %s and endpoint %s", req.ServiceName(), req.Endpoint())
 }

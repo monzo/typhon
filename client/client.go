@@ -9,7 +9,7 @@ import (
 	"github.com/b2aio/typhon/rabbit"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
 )
 
@@ -119,7 +119,7 @@ func (c *RabbitClient) Call(routingKey string, req proto.Message, res proto.Mess
 			return fmt.Errorf("client.unmarshal.%s-reply.error", routingKey)
 		}
 		return nil
-	case <-time.After(10 * time.Second):
+	case <-time.After(1 * time.Second):
 		log.Criticalf("[Client] Client timeout on delivery")
 		return fmt.Errorf("client.call.timeout.%s.error", routingKey)
 	}

@@ -10,14 +10,21 @@ import (
 type Request interface {
 	context.Context
 
-	Body() []byte
+	// Payload are the actual bytes returned from the transport
+	Payload() []byte
+
+	// Body is the Unmarshalled `Payload()`. If `RequestType()` is set on
+	// the `Endpoint`, we can attempt to unmarshal it for you
+	Body() interface{}
+	SetBody(interface{})
+
 	ServiceName() string
 	Endpoint() string
 }
 
 type AMQPRequest struct {
 	context.Context
-
+	body     interface{}
 	delivery *amqp.Delivery
 }
 
@@ -47,8 +54,16 @@ func (r *AMQPRequest) Endpoint() string {
 	return routingKey[lastDotIndex+1:]
 }
 
-func (r *AMQPRequest) Body() []byte {
+func (r *AMQPRequest) Payload() []byte {
 	return r.delivery.Body
+}
+
+func (r *AMQPRequest) Body() interface{} {
+	return r.body
+}
+
+func (r *AMQPRequest) SetBody(body interface{}) {
+	r.body = body
 }
 
 func (r *AMQPRequest) CorrelationID() string {
