@@ -17,6 +17,7 @@ const (
 	BadResponseError    = ErrorType("BadResponseError")
 	TimeoutError        = ErrorType("TimeoutError")
 	NotFoundError       = ErrorType("NotFoundError")
+	ForbiddenError      = ErrorType("ForbiddenError")
 )
 
 // platformError implements the Error interface, and is the internal type we
@@ -98,6 +99,17 @@ func NewTimeoutError(code, description string, context ...string) Error {
 func NewNotFoundError(code, description string, context ...string) Error {
 	return &platformError{
 		errorType:   NotFoundError,
+		code:        code,
+		description: description,
+	}
+}
+
+// NewForbiddenError creates a new error representing a resource that cannot be accessed with
+// the current authorisation credentials. The user may need authorising, or if authorised,
+// may not be permitted to perform this action
+func NewForbiddenError(code, description string, context ...string) Error {
+	return &platformError{
+		errorType:   ForbiddenError,
 		code:        code,
 		description: description,
 	}

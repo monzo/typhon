@@ -45,6 +45,12 @@ func TestErrorConstructors(t *testing.T) {
 			"thing.notfound",
 			"missing resource, resource doesn't exist",
 		},
+		{
+			NewForbiddenError,
+			ForbiddenError,
+			"access.denied",
+			"user doesn't have permission to perform this action",
+		},
 	}
 
 	for _, tc := range testCases {
