@@ -11,13 +11,13 @@ type Error interface {
 type ErrorType string
 
 const (
-	UnknownError        = ErrorType("UnknownError")
-	InternalServerError = ErrorType("InternalServerError")
-	BadRequestError     = ErrorType("BadRequestError")
-	BadResponseError    = ErrorType("BadResponseError")
-	TimeoutError        = ErrorType("TimeoutError")
-	NotFoundError       = ErrorType("NotFoundError")
-	ForbiddenError      = ErrorType("ForbiddenError")
+	ErrUnknown        = ErrorType("UnknownError")
+	ErrInternalServer = ErrorType("InternalServerError")
+	ErrBadRequest     = ErrorType("BadRequestError")
+	ErrBadResponse    = ErrorType("BadResponseError")
+	ErrTimeout        = ErrorType("TimeoutError")
+	ErrNotFound       = ErrorType("NotFoundError")
+	ErrForbidden      = ErrorType("ForbiddenError")
 )
 
 // platformError implements the Error interface, and is the internal type we
@@ -53,63 +53,63 @@ func (p *platformError) Type() ErrorType {
 		return p.errorType
 	}
 
-	return UnknownError
+	return ErrUnknown
 }
 
-// NewInternalServerError creates a new error that represents an error originating within a service
-func NewInternalServerError(code, description string, context ...string) Error {
+// InternalServerError creates a new error that represents an error originating within a service
+func InternalServerError(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   InternalServerError,
+		errorType:   ErrInternalServer,
 		code:        code,
 		description: description,
 	}
 }
 
-// NewBadRequestError creates a new error to represent an error caused by the client sending
+// BadRequest creates a new error to represent an error caused by the client sending
 // an invalid request. This is non-retryable unless the request is modified.
-func NewBadRequestError(code, description string, context ...string) Error {
+func BadRequest(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   BadRequestError,
+		errorType:   ErrBadRequest,
 		code:        code,
 		description: description,
 	}
 }
 
-// NewBadResponseError creates a new error representing a failure to response with a valid response
+// BadResponse creates a new error representing a failure to response with a valid response
 // Examples of this would be a handler returning an invalid message format
-func NewBadResponseError(code, description string, context ...string) Error {
+func BadResponse(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   BadResponseError,
+		errorType:   ErrBadResponse,
 		code:        code,
 		description: description,
 	}
 }
 
-// NewTimeoutError creates a new error representing a timeout from client to server
-func NewTimeoutError(code, description string, context ...string) Error {
+// Timeout creates a new error representing a timeout from client to server
+func Timeout(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   TimeoutError,
+		errorType:   ErrTimeout,
 		code:        code,
 		description: description,
 	}
 }
 
-// NewNotFoundError creates a new error representing a resource that cannot be found. In some
+// NotFound creates a new error representing a resource that cannot be found. In some
 // cases this is not an error, and would be better represented by a zero length slice of elements
-func NewNotFoundError(code, description string, context ...string) Error {
+func NotFound(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   NotFoundError,
+		errorType:   ErrNotFound,
 		code:        code,
 		description: description,
 	}
 }
 
-// NewForbiddenError creates a new error representing a resource that cannot be accessed with
+// Forbidden creates a new error representing a resource that cannot be accessed with
 // the current authorisation credentials. The user may need authorising, or if authorised,
 // may not be permitted to perform this action
-func NewForbiddenError(code, description string, context ...string) Error {
+func Forbidden(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   ForbiddenError,
+		errorType:   ErrForbidden,
 		code:        code,
 		description: description,
 	}
