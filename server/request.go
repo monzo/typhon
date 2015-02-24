@@ -1,6 +1,8 @@
 package server
 
 import (
+	"strings"
+
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 )
@@ -9,6 +11,8 @@ type Request interface {
 	context.Context
 
 	Body() []byte
+	ServiceName() string
+	Endpoint() string
 }
 
 type AMQPRequest struct {
@@ -24,6 +28,24 @@ func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
 }
 
 // RabbitMQ / AMQP fields
+
+func (r *AMQPRequest) ServiceName() string {
+	routingKey := r.RoutingKey()
+	lastDotIndex := strings.LastIndex(routingKey, ".")
+	if lastDotIndex == -1 {
+		return routingKey
+	}
+	return routingKey[:lastDotIndex]
+}
+
+func (r *AMQPRequest) Endpoint() string {
+	routingKey := r.RoutingKey()
+	lastDotIndex := strings.LastIndex(routingKey, ".")
+	if lastDotIndex == -1 {
+		return ""
+	}
+	return routingKey[lastDotIndex+1:]
+}
 
 func (r *AMQPRequest) Body() []byte {
 	return r.delivery.Body
