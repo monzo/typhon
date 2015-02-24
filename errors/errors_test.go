@@ -16,8 +16,8 @@ func TestErrorConstructors(t *testing.T) {
 		description     string
 	}{
 		{
-			InternalServerError,
-			ErrInternalServer,
+			InternalService,
+			ErrInternalService,
 			"boop.some.error",
 			"oh crap",
 		},

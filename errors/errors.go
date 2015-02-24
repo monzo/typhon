@@ -15,13 +15,13 @@ const (
 	// @todo should this just be mapped to an internal server error?
 	ErrUnknown = ErrorType("UNKNOWN")
 
-	ErrBadRequest     = ErrorType("BAD_REQUEST")
-	ErrBadResponse    = ErrorType("BAD_RESPONSE")
-	ErrForbidden      = ErrorType("FORBIDDEN")
-	ErrUnauthorized   = ErrorType("UNAUTHORIZED")
-	ErrInternalServer = ErrorType("INTERNAL_SERVER_ERROR")
-	ErrNotFound       = ErrorType("NOT_FOUND")
-	ErrTimeout        = ErrorType("TIMEOUT")
+	ErrBadRequest      = ErrorType("BAD_REQUEST")
+	ErrBadResponse     = ErrorType("BAD_RESPONSE")
+	ErrForbidden       = ErrorType("FORBIDDEN")
+	ErrUnauthorized    = ErrorType("UNAUTHORIZED")
+	ErrInternalService = ErrorType("INTERNAL_SERVICE")
+	ErrNotFound        = ErrorType("NOT_FOUND")
+	ErrTimeout         = ErrorType("TIMEOUT")
 )
 
 // platformError implements the Error interface, and is the internal type we
@@ -66,10 +66,10 @@ func (p *platformError) Type() ErrorType {
 	return ErrUnknown
 }
 
-// InternalServerError creates a new error that represents an error originating within a service
-func InternalServerError(code, description string, context ...string) Error {
+// InternalService creates a new error that represents an error originating within a service
+func InternalService(code, description string, context ...string) Error {
 	return &platformError{
-		errorType:   ErrInternalServer,
+		errorType:   ErrInternalService,
 		code:        code,
 		description: description,
 	}

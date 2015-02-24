@@ -2,7 +2,7 @@ syntax = "proto3";
 
 enum ErrorType {
 	UNKNOWN = 0;
-	INTERNAL_SERVER_ERROR = 1;
+	INTERNAL_SERVICE = 1;
 	BAD_REQUEST = 2;
 	BAD_RESPONSE = 3;
 	TIMEOUT = 4;

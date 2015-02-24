@@ -21,19 +21,19 @@ var _ = proto.Marshal
 type ErrorType int32
 
 const (
-	ErrorType_UNKNOWN               ErrorType = 0
-	ErrorType_INTERNAL_SERVER_ERROR ErrorType = 1
-	ErrorType_BAD_REQUEST           ErrorType = 2
-	ErrorType_BAD_RESPONSE          ErrorType = 3
-	ErrorType_TIMEOUT               ErrorType = 4
-	ErrorType_NOT_FOUND             ErrorType = 5
-	ErrorType_FORBIDDEN             ErrorType = 6
-	ErrorType_UNAUTHORIZED          ErrorType = 7
+	ErrorType_UNKNOWN          ErrorType = 0
+	ErrorType_INTERNAL_SERVICE ErrorType = 1
+	ErrorType_BAD_REQUEST      ErrorType = 2
+	ErrorType_BAD_RESPONSE     ErrorType = 3
+	ErrorType_TIMEOUT          ErrorType = 4
+	ErrorType_NOT_FOUND        ErrorType = 5
+	ErrorType_FORBIDDEN        ErrorType = 6
+	ErrorType_UNAUTHORIZED     ErrorType = 7
 )
 
 var ErrorType_name = map[int32]string{
 	0: "UNKNOWN",
-	1: "INTERNAL_SERVER_ERROR",
+	1: "INTERNAL_SERVICE",
 	2: "BAD_REQUEST",
 	3: "BAD_RESPONSE",
 	4: "TIMEOUT",
@@ -42,14 +42,14 @@ var ErrorType_name = map[int32]string{
 	7: "UNAUTHORIZED",
 }
 var ErrorType_value = map[string]int32{
-	"UNKNOWN":               0,
-	"INTERNAL_SERVER_ERROR": 1,
-	"BAD_REQUEST":           2,
-	"BAD_RESPONSE":          3,
-	"TIMEOUT":               4,
-	"NOT_FOUND":             5,
-	"FORBIDDEN":             6,
-	"UNAUTHORIZED":          7,
+	"UNKNOWN":          0,
+	"INTERNAL_SERVICE": 1,
+	"BAD_REQUEST":      2,
+	"BAD_RESPONSE":     3,
+	"TIMEOUT":          4,
+	"NOT_FOUND":        5,
+	"FORBIDDEN":        6,
+	"UNAUTHORIZED":     7,
 }
 
 func (x ErrorType) String() string {
