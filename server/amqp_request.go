@@ -77,5 +77,7 @@ func (r *AMQPRequest) Interface() interface{} {
 func (r *AMQPRequest) ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error {
 	// Temporarily just call the default client
 	// This means we can nail down our external interface, and work the internals out properly
+	// where we can initialise a 'client' and separate out the connected transport layer
+	// a client in this case would allow multiple parallel requests etc.
 	return client.Request(r, service, endpoint, req, resp)
 }
