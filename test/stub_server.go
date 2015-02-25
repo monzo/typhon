@@ -97,15 +97,15 @@ func (stubServer *StubServer) ResetStubs() {
 // Finds the relevant endpoint stub (if any), and calls its handler function
 func (stubServer *StubServer) handleRequest(req server.Request) (server.Response, error) {
 
-	stubServer.t.Logf("[StubServer] Handling request for %s", req.ServiceName(), req.Endpoint())
+	stubServer.t.Logf("[StubServer] Handling request for %s", req.Service(), req.Endpoint())
 	stubServer.stubsMutex.RLock()
 	defer stubServer.stubsMutex.RUnlock()
 
 	// determine which endpoint to use
 	for _, stub := range stubServer.stubs {
-		if stub.ServiceName == req.ServiceName() && stub.Endpoint == req.Endpoint() {
+		if stub.ServiceName == req.Service() && stub.Endpoint == req.Endpoint() {
 			return stub.Handler(req)
 		}
 	}
-	return nil, fmt.Errorf("No stub found for routing service name %s and endpoint %s", req.ServiceName(), req.Endpoint())
+	return nil, fmt.Errorf("No stub found for routing service name %s and endpoint %s", req.Service(), req.Endpoint())
 }
