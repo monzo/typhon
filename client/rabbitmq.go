@@ -4,7 +4,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -13,16 +12,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
+	"golang.org/x/net/context"
 
+	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
-)
-
-var (
-	ErrBadResponse    = errors.New("client.unmarshal.badreply.error")
-	ErrPublish        = errors.New("client.call.publish.error")
-	ErrRequestMarshal = errors.New("client.call.marshal.error")
-	ErrUuidGeneration = errors.New("client.call.uuid.error")
-	ErrTimeout        = errors.New("client.call.timeout.error")
 )
 
 type RabbitClient struct {
@@ -89,14 +82,14 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res proto.Message) error {
+func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, req proto.Message, res proto.Message) error {
 
 	routingKey := c.buildRoutingKey(serviceName, endpoint)
 
 	correlation, err := uuid.NewV4()
 	if err != nil {
 		log.Errorf("[Client] Failed to create unique request id: %v", err)
-		return ErrUuidGeneration
+		return errors.InternalService("request.uuid", err.Error())
 	}
 
 	replyChannel := c.inflight.push(correlation.String())
@@ -105,7 +98,7 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 	requestBody, err := proto.Marshal(req)
 	if err != nil {
 		log.Errorf("[Client] Failed to marshal request: %v", err)
-		return ErrRequestMarshal
+		return errors.BadRequest("request.marshal", err.Error())
 	}
 
 	message := amqp.Publishing{
@@ -118,18 +111,19 @@ func (c *RabbitClient) Call(serviceName, endpoint string, req proto.Message, res
 	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish to '%s': %v", routingKey, err)
-		return ErrPublish
+		return errors.InternalService("request.publish", err.Error())
 	}
 
 	select {
 	case delivery := <-replyChannel:
 		if err := proto.Unmarshal(delivery.Body, res); err != nil {
-			return ErrBadResponse
+			return errors.BadResponse("response.unmarshal", err.Error())
 		}
 		return nil
 	case <-time.After(defaultTimeout):
-		log.Criticalf("[Client] Client timeout on delivery")
-		return ErrTimeout
+		e := fmt.Errorf("Timeout caling %v")
+		log.Warnf("[Client] %v", e)
+		return errors.Timeout(fmt.Sprintf("%s.timeout", routingKey), e.Error())
 	}
 }
 
