@@ -6,6 +6,7 @@ package client
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -19,6 +20,7 @@ import (
 )
 
 type RabbitClient struct {
+	once       sync.Once
 	inflight   *inflightRegistry
 	replyTo    string
 	connection *rabbit.RabbitConnection
@@ -83,6 +85,12 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 }
 
 func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, req proto.Message, res proto.Message) error {
+
+	// Ensure we're initialised, but only do this once
+	//
+	// @todo we need a connection loop here where we check if we're connected,
+	// and if not, block for a short period of time while attempting to reconnect
+	c.once.Do(c.Init)
 
 	routingKey := c.buildRoutingKey(serviceName, endpoint)
 
