@@ -3,6 +3,8 @@ package server
 import (
 	"strings"
 
+	"github.com/b2aio/typhon/client"
+	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 )
@@ -65,4 +67,15 @@ func (r *AMQPRequest) RoutingKey() string {
 
 func (r *AMQPRequest) Interface() interface{} {
 	return r.delivery
+}
+
+// Client implementation
+
+// ScopedRequest calls a service within the scope of the current request
+// This allows request context to be passed transparently,
+// and child requests to be 'scoped' within a parent request
+func (r *AMQPRequest) ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error {
+	// Temporarily just call the default client
+	// This means we can nail down our external interface, and work the internals out properly
+	return client.Request(r, service, endpoint, req, resp)
 }
