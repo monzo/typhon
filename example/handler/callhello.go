@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 
-	"github.com/b2aio/typhon/client"
 	"github.com/b2aio/typhon/example/proto/callhello"
 	"github.com/b2aio/typhon/example/proto/hello"
 	"github.com/b2aio/typhon/server"
@@ -21,8 +20,9 @@ func callhelloHandler(req server.Request) (server.Response, error) {
 	reqProto := req.Body().(*callhello.Request)
 	resp := &hello.Response{}
 
-	client.Request(
-		"example.hello",
+	req.ScopedRequest(
+		"example",
+		"hello",
 		&hello.Request{
 			Name: reqProto.Value,
 		},

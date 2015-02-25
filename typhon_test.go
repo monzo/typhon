@@ -36,13 +36,13 @@ func TestExample(t *testing.T) {
 
 	initServer(t)
 
-	client.InitDefault("helloworld")
-
 	resp := &callhello.Response{}
 	client.Request(
-		"example.callhello",
-		&callhello.Request{Value: "Bunny"},
-		resp,
+		nil,                                // context
+		"example",                          // service
+		"callhello",                        // service endpoint to call
+		&callhello.Request{Value: "Bunny"}, // request
+		resp, // response
 	)
 	t.Logf("[testHandler] received %s", resp)
 	require.Equal(t, "example.hello says 'Hello, Bunny!'", resp.Value)
