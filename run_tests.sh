@@ -23,4 +23,7 @@ export RABBIT_URL=${RABBIT_URL:-amqp://admin:guest@$docker_ip:$rabbit_port}
 echo "RABBIT_URL=$RABBIT_URL"
 echo "RABBIT_EXCHANGE=$RABBIT_EXCHANGE"
 
+# TODO lock down dependencies somehow
+go get ./...
+
 go test ./...
