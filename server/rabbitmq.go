@@ -137,7 +137,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	body, err := rsp.Encode()
 	if err != nil {
 		log.Errorf("[Server] Failed to marshal response")
-		s.respondWithError(delivery, err)
+		s.respondWithError(delivery, errors.BadResponse("response.marshal", err.Error()))
 		return
 	}
 
