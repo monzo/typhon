@@ -20,7 +20,7 @@ func InitServer(t *testing.T, name string) server.Server {
 	select {
 	case <-server.NotifyConnected():
 	case <-time.After(1 * time.Second):
-		t.Fatalf("StubServer couldn't connect to RabbitMQ")
+		t.Fatalf("Test Server couldn't connect to RabbitMQ")
 	}
 
 	return server.DefaultServer
