@@ -146,6 +146,9 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		CorrelationId: delivery.CorrelationId,
 		Timestamp:     time.Now().UTC(),
 		Body:          body,
+		Headers: map[string]interface{}{
+			"Content-Encoding": "RESPONSE",
+		},
 	}
 	s.connection.Publish("", delivery.ReplyTo, msg)
 }
