@@ -5,18 +5,18 @@ import (
 )
 
 // Marshal an error into a protobuf for transmission
-func Marshal(e *platformError) *pe.PlatformError {
+func Marshal(e *ServiceError) *pe.Error {
 
 	// Account for nil errors
 	if e == nil {
-		return &pe.PlatformError{
+		return &pe.Error{
 			Type:        pe.ErrorType_UNKNOWN,
 			Code:        "unknown",
 			Description: "Unknown error, nil error marshalled",
 		}
 	}
 
-	return &pe.PlatformError{
+	return &pe.Error{
 		Type:        errorTypeToProto(e.Type()),
 		Code:        e.Code(),
 		Description: e.Description(),
@@ -24,14 +24,14 @@ func Marshal(e *platformError) *pe.PlatformError {
 }
 
 // Unmarshal a protobuf error into a local error
-func Unmarshal(p *pe.PlatformError) *platformError {
+func Unmarshal(p *pe.Error) *ServiceError {
 	if p == nil {
 		// @todo should this actually be blank?
 		// or should we put a code and description in, like on marshaling
-		return &platformError{}
+		return &ServiceError{}
 	}
 
-	return &platformError{
+	return &ServiceError{
 		errorType:   protoToErrorType(p.Type),
 		code:        p.Code,
 		description: p.Description,
