@@ -68,6 +68,6 @@ func TestErrorConstructors(t *testing.T) {
 }
 
 func TestUnknownError(t *testing.T) {
-	err := &platformError{}
+	err := &ServiceError{}
 	assert.Equal(t, ErrUnknown, err.Type())
 }

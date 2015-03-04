@@ -26,7 +26,7 @@ func TestMarshalErrorTypes(t *testing.T) {
 
 	// Assert types are interchanged correctly
 	for _, tc := range errorTypeTestCases {
-		platErr := &platformError{
+		platErr := &ServiceError{
 			errorType: tc.platErr,
 		}
 		protoError := Marshal(platErr)
@@ -41,7 +41,7 @@ func TestUnmarshalErrorTypes(t *testing.T) {
 
 	// Assert types are interchanged correctly
 	for _, tc := range errorTypeTestCases {
-		platErr := &platformError{
+		platErr := &ServiceError{
 			errorType: tc.platErr,
 		}
 		protoError := Marshal(platErr)
@@ -53,7 +53,7 @@ func TestUnmarshalErrorTypes(t *testing.T) {
 }
 
 func TestMarshalNilError(t *testing.T) {
-	var input *platformError // nil
+	var input *ServiceError // nil
 	protoError := Marshal(input)
 
 	assert.NotNil(t, protoError)
@@ -63,7 +63,7 @@ func TestMarshalNilError(t *testing.T) {
 }
 
 func TestUnmarshalNilError(t *testing.T) {
-	var input *pe.PlatformError // nil
+	var input *pe.Error // nil
 	platError := Unmarshal(input)
 
 	assert.NotNil(t, platError)
@@ -75,41 +75,41 @@ func TestUnmarshalNilError(t *testing.T) {
 // interchangingErrorTestCases represents a set of error formats
 // which should be converted between
 var interchangableErrorTestCases = []struct {
-	platErr  *platformError
-	protoErr *pe.PlatformError
+	platErr  *ServiceError
+	protoErr *pe.Error
 }{
 	// test blank error
 	{
-		&platformError{},
-		&pe.PlatformError{},
+		&ServiceError{},
+		&pe.Error{},
 	},
 	// confirm blank errors (shouldn't be possible) are UNKNOWN
 	{
-		&platformError{},
-		&pe.PlatformError{
+		&ServiceError{},
+		&pe.Error{
 			Type: pe.ErrorType_UNKNOWN,
 		},
 	},
 	// normal cases
 	{
-		&platformError{
+		&ServiceError{
 			errorType:   ErrInternalService,
 			code:        "some.error",
 			description: "omg help plz",
 		},
-		&pe.PlatformError{
+		&pe.Error{
 			Type:        pe.ErrorType_INTERNAL_SERVICE,
 			Code:        "some.error",
 			Description: "omg help plz",
 		},
 	},
 	{
-		&platformError{
+		&ServiceError{
 			errorType:   ErrForbidden,
 			code:        "denied.access",
 			description: "NO. FORBIDDEN",
 		},
-		&pe.PlatformError{
+		&pe.Error{
 			Type:        pe.ErrorType_FORBIDDEN,
 			Code:        "denied.access",
 			Description: "NO. FORBIDDEN",
