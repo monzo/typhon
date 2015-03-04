@@ -1,15 +1,16 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	log "github.com/cihub/seelog"
+	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 
+	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
 )
 
@@ -118,7 +119,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	endpoint := s.endpointRegistry.Get(endpointName)
 	if endpoint == nil {
 		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", endpointName)
-		s.respondWithError(delivery, errors.New("Endpoint not found"))
+		s.respondWithError(delivery, errors.BadRequest("endpoint.notfound", "Endpoint not found"))
 		return
 	}
 
