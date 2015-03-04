@@ -156,13 +156,38 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 // respondWithError to a delivery, with the provided error
 func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 
+	// Ensure we have a service error in proto form
+	// and marshal this for transmission
+	svcErr := errorToServiceError(err)
+	b, err := proto.Marshal(errors.Marshal(svcErr))
+	if err != nil {
+		// shit
+	}
+
 	// Construct a return message with an error
 	msg := amqp.Publishing{
 		CorrelationId: delivery.CorrelationId,
 		Timestamp:     time.Now().UTC(),
-		Body:          []byte(err.Error()),
+		Body:          b,
+		Headers: map[string]interface{}{
+			"Content-Encoding": "ERROR",
+		},
 	}
 
 	// Publish the error back to the client
 	s.connection.Publish("", delivery.ReplyTo, msg)
+}
+
+// errorToServiceError converts an error interface to the concrete
+// errors.ServiceError type which we pass between services (as proto)
+func errorToServiceError(err error) *errors.ServiceError {
+
+	// If we already have a service error, return this
+	if svcErr, ok := err.(*errors.ServiceError); ok {
+		return svcErr
+	}
+
+	// Otherwise make a generic internal service error
+	// Encapsulating the error we were given
+	return errors.InternalService("internalservice", err.Error()).(*errors.ServiceError)
 }
