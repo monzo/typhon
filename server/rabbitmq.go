@@ -20,12 +20,15 @@ type AMQPServer struct {
 	endpointRegistry   *EndpointRegistry
 	connection         *rabbit.RabbitConnection
 	notifyConnected    []chan bool
+
+	closeChan chan struct{}
 }
 
 func NewAMQPServer() Server {
 	return &AMQPServer{
 		endpointRegistry: NewEndpointRegistry(),
 		connection:       rabbit.NewRabbitConnection(),
+		closeChan:        make(chan struct{}),
 	}
 }
 
@@ -85,13 +88,24 @@ func (s *AMQPServer) Run() {
 	}
 
 	// Handle deliveries
-	for req := range deliveries {
-		log.Infof("[Server] [%s] Received new delivery", s.ServiceName)
-		go s.handleRequest(req)
+	for {
+		select {
+		case req := <-deliveries:
+			log.Infof("[Server] [%s] Received new delivery", s.ServiceName)
+			go s.handleRequest(req)
+		case <-s.closeChan:
+			// shut down server
+			s.connection.Close()
+			break
+		}
 	}
 
 	log.Infof("Exiting")
 	log.Flush()
+}
+
+func (s *AMQPServer) Close() {
+	close(s.closeChan)
 }
 
 // handleRequest takes a delivery from AMQP, attempts to process it and return a response

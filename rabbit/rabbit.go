@@ -2,6 +2,7 @@ package rabbit
 
 import (
 	"os"
+	"sync"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -28,7 +29,8 @@ func init() {
 
 func NewRabbitConnection() *RabbitConnection {
 	return &RabbitConnection{
-		notify: make(chan bool, 1),
+		notify:    make(chan bool, 1),
+		closeChan: make(chan struct{}),
 	}
 }
 
@@ -37,6 +39,10 @@ type RabbitConnection struct {
 	Channel         *RabbitChannel
 	ExchangeChannel *RabbitChannel
 	notify          chan bool
+
+	mtx       sync.Mutex
+	closeChan chan struct{}
+	closed    bool
 }
 
 func (r *RabbitConnection) Init() chan bool {
@@ -53,8 +59,31 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 		connected <- true
 		notifyClose := make(chan *amqp.Error)
 		r.Connection.NotifyClose(notifyClose)
-		<-notifyClose
+
+		// Block until we get disconnected, or shut down
+		select {
+		case <-notifyClose:
+			// Spin around and reconnect
+		case <-r.closeChan:
+			// Shut down connection
+			if err := r.Connection.Close(); err != nil {
+				log.Errorf("Failed to close AMQP connection: %v", err)
+			}
+			return
+		}
 	}
+}
+
+func (r *RabbitConnection) Close() {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+
+	if r.closed {
+		return
+	}
+
+	close(r.closeChan)
+	r.closed = true
 }
 
 func (r *RabbitConnection) tryToConnect() error {

@@ -5,6 +5,7 @@ package server
 type Server interface {
 	Init(*Config)
 	Run()
+	Close()
 	NotifyConnected() chan bool
 
 	Name() string
@@ -30,6 +31,11 @@ func RegisterEndpoint(endpoint Endpoint) {
 // Run the DefaultServer
 func Run() {
 	DefaultServer.Run()
+}
+
+// Close the DefaultServer
+func Close() {
+	DefaultServer.Close()
 }
 
 // NotifyConnected delegates to DefaultServer
