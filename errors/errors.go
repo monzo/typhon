@@ -24,17 +24,17 @@ const (
 	ErrTimeout         = ErrorType("TIMEOUT")
 )
 
-// platformError implements the Error interface, and is the internal type we
+// ServiceError implements the Error interface, and is the internal type we
 // use to pass errors between services. The error cannot be directly instantiated,
 // and one of the helper methods should be used to construct a specific type of error
-type platformError struct {
+type ServiceError struct {
 	errorType   ErrorType
 	code        string
 	description string
 }
 
 // Code defines a clearly defined inter-service error code
-func (p *platformError) Code() string {
+func (p *ServiceError) Code() string {
 	if p != nil {
 		return p.code
 	}
@@ -43,7 +43,7 @@ func (p *platformError) Code() string {
 }
 
 // Description returns a string description of the error
-func (p *platformError) Description() string {
+func (p *ServiceError) Description() string {
 	if p != nil {
 		return p.description
 	}
@@ -52,13 +52,13 @@ func (p *platformError) Description() string {
 }
 
 // Error returns a string description of the error
-// This means the platformError implements the error interface
-func (p *platformError) Error() string {
+// This means the ServiceError implements the error interface
+func (p *ServiceError) Error() string {
 	return p.Description()
 }
 
 // Type of error that this error represents
-func (p *platformError) Type() ErrorType {
+func (p *ServiceError) Type() ErrorType {
 	if p != nil && p.errorType != "" {
 		return p.errorType
 	}
@@ -68,7 +68,7 @@ func (p *platformError) Type() ErrorType {
 
 // InternalService creates a new error that represents an error originating within a service
 func InternalService(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrInternalService,
 		code:        code,
 		description: description,
@@ -78,7 +78,7 @@ func InternalService(code, description string, context ...string) Error {
 // BadRequest creates a new error to represent an error caused by the client sending
 // an invalid request. This is non-retryable unless the request is modified.
 func BadRequest(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrBadRequest,
 		code:        code,
 		description: description,
@@ -88,7 +88,7 @@ func BadRequest(code, description string, context ...string) Error {
 // BadResponse creates a new error representing a failure to response with a valid response
 // Examples of this would be a handler returning an invalid message format
 func BadResponse(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrBadResponse,
 		code:        code,
 		description: description,
@@ -97,7 +97,7 @@ func BadResponse(code, description string, context ...string) Error {
 
 // Timeout creates a new error representing a timeout from client to server
 func Timeout(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrTimeout,
 		code:        code,
 		description: description,
@@ -107,7 +107,7 @@ func Timeout(code, description string, context ...string) Error {
 // NotFound creates a new error representing a resource that cannot be found. In some
 // cases this is not an error, and would be better represented by a zero length slice of elements
 func NotFound(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrNotFound,
 		code:        code,
 		description: description,
@@ -118,7 +118,7 @@ func NotFound(code, description string, context ...string) Error {
 // the current authorisation credentials. The user may need authorising, or if authorised,
 // may not be permitted to perform this action
 func Forbidden(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrForbidden,
 		code:        code,
 		description: description,
@@ -128,7 +128,7 @@ func Forbidden(code, description string, context ...string) Error {
 // Unauthorized creates a new error indicating that authentication is required,
 // but has either failed or not been provided.
 func Unauthorized(code, description string, context ...string) Error {
-	return &platformError{
+	return &ServiceError{
 		errorType:   ErrUnauthorized,
 		code:        code,
 		description: description,

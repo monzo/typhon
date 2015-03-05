@@ -16,6 +16,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/b2aio/typhon/errors"
+	pe "github.com/b2aio/typhon/proto/error"
 	"github.com/b2aio/typhon/rabbit"
 )
 
@@ -84,7 +85,7 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, req proto.Message, res proto.Message) error {
+func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, req proto.Message, resp proto.Message) error {
 
 	// Ensure we're initialised, but only do this once
 	//
@@ -124,10 +125,7 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 
 	select {
 	case delivery := <-replyChannel:
-		if err := proto.Unmarshal(delivery.Body, res); err != nil {
-			return errors.BadResponse("response.unmarshal", err.Error())
-		}
-		return nil
+		return handleResponse(delivery, resp)
 	case <-time.After(defaultTimeout):
 		e := fmt.Errorf("Timeout caling %v")
 		log.Warnf("[Client] %v", e)
@@ -137,4 +135,41 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 
 func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
 	return fmt.Sprintf("%s.%s", serviceName, endpoint)
+}
+
+// handleResponse returned from a service by marshaling into the response type,
+// or converting an error from the remote service
+func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
+	// deal with error responses, by converting back from wire format
+	if deliveryIsError(delivery) {
+		p := &pe.Error{}
+		if err := proto.Unmarshal(delivery.Body, p); err != nil {
+			return errors.BadResponse("response.unmarshal", err.Error())
+		}
+
+		return errors.Unmarshal(p)
+	}
+
+	// Otherwise try to marshal to the expected response type
+	if err := proto.Unmarshal(delivery.Body, resp); err != nil {
+		return errors.BadResponse("response.unmarshal", err.Error())
+	}
+
+	return nil
+}
+
+// deliveryIsError checks if the delivered response contains an error
+func deliveryIsError(delivery amqp.Delivery) bool {
+	encoding, ok := delivery.Headers["Content-Encoding"].(string)
+	if !ok {
+		// Can't type assert header to string, assume error
+		log.Warnf("Service returned invalid Content-Encoding header %v", encoding)
+		return true
+	}
+
+	if encoding == "" || encoding == "ERROR" {
+		return true
+	}
+
+	return false
 }

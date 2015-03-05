@@ -11,7 +11,7 @@ enum ErrorType {
 	UNAUTHORIZED = 7;
 }
 
-message PlatformError {
+message Error {
 	ErrorType type = 1;
 	string code  = 2;
 	string description = 3;
