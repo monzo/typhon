@@ -102,7 +102,6 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	}
 
 	replyChannel := c.inflight.push(correlation.String())
-	defer close(replyChannel)
 
 	requestBody, err := proto.Marshal(req)
 	if err != nil {
