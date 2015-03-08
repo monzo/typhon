@@ -102,7 +102,6 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	}
 
 	replyChannel := c.inflight.push(correlation.String())
-	defer close(replyChannel)
 
 	requestBody, err := proto.Marshal(req)
 	if err != nil {
@@ -127,7 +126,7 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	case delivery := <-replyChannel:
 		return handleResponse(delivery, resp)
 	case <-time.After(defaultTimeout):
-		e := fmt.Errorf("Timeout caling %v")
+		e := fmt.Errorf("Timeout calling %v", routingKey)
 		log.Warnf("[Client] %v", e)
 		return errors.Timeout(fmt.Sprintf("%s.timeout", routingKey), e.Error())
 	}
