@@ -126,7 +126,7 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	case delivery := <-replyChannel:
 		return handleResponse(delivery, resp)
 	case <-time.After(defaultTimeout):
-		e := fmt.Errorf("Timeout calling %v", routingKey)
+		e := fmt.Errorf("Timeout calling %s", routingKey)
 		log.Warnf("[Client] %v", e)
 		return errors.Timeout(fmt.Sprintf("%s.timeout", routingKey), e.Error())
 	}

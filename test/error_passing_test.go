@@ -23,12 +23,20 @@ func TestErrorPropagation(t *testing.T) {
 		errorCode        = "some.error"
 	)
 
+	errors.ClientCodes = map[string]int{
+		"some.error": 111,
+	}
+
 	// Register test endpoints
 	s.RegisterEndpoint(&server.DefaultEndpoint{
 		EndpointName: "callerror",
 		Handler: func(req server.Request) (server.Response, error) {
 			// simulate some failure
-			return nil, errors.InternalService(errorCode, errorDescription)
+			return nil, errors.InternalService(errorCode, errorDescription, map[string]string{
+				"public key": "public value",
+			}, map[string]string{
+				"private key": "private value",
+			})
 		},
 
 		// for convienience use example request & response
@@ -55,10 +63,11 @@ func TestErrorPropagation(t *testing.T) {
 	assert.Equal(t, errorCode, svcErr.Code())
 	assert.Equal(t, errorDescription, svcErr.Description())
 	assert.Equal(t, errorDescription, svcErr.Error())
-
-	// Also resp should be nil
-	// assert.Nil(t, resp)
-
-	// require.Equal(t, "example.hello says 'Hello, Bunny!'", resp.Value)
-	// Log the response we receive
+	assert.Equal(t, map[string]string{
+		"public key": "public value",
+	}, svcErr.PublicContext())
+	assert.Equal(t, map[string]string{
+		"private key": "private value",
+	}, svcErr.PrivateContext())
+	assert.Equal(t, 111, svcErr.ClientCode())
 }

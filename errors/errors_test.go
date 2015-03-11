@@ -6,56 +6,76 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type newError func(code, description string, context ...string) Error
+type newError func(code, description string, context ...map[string]string) Error
 
 func TestErrorConstructors(t *testing.T) {
+
+	// mock out the ClientCodes registry
+	ClientCodes = map[string]int{
+		"boop.some.error":   101,
+		"client.sent.cruft": 102,
+	}
+
 	testCases := []struct {
-		constructor     newError
-		expectedErrType ErrorType
-		code            string
-		description     string
+		constructor newError
+		code        string
+		description string
+		contexts    []map[string]string
+
+		expectedErrType        ErrorType
+		expectedClientCode     int
+		expectedPublicContext  map[string]string
+		expectedPrivateContext map[string]string
 	}{
 		{
-			InternalService,
-			ErrInternalService,
-			"boop.some.error",
-			"oh crap",
+			InternalService, "boop.some.error", "oh crap", nil,
+			ErrInternalService, 101, nil, nil,
 		},
 		{
-			BadRequest,
-			ErrBadRequest,
-			"client.sent.some.cruft",
-			"hey client, please go away and rethink your life",
+			BadRequest, "client.sent.cruft", "please go away and rethink your life", nil,
+			ErrBadRequest, 102, nil, nil,
 		},
 		{
-			BadResponse,
-			ErrBadResponse,
-			"server.responded.with.cruft",
-			"server returned something that couldn't be marshaled or unmarshaled",
+			BadResponse, "server.responded.cruft", "server returned something crufty", nil,
+			ErrBadResponse, DEFAULT_CLIENT_CODE, nil, nil,
 		},
 		{
-			Timeout,
-			ErrTimeout,
-			"client.timed.out.waiting",
-			"client timed out after the heat death of the universe",
+			Timeout, "client.timed.out", "client timed out after the heat death of the universe", nil,
+			ErrTimeout, DEFAULT_CLIENT_CODE, nil, nil,
 		},
 		{
-			NotFound,
-			ErrNotFound,
-			"thing.notfound",
-			"missing resource, resource doesn't exist",
+			NotFound, "thing.notfound", "missing resource, resource doesn't exist", nil,
+			ErrNotFound, DEFAULT_CLIENT_CODE, nil, nil,
 		},
 		{
-			Forbidden,
-			ErrForbidden,
-			"access.denied",
-			"user doesn't have permission to perform this action",
+			Forbidden, "access.denied", "user doesn't have permission to perform this action", nil,
+			ErrForbidden, DEFAULT_CLIENT_CODE, nil, nil,
 		},
 		{
-			Unauthorized,
-			ErrUnauthorized,
-			"authentication.required",
-			"user needs to authenticate to perform this action",
+			Unauthorized, "authentication.required", "user needs to authenticate to perform this action", nil,
+			ErrUnauthorized, DEFAULT_CLIENT_CODE, nil, nil,
+		},
+		{
+			Unauthorized, "blub", "test public context", []map[string]string{{
+				"some key":    "some value",
+				"another key": "another value",
+			}},
+			ErrUnauthorized, DEFAULT_CLIENT_CODE, map[string]string{
+				"some key":    "some value",
+				"another key": "another value",
+			}, nil,
+		},
+		{
+			Unauthorized, "blub", "test public + private context", []map[string]string{{
+				"some key": "some value",
+			}, {
+				"some private key": "woah cool",
+			}},
+			ErrUnauthorized, DEFAULT_CLIENT_CODE, map[string]string{
+				"public key": "public value",
+			}, map[string]string{
+				"some private key": "woah cool",
+			},
 		},
 	}
 
@@ -64,6 +84,7 @@ func TestErrorConstructors(t *testing.T) {
 		assert.Equal(t, tc.code, err.Code())
 		assert.Equal(t, tc.description, err.Error())
 		assert.Equal(t, tc.expectedErrType, err.Type())
+		assert.Equal(t, tc.expectedClientCode, err.ClientCode())
 	}
 }
 

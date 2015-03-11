@@ -17,9 +17,12 @@ func Marshal(e *ServiceError) *pe.Error {
 	}
 
 	return &pe.Error{
-		Type:        errorTypeToProto(e.Type()),
-		Code:        e.Code(),
-		Description: e.Description(),
+		Type:           errorTypeToProto(e.Type()),
+		Code:           e.Code(),
+		Description:    e.Description(),
+		ClientCode:     int32(e.ClientCode()),
+		PublicContext:  e.PublicContext(),
+		PrivateContext: e.PrivateContext(),
 	}
 }
 
@@ -32,9 +35,12 @@ func Unmarshal(p *pe.Error) *ServiceError {
 	}
 
 	return &ServiceError{
-		errorType:   protoToErrorType(p.Type),
-		code:        p.Code,
-		description: p.Description,
+		errorType:      protoToErrorType(p.Type),
+		code:           p.Code,
+		description:    p.Description,
+		clientCode:     int(p.ClientCode),
+		publicContext:  p.PublicContext,
+		privateContext: p.PrivateContext,
 	}
 }
 
