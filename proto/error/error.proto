@@ -15,5 +15,7 @@ message Error {
 	ErrorType type = 1;
 	string code  = 2;
 	string description = 3;
-	repeated string context = 4;
+	int32 client_code = 4;
+	map<string, string> public_context = 5;
+	map<string, string> private_context = 6;
 }

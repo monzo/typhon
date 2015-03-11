@@ -96,11 +96,25 @@ var interchangableErrorTestCases = []struct {
 			errorType:   ErrInternalService,
 			code:        "some.error",
 			description: "omg help plz",
+			clientCode:  123,
+			publicContext: map[string]string{
+				"something": "hullo",
+			},
+			privateContext: map[string]string{
+				"something else": "bye bye",
+			},
 		},
 		&pe.Error{
 			Type:        pe.ErrorType_INTERNAL_SERVICE,
 			Code:        "some.error",
 			Description: "omg help plz",
+			ClientCode:  123,
+			PublicContext: map[string]string{
+				"something": "hullo",
+			},
+			PrivateContext: map[string]string{
+				"something else": "bye bye",
+			},
 		},
 	},
 	{
