@@ -8,64 +8,38 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-type Endpoint interface {
-	Name() string
-	HandleRequest(req Request) (Response, error)
-
-	// RequestType returns a pointer to an instance of the expected response type
-	RequestType() interface{}
-
-	// ResponseType returns a pointer to an instance of the expected response type
-	ResponseType() interface{}
+type Endpoint struct {
+	Name     string
+	Handler  func(Request) (Response, error)
+	Request  interface{}
+	Response interface{}
 }
 
-type HandlerFunc func(Request) (Response, error)
-
-// @todo DefaultEndpoint is a bit of a misnomer
-type DefaultEndpoint struct {
-	EndpointName string
-	Handler      func(req Request) (Response, error)
-	Request      interface{}
-	Response     interface{}
-}
-
-func (e *DefaultEndpoint) RequestType() interface{} {
-	return e.Request
-}
-
-func (e *DefaultEndpoint) ResponseType() interface{} {
-	return e.Response
-}
-
-func (e *DefaultEndpoint) Name() string {
-	return e.EndpointName
-}
-
-func (e *DefaultEndpoint) HandleRequest(req Request) (Response, error) {
+func (e *Endpoint) HandleRequest(req Request) (Response, error) {
 
 	// TODO check that `Request` and `Response` are set in RegisterEndpoint
 	// TODO don't tightly couple `HandleRequest` to the proto encoding
 
-	if e.RequestType() != nil {
-		body := cloneTypedPtr(e.RequestType()).(proto.Message)
+	if e.Request != nil {
+		body := cloneTypedPtr(e.Request).(proto.Message)
 		if err := proto.Unmarshal(req.Payload(), body); err != nil {
 			return nil, fmt.Errorf("Could not unmarshal request")
 		}
 		req.SetBody(body)
 	}
 
-	log.Debugf("%s.%s handler received request: %+v", req.Service(), e.Name(), req.Body())
+	log.Debugf("%s.%s handler received request: %+v", req.Service(), e.Name, req.Body())
 
 	resp, err := e.Handler(req)
 
 	if err != nil {
-		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name(), err.Error())
+		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name, err.Error())
 	} else {
-		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name(), resp.(*ProtoResponse).Pb)
+		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name, resp.(*ProtoResponse).Pb)
 	}
 
 	return resp, err
-	// TODO return error if e.ResponseType() is set and doesn't match
+	// TODO return error if e.Response is set and doesn't match
 }
 
 // cloneTypedPtr takes a pointer of any type and returns a pointer to

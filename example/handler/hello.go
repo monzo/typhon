@@ -7,11 +7,11 @@ import (
 	"github.com/b2aio/typhon/server"
 )
 
-var Hello = &server.DefaultEndpoint{
-	EndpointName: "hello",
-	Handler:      helloHandler,
-	Request:      &hello.Request{},
-	Response:     &hello.Response{},
+var Hello = &server.Endpoint{
+	Name:     "hello",
+	Handler:  helloHandler,
+	Request:  &hello.Request{},
+	Response: &hello.Response{},
 }
 
 // Hello is a handler that responds to a hello request with a greeting

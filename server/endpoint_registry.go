@@ -7,16 +7,16 @@ import (
 
 type EndpointRegistry struct {
 	sync.RWMutex
-	endpoints map[string]Endpoint
+	endpoints map[string]*Endpoint
 }
 
 func NewEndpointRegistry() *EndpointRegistry {
 	return &EndpointRegistry{
-		endpoints: make(map[string]Endpoint),
+		endpoints: make(map[string]*Endpoint),
 	}
 }
 
-func (r *EndpointRegistry) Get(endpointName string) Endpoint {
+func (r *EndpointRegistry) Get(endpointName string) *Endpoint {
 	r.RLock()
 	defer r.RUnlock()
 	for pattern, endpoint := range r.endpoints {
@@ -27,10 +27,10 @@ func (r *EndpointRegistry) Get(endpointName string) Endpoint {
 	return nil
 }
 
-func (r *EndpointRegistry) Register(endpoint Endpoint) {
+func (r *EndpointRegistry) Register(endpoint *Endpoint) {
 	r.Lock()
 	defer r.Unlock()
-	r.endpoints[endpoint.Name()] = endpoint
+	r.endpoints[endpoint.Name] = endpoint
 }
 
 func (r *EndpointRegistry) Deregister(pattern string) {

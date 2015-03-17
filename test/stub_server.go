@@ -22,7 +22,7 @@ type StubServer struct {
 type ServiceStub struct {
 	ServiceName string
 	Endpoint    string
-	Handler     server.HandlerFunc
+	Handler     func(server.Request) (server.Response, error)
 }
 
 // The stub server boots up a regular typhon server and registers a single
@@ -47,8 +47,8 @@ func NewStubServer(t *testing.T) *StubServer {
 
 	t.Log("[StubServer] Connected to RabbitMQ")
 
-	stubServer.RegisterEndpoint(&server.DefaultEndpoint{
-		EndpointName: ".*", // TODO EndpointName is not well-named
+	stubServer.RegisterEndpoint(&server.Endpoint{
+		Name: ".*", // TODO Name is not well-named
 		Handler: func(req server.Request) (server.Response, error) {
 			return stubServer.handleRequest(req)
 		},

@@ -11,7 +11,7 @@ type Server interface {
 	Name() string
 	Description() string
 
-	RegisterEndpoint(endpoint Endpoint)
+	RegisterEndpoint(endpoint *Endpoint)
 	DeregisterEndpoint(pattern string)
 }
 
@@ -24,7 +24,7 @@ func Init(c *Config) {
 }
 
 // RegisterEndpoint with the DefaultServer
-func RegisterEndpoint(endpoint Endpoint) {
+func RegisterEndpoint(endpoint *Endpoint) {
 	DefaultServer.RegisterEndpoint(endpoint)
 }
 

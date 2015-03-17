@@ -8,11 +8,11 @@ import (
 	"github.com/b2aio/typhon/server"
 )
 
-var CallHello = &server.DefaultEndpoint{
-	EndpointName: "callhello",
-	Handler:      callhelloHandler,
-	Request:      &callhello.Request{},
-	Response:     &callhello.Response{},
+var CallHello = &server.Endpoint{
+	Name:     "callhello",
+	Handler:  callhelloHandler,
+	Request:  &callhello.Request{},
+	Response: &callhello.Response{},
 }
 
 func callhelloHandler(req server.Request) (server.Response, error) {

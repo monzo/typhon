@@ -28,8 +28,8 @@ func TestErrorPropagation(t *testing.T) {
 	}
 
 	// Register test endpoints
-	s.RegisterEndpoint(&server.DefaultEndpoint{
-		EndpointName: "callerror",
+	s.RegisterEndpoint(&server.Endpoint{
+		Name: "callerror",
 		Handler: func(req server.Request) (server.Response, error) {
 			// simulate some failure
 			return nil, errors.InternalService(errorCode, errorDescription, map[string]string{
