@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -48,13 +49,22 @@ func (e *DefaultEndpoint) HandleRequest(req Request) (Response, error) {
 	if e.RequestType() != nil {
 		body := cloneTypedPtr(e.RequestType()).(proto.Message)
 		if err := proto.Unmarshal(req.Payload(), body); err != nil {
-			return nil, fmt.Errorf("Count not unmarshal request")
+			return nil, fmt.Errorf("Could not unmarshal request")
 		}
 		req.SetBody(body)
 	}
 
-	return e.Handler(req)
+	log.Debugf("%s.%s handler received request: %+v", req.Service(), e.Name(), req.Body())
 
+	resp, err := e.Handler(req)
+
+	if err != nil {
+		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name(), err.Error())
+	} else {
+		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name(), resp.(*ProtoResponse).Pb)
+	}
+
+	return resp, err
 	// TODO return error if e.ResponseType() is set and doesn't match
 }
 
