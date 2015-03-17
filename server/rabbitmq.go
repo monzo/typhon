@@ -123,16 +123,17 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 
 	// Handle the delivery
 	req := NewAMQPRequest(&delivery)
-	rsp, err := endpoint.HandleRequest(req)
+	resp, err := endpoint.HandleRequest(req)
 	if err != nil {
 		s.respondWithError(delivery, err)
 		return
 	}
+	if resp == nil {
+		s.respondWithError(delivery, errors.BadResponse("response.marshal", "Handler returned nil"))
+		return
+	}
 
-	// TODO deal with rsp == nil (programmer error, but still)
-
-	// Marshal the response
-	body, err := rsp.Encode()
+	body, err := proto.Marshal(resp)
 	if err != nil {
 		log.Errorf("[Server] Failed to marshal response")
 		s.respondWithError(delivery, errors.BadResponse("response.marshal", err.Error()))

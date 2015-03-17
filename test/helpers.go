@@ -22,7 +22,7 @@ func InitStubServer(t *testing.T) *StubServer {
 // directly with a `proto.Message`.
 // Returns errors that were returned from the handler function directly.
 // Marshalling errors cause the test to fail instantly
-func CallEndpoint(t *testing.T, endpoint server.Endpoint, reqProto proto.Message, respProto proto.Message) error {
+func CallEndpoint(t *testing.T, endpoint *server.Endpoint, reqProto proto.Message, respProto proto.Message) error {
 	// Call handler with amqp delivery
 	reqBytes, err := proto.Marshal(reqProto)
 	require.NoError(t, err)
@@ -32,7 +32,7 @@ func CallEndpoint(t *testing.T, endpoint server.Endpoint, reqProto proto.Message
 	if err != nil {
 		return err
 	}
-	respBytes, err := resp.Encode()
+	respBytes, err := proto.Marshal(resp)
 	require.NoError(t, err)
 	err = proto.Unmarshal(respBytes, respProto)
 	require.NoError(t, err)

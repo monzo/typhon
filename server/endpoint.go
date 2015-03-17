@@ -10,15 +10,15 @@ import (
 
 type Endpoint struct {
 	Name     string
-	Handler  func(Request) (Response, error)
+	Handler  func(Request) (proto.Message, error)
 	Request  interface{}
 	Response interface{}
 }
 
-func (e *Endpoint) HandleRequest(req Request) (Response, error) {
+func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 
-	// TODO check that `Request` and `Response` are set in RegisterEndpoint
-	// TODO don't tightly couple `HandleRequest` to the proto encoding
+	// @todo check that `Request` and `Response` are set in RegisterEndpoint
+	// @todo don't tightly couple `HandleRequest` to the proto encoding
 
 	if e.Request != nil {
 		body := cloneTypedPtr(e.Request).(proto.Message)
@@ -35,11 +35,11 @@ func (e *Endpoint) HandleRequest(req Request) (Response, error) {
 	if err != nil {
 		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name, err.Error())
 	} else {
-		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name, resp.(*ProtoResponse).Pb)
+		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name, resp)
 	}
 
 	return resp, err
-	// TODO return error if e.Response is set and doesn't match
+	// @todo return error if e.Response is set and doesn't match
 }
 
 // cloneTypedPtr takes a pointer of any type and returns a pointer to

@@ -9,6 +9,7 @@ import (
 	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/example/proto/callhello"
 	"github.com/b2aio/typhon/server"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +31,7 @@ func TestErrorPropagation(t *testing.T) {
 	// Register test endpoints
 	s.RegisterEndpoint(&server.Endpoint{
 		Name: "callerror",
-		Handler: func(req server.Request) (server.Response, error) {
+		Handler: func(req server.Request) (proto.Message, error) {
 			// simulate some failure
 			return nil, errors.InternalService(errorCode, errorDescription, map[string]string{
 				"public key": "public value",
