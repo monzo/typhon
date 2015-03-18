@@ -58,7 +58,7 @@ func cloneTypedPtr(reqType interface{}) interface{} {
 	return reflectValue.Interface()
 }
 
-// enrichError converts an error interface into errors.ServiceError and attaches
+// enrichError converts an error interface into *errors.Error and attaches
 // lots of information to it.
 // NOTE: if the error came from somewhere down the stack, it isn't modified
 // @todo once the server context gives us a parent request and trace id, we can store even more information in the error!

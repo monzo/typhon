@@ -53,7 +53,10 @@ func TestErrorPropagation(t *testing.T) {
 
 	// Assert our error matches
 	require.NotNil(t, err)
-	typhonErr := err.(*errors.Error)
+
+	typhonErr, ok := err.(*errors.Error)
+	require.True(t, ok)
+
 	assert.Equal(t, errorCode, typhonErr.Code)
 	assert.Equal(t, errorMessage, typhonErr.Error())
 	assert.Equal(t, errorMessage, typhonErr.Message)

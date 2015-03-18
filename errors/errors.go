@@ -108,12 +108,10 @@ func Unauthorized(message string, context ...map[string]string) *Error {
 	return errorFactory(ErrUnauthorized, message, context...)
 }
 
-// errorConstructor returns a `ServiceError` of the specified code. The main work
+// errorConstructor returns a `*Error` with the specified code, message and context. The main work
 // consists of managing the map[string]string at the end of the arguments list.
 // In practice we only ever pass in two: the first one is public and will be sent to the client,
 // the second one is private and can contain internal information that is useful for debugging
-// @todo get a stack trace and stick it in the private context
-// @todo should we do some meta-error-handling here and complain if the code is "" for example?
 func errorFactory(code int, message string, context ...map[string]string) *Error {
 	err := &Error{
 		Code:           code,
