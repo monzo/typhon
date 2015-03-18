@@ -9,6 +9,7 @@ It is generated from these files:
 	error.proto
 
 It has these top-level messages:
+	StackFrame
 	Error
 */
 package error
@@ -18,11 +19,22 @@ import proto "github.com/golang/protobuf/proto"
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 
+type StackFrame struct {
+	Filename string `protobuf:"bytes,1,opt,name=filename" json:"filename,omitempty"`
+	Line     int32  `protobuf:"varint,2,opt,name=line" json:"line,omitempty"`
+	Method   string `protobuf:"bytes,3,opt,name=method" json:"method,omitempty"`
+}
+
+func (m *StackFrame) Reset()         { *m = StackFrame{} }
+func (m *StackFrame) String() string { return proto.CompactTextString(m) }
+func (*StackFrame) ProtoMessage()    {}
+
 type Error struct {
 	Code           int32             `protobuf:"varint,1,opt,name=code" json:"code,omitempty"`
 	Message        string            `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
 	PublicContext  map[string]string `protobuf:"bytes,3,rep,name=public_context" json:"public_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	PrivateContext map[string]string `protobuf:"bytes,4,rep,name=private_context" json:"private_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Stack          []*StackFrame     `protobuf:"bytes,5,rep,name=stack" json:"stack,omitempty"`
 }
 
 func (m *Error) Reset()         { *m = Error{} }
@@ -39,6 +51,13 @@ func (m *Error) GetPublicContext() map[string]string {
 func (m *Error) GetPrivateContext() map[string]string {
 	if m != nil {
 		return m.PrivateContext
+	}
+	return nil
+}
+
+func (m *Error) GetStack() []*StackFrame {
+	if m != nil {
+		return m.Stack
 	}
 	return nil
 }

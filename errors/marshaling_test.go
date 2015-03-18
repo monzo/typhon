@@ -3,6 +3,7 @@ package errors
 import (
 	"testing"
 
+	"github.com/b2aio/typhon/errors/stack"
 	pe "github.com/b2aio/typhon/proto/error"
 	"github.com/stretchr/testify/assert"
 )
@@ -54,6 +55,18 @@ var interchangableErrorTestCases = []struct {
 			PrivateContext: map[string]string{
 				"something else": "bye bye",
 			},
+			Stack: []stack.Frame{
+				{
+					Filename: "some file",
+					Line:     123,
+					Method:   "someMethod",
+				},
+				{
+					Filename: "another file",
+					Line:     1,
+					Method:   "someOtherMethod",
+				},
+			},
 		},
 		&pe.Error{
 			Code:    ErrTimeout,
@@ -63,6 +76,18 @@ var interchangableErrorTestCases = []struct {
 			},
 			PrivateContext: map[string]string{
 				"something else": "bye bye",
+			},
+			Stack: []*pe.StackFrame{
+				{
+					Filename: "some file",
+					Line:     123,
+					Method:   "someMethod",
+				},
+				{
+					Filename: "another file",
+					Line:     1,
+					Method:   "someOtherMethod",
+				},
 			},
 		},
 	},

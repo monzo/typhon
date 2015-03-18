@@ -1,13 +1,20 @@
 package errors
 
+import (
+	"fmt"
+
+	"github.com/b2aio/typhon/errors/stack"
+)
+
 type Error struct {
 	Code           int
 	Message        string
 	PublicContext  map[string]string
 	PrivateContext map[string]string
+	Stack          stack.Stack
 }
 
-// Default error codes. Each of these has their own constructor for convenience.
+// Generic error codes. Each of these has their own constructor for convenience.
 // You can use any integer as a code, just use the `New` method.
 const (
 	ErrUnknown         = 0
@@ -29,6 +36,17 @@ func (p *Error) Error() string {
 	return p.Message
 }
 
+// StackString formats the stack as a beautiful string with newlines
+func (p *Error) StackString() string {
+	stackStr := ""
+	for _, frame := range p.Stack {
+		stackStr = fmt.Sprintf("%s\n  %s:%d in %s", stackStr, frame.Filename, frame.Line, frame.Method)
+	}
+	return stackStr
+}
+
+// New creates a new error for you. Use this if you want to pass along a custom error code.
+// Otherwise use the handy shorthand factories below
 func New(code int, message string, context ...map[string]string) *Error {
 	return errorFactory(code, message, context...)
 }
@@ -108,13 +126,20 @@ func errorFactory(code int, message string, context ...map[string]string) *Error
 		PublicContext:  map[string]string{},
 	}
 	// The first context map is the PublicContext
-	if len(context) > 0 {
+	if len(context) > 0 && context[0] != nil {
 		err.PublicContext = context[0]
 	}
 	// The second context map is the privateContext
-	if len(context) > 1 {
+	if len(context) > 1 && context[1] != nil {
 		err.PrivateContext = context[1]
 	}
+
+	// Build stack and skip first three lines:
+	//  - stack.go BuildStack()
+	//  - errors.go errorFactory()
+	//  - errors.go public constructor method
+	err.Stack = stack.BuildStack(3)
+
 	// ... ignore all remaining map[string]string
 	return err
 }
