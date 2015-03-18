@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/b2aio/typhon/errors"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
@@ -33,6 +34,7 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 	resp, err := e.Handler(req)
 
 	if err != nil {
+		err = enrichError(err, req, e)
 		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name, err.Error())
 	} else {
 		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name, resp)
@@ -54,4 +56,15 @@ func cloneTypedPtr(reqType interface{}) interface{} {
 	// `reflectValue.Interface()` puts the type and value back together into an interface type
 	reflectValue := reflect.New(reflect.TypeOf(reqType).Elem())
 	return reflectValue.Interface()
+}
+
+// enrichError converts an error interface into errors.ServiceError and attaches
+// lots of information to it
+// @todo once the server context gives us a parent request and trace id, we can store even more information in the error!
+func enrichError(err error, ctx Request, endpoint *Endpoint) *errors.Error {
+	// cast err into *errors.Error if it isn't already
+	wrappedErr := errors.Wrap(err)
+	wrappedErr.PrivateContext["service"] = ctx.Service()
+	wrappedErr.PrivateContext["endpoint"] = endpoint.Name
+	return wrappedErr
 }

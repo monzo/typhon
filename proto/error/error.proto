@@ -1,21 +1,8 @@
 syntax = "proto3";
 
-enum ErrorType {
-	UNKNOWN = 0;
-	INTERNAL_SERVICE = 1;
-	BAD_REQUEST = 2;
-	BAD_RESPONSE = 3;
-	TIMEOUT = 4;
-	NOT_FOUND = 5;
-	FORBIDDEN = 6;
-	UNAUTHORIZED = 7;
-}
-
 message Error {
-	ErrorType type = 1;
-	string code  = 2;
-	string description = 3;
-	int32 client_code = 4;
-	map<string, string> public_context = 5;
-	map<string, string> private_context = 6;
+	int32 code = 1;
+	string message = 2;
+	map<string, string> public_context = 3;
+	map<string, string> private_context = 4;
 }

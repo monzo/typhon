@@ -7,59 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// errorTypeTestCases matches error types between formats
-var errorTypeTestCases = []struct {
-	platErr  ErrorType
-	protoErr pe.ErrorType
-}{
-	{ErrUnknown, pe.ErrorType_UNKNOWN},
-	{ErrInternalService, pe.ErrorType_INTERNAL_SERVICE},
-	{ErrBadRequest, pe.ErrorType_BAD_REQUEST},
-	{ErrBadResponse, pe.ErrorType_BAD_RESPONSE},
-	{ErrTimeout, pe.ErrorType_TIMEOUT},
-	{ErrNotFound, pe.ErrorType_NOT_FOUND},
-	{ErrForbidden, pe.ErrorType_FORBIDDEN},
-	{ErrUnauthorized, pe.ErrorType_UNAUTHORIZED},
-}
-
-func TestMarshalErrorTypes(t *testing.T) {
-
-	// Assert types are interchanged correctly
-	for _, tc := range errorTypeTestCases {
-		platErr := &ServiceError{
-			errorType: tc.platErr,
-		}
-		protoError := Marshal(platErr)
-		assert.Equal(t, tc.protoErr, protoError.Type)
-	}
-
-	// Sneakily assert we've checked every case defined in the proto
-	assert.Equal(t, len(errorTypeTestCases), len(pe.ErrorType_name))
-}
-
-func TestUnmarshalErrorTypes(t *testing.T) {
-
-	// Assert types are interchanged correctly
-	for _, tc := range errorTypeTestCases {
-		platErr := &ServiceError{
-			errorType: tc.platErr,
-		}
-		protoError := Marshal(platErr)
-		assert.Equal(t, tc.protoErr, protoError.Type)
-	}
-
-	// Sneakily assert we've checked every case defined in the proto
-	assert.Equal(t, len(errorTypeTestCases), len(pe.ErrorType_name))
-}
-
 func TestMarshalNilError(t *testing.T) {
-	var input *ServiceError // nil
+	var input *Error // nil
 	protoError := Marshal(input)
 
 	assert.NotNil(t, protoError)
-	assert.Equal(t, pe.ErrorType_UNKNOWN, protoError.Type)
-	assert.NotEmpty(t, protoError.Code)
-	assert.NotEmpty(t, protoError.Description)
+	assert.Equal(t, ErrUnknown, protoError.Code)
+	assert.NotEmpty(t, protoError.Message)
 }
 
 func TestUnmarshalNilError(t *testing.T) {
@@ -67,48 +21,43 @@ func TestUnmarshalNilError(t *testing.T) {
 	platError := Unmarshal(input)
 
 	assert.NotNil(t, platError)
-	assert.Equal(t, ErrUnknown, platError.Type())
-	assert.Empty(t, platError.Code())
-	assert.Empty(t, platError.Description())
+	assert.Equal(t, ErrUnknown, platError.Code)
+	assert.Equal(t, "Nil error unmarshalled!", platError.Message)
 }
 
 // interchangingErrorTestCases represents a set of error formats
 // which should be converted between
 var interchangableErrorTestCases = []struct {
-	platErr  *ServiceError
+	platErr  *Error
 	protoErr *pe.Error
 }{
 	// test blank error
 	{
-		&ServiceError{},
+		&Error{},
 		&pe.Error{},
 	},
 	// confirm blank errors (shouldn't be possible) are UNKNOWN
 	{
-		&ServiceError{},
+		&Error{},
 		&pe.Error{
-			Type: pe.ErrorType_UNKNOWN,
+			Code: ErrUnknown,
 		},
 	},
 	// normal cases
 	{
-		&ServiceError{
-			errorType:   ErrInternalService,
-			code:        "some.error",
-			description: "omg help plz",
-			clientCode:  123,
-			publicContext: map[string]string{
+		&Error{
+			Code:    ErrTimeout,
+			Message: "omg help plz",
+			PublicContext: map[string]string{
 				"something": "hullo",
 			},
-			privateContext: map[string]string{
+			PrivateContext: map[string]string{
 				"something else": "bye bye",
 			},
 		},
 		&pe.Error{
-			Type:        pe.ErrorType_INTERNAL_SERVICE,
-			Code:        "some.error",
-			Description: "omg help plz",
-			ClientCode:  123,
+			Code:    ErrTimeout,
+			Message: "omg help plz",
 			PublicContext: map[string]string{
 				"something": "hullo",
 			},
@@ -118,15 +67,13 @@ var interchangableErrorTestCases = []struct {
 		},
 	},
 	{
-		&ServiceError{
-			errorType:   ErrForbidden,
-			code:        "denied.access",
-			description: "NO. FORBIDDEN",
+		&Error{
+			Code:    ErrForbidden,
+			Message: "NO. FORBIDDEN",
 		},
 		&pe.Error{
-			Type:        pe.ErrorType_FORBIDDEN,
-			Code:        "denied.access",
-			Description: "NO. FORBIDDEN",
+			Code:    ErrForbidden,
+			Message: "NO. FORBIDDEN",
 		},
 	},
 }
@@ -134,17 +81,19 @@ var interchangableErrorTestCases = []struct {
 func TestMarshal(t *testing.T) {
 	for _, tc := range interchangableErrorTestCases {
 		protoError := Marshal(tc.platErr)
-		assert.Equal(t, tc.protoErr.Type, protoError.Type)
 		assert.Equal(t, tc.protoErr.Code, protoError.Code)
-		assert.Equal(t, tc.protoErr.Description, protoError.Description)
+		assert.Equal(t, tc.protoErr.Message, protoError.Message)
+		assert.Equal(t, tc.protoErr.PublicContext, protoError.PublicContext)
+		assert.Equal(t, tc.protoErr.PrivateContext, protoError.PrivateContext)
 	}
 }
 
 func TestUnmarshal(t *testing.T) {
 	for _, tc := range interchangableErrorTestCases {
 		platErr := Unmarshal(tc.protoErr)
-		assert.Equal(t, tc.platErr.Type(), platErr.Type())
-		assert.Equal(t, tc.platErr.Code(), platErr.Code())
-		assert.Equal(t, tc.platErr.Description(), platErr.Description())
+		assert.Equal(t, tc.platErr.Code, platErr.Code)
+		assert.Equal(t, tc.platErr.Message, platErr.Message)
+		assert.Equal(t, tc.platErr.PublicContext, platErr.PublicContext)
+		assert.Equal(t, tc.platErr.PrivateContext, platErr.PrivateContext)
 	}
 }

@@ -117,7 +117,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 	endpoint := s.endpointRegistry.Get(endpointName)
 	if endpoint == nil {
 		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", endpointName)
-		s.respondWithError(delivery, errors.BadRequest("endpoint.notfound", "Endpoint not found"))
+		s.respondWithError(delivery, errors.BadRequest("Endpoint not found"))
 		return
 	}
 
@@ -129,14 +129,14 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		return
 	}
 	if resp == nil {
-		s.respondWithError(delivery, errors.BadResponse("response.marshal", "Handler returned nil"))
+		s.respondWithError(delivery, errors.BadResponse("Handler returned nil"))
 		return
 	}
 
 	body, err := proto.Marshal(resp)
 	if err != nil {
 		log.Errorf("[Server] Failed to marshal response")
-		s.respondWithError(delivery, errors.BadResponse("response.marshal", err.Error()))
+		s.respondWithError(delivery, errors.BadResponse("Failed to marshal response: "+err.Error()))
 		return
 	}
 
@@ -157,7 +157,7 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 
 	// Ensure we have a service error in proto form
 	// and marshal this for transmission
-	svcErr := errorToServiceError(err)
+	svcErr := errors.Wrap(err)
 	b, err := proto.Marshal(errors.Marshal(svcErr))
 	if err != nil {
 		// shit
@@ -175,18 +175,4 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 
 	// Publish the error back to the client
 	s.connection.Publish("", delivery.ReplyTo, msg)
-}
-
-// errorToServiceError converts an error interface to the concrete
-// errors.ServiceError type which we pass between services (as proto)
-func errorToServiceError(err error) *errors.ServiceError {
-
-	// If we already have a service error, return this
-	if svcErr, ok := err.(*errors.ServiceError); ok {
-		return svcErr
-	}
-
-	// Otherwise make a generic internal service error
-	// Encapsulating the error we were given
-	return errors.InternalService("internalservice", err.Error()).(*errors.ServiceError)
 }
