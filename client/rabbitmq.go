@@ -98,7 +98,7 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	correlation, err := uuid.NewV4()
 	if err != nil {
 		log.Errorf("[Client] Failed to create unique request id: %v", err)
-		return errors.InternalService("request.uuid", err.Error())
+		return errors.Wrap(err) // @todo custom error code
 	}
 
 	replyChannel := c.inflight.push(correlation.String())
@@ -106,7 +106,7 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	requestBody, err := proto.Marshal(req)
 	if err != nil {
 		log.Errorf("[Client] Failed to marshal request: %v", err)
-		return errors.BadRequest("request.marshal", err.Error())
+		return errors.Wrap(err) // @todo custom error code
 	}
 
 	message := amqp.Publishing{
@@ -119,16 +119,19 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish to '%s': %v", routingKey, err)
-		return errors.InternalService("request.publish", err.Error())
+		return errors.Wrap(err) // @todo custom error code
 	}
 
 	select {
 	case delivery := <-replyChannel:
 		return handleResponse(delivery, resp)
 	case <-time.After(defaultTimeout):
-		e := fmt.Errorf("Timeout calling %s", routingKey)
-		log.Warnf("[Client] %v", e)
-		return errors.Timeout(fmt.Sprintf("%s.timeout", routingKey), e.Error())
+		log.Errorf("%s timed out", routingKey)
+
+		return errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
+			"called_service":  serviceName,
+			"called_endpoint": endpoint,
+		})
 	}
 }
 
@@ -143,7 +146,7 @@ func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
 	if deliveryIsError(delivery) {
 		p := &pe.Error{}
 		if err := proto.Unmarshal(delivery.Body, p); err != nil {
-			return errors.BadResponse("response.unmarshal", err.Error())
+			return errors.BadResponse(err.Error())
 		}
 
 		return errors.Unmarshal(p)
@@ -151,7 +154,7 @@ func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
 
 	// Otherwise try to marshal to the expected response type
 	if err := proto.Unmarshal(delivery.Body, resp); err != nil {
-		return errors.BadResponse("response.unmarshal", err.Error())
+		return errors.BadResponse(err.Error())
 	}
 
 	return nil

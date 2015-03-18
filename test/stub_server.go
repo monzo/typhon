@@ -22,7 +22,7 @@ type StubServer struct {
 type ServiceStub struct {
 	ServiceName string
 	Endpoint    string
-	Handler     server.HandlerFunc
+	Handler     func(server.Request) (proto.Message, error)
 }
 
 // The stub server boots up a regular typhon server and registers a single
@@ -47,9 +47,9 @@ func NewStubServer(t *testing.T) *StubServer {
 
 	t.Log("[StubServer] Connected to RabbitMQ")
 
-	stubServer.RegisterEndpoint(&server.DefaultEndpoint{
-		EndpointName: ".*", // TODO EndpointName is not well-named
-		Handler: func(req server.Request) (server.Response, error) {
+	stubServer.RegisterEndpoint(&server.Endpoint{
+		Name: ".*", // TODO Name is not well-named
+		Handler: func(req server.Request) (proto.Message, error) {
 			return stubServer.handleRequest(req)
 		},
 	})
@@ -72,8 +72,8 @@ func (stubServer *StubServer) stubResponseAndError(serviceName, endpoint string,
 	stubServer.RegisterStub(&ServiceStub{
 		ServiceName: serviceName,
 		Endpoint:    endpoint,
-		Handler: func(_ server.Request) (server.Response, error) {
-			return server.NewProtoResponse(returnValue), err
+		Handler: func(_ server.Request) (proto.Message, error) {
+			return returnValue, err
 		},
 	})
 }
@@ -95,7 +95,7 @@ func (stubServer *StubServer) ResetStubs() {
 }
 
 // Finds the relevant endpoint stub (if any), and calls its handler function
-func (stubServer *StubServer) handleRequest(req server.Request) (server.Response, error) {
+func (stubServer *StubServer) handleRequest(req server.Request) (proto.Message, error) {
 
 	stubServer.t.Logf("[StubServer] Handling request for %s", req.Service(), req.Endpoint())
 	stubServer.stubsMutex.RLock()

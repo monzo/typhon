@@ -9,6 +9,7 @@ It is generated from these files:
 	error.proto
 
 It has these top-level messages:
+	StackFrame
 	Error
 */
 package error
@@ -18,51 +19,22 @@ import proto "github.com/golang/protobuf/proto"
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 
-type ErrorType int32
-
-const (
-	ErrorType_UNKNOWN          ErrorType = 0
-	ErrorType_INTERNAL_SERVICE ErrorType = 1
-	ErrorType_BAD_REQUEST      ErrorType = 2
-	ErrorType_BAD_RESPONSE     ErrorType = 3
-	ErrorType_TIMEOUT          ErrorType = 4
-	ErrorType_NOT_FOUND        ErrorType = 5
-	ErrorType_FORBIDDEN        ErrorType = 6
-	ErrorType_UNAUTHORIZED     ErrorType = 7
-)
-
-var ErrorType_name = map[int32]string{
-	0: "UNKNOWN",
-	1: "INTERNAL_SERVICE",
-	2: "BAD_REQUEST",
-	3: "BAD_RESPONSE",
-	4: "TIMEOUT",
-	5: "NOT_FOUND",
-	6: "FORBIDDEN",
-	7: "UNAUTHORIZED",
-}
-var ErrorType_value = map[string]int32{
-	"UNKNOWN":          0,
-	"INTERNAL_SERVICE": 1,
-	"BAD_REQUEST":      2,
-	"BAD_RESPONSE":     3,
-	"TIMEOUT":          4,
-	"NOT_FOUND":        5,
-	"FORBIDDEN":        6,
-	"UNAUTHORIZED":     7,
+type StackFrame struct {
+	Filename string `protobuf:"bytes,1,opt,name=filename" json:"filename,omitempty"`
+	Line     int32  `protobuf:"varint,2,opt,name=line" json:"line,omitempty"`
+	Method   string `protobuf:"bytes,3,opt,name=method" json:"method,omitempty"`
 }
 
-func (x ErrorType) String() string {
-	return proto.EnumName(ErrorType_name, int32(x))
-}
+func (m *StackFrame) Reset()         { *m = StackFrame{} }
+func (m *StackFrame) String() string { return proto.CompactTextString(m) }
+func (*StackFrame) ProtoMessage()    {}
 
 type Error struct {
-	Type           ErrorType         `protobuf:"varint,1,opt,name=type,enum=ErrorType" json:"type,omitempty"`
-	Code           string            `protobuf:"bytes,2,opt,name=code" json:"code,omitempty"`
-	Description    string            `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
-	ClientCode     int32             `protobuf:"varint,4,opt,name=client_code" json:"client_code,omitempty"`
-	PublicContext  map[string]string `protobuf:"bytes,5,rep,name=public_context" json:"public_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	PrivateContext map[string]string `protobuf:"bytes,6,rep,name=private_context" json:"private_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Code           int32             `protobuf:"varint,1,opt,name=code" json:"code,omitempty"`
+	Message        string            `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
+	PublicContext  map[string]string `protobuf:"bytes,3,rep,name=public_context" json:"public_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	PrivateContext map[string]string `protobuf:"bytes,4,rep,name=private_context" json:"private_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Stack          []*StackFrame     `protobuf:"bytes,5,rep,name=stack" json:"stack,omitempty"`
 }
 
 func (m *Error) Reset()         { *m = Error{} }
@@ -83,6 +55,12 @@ func (m *Error) GetPrivateContext() map[string]string {
 	return nil
 }
 
+func (m *Error) GetStack() []*StackFrame {
+	if m != nil {
+		return m.Stack
+	}
+	return nil
+}
+
 func init() {
-	proto.RegisterEnum("ErrorType", ErrorType_name, ErrorType_value)
 }

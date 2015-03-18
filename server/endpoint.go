@@ -4,68 +4,44 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/b2aio/typhon/errors"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
 
-type Endpoint interface {
-	Name() string
-	HandleRequest(req Request) (Response, error)
-
-	// RequestType returns a pointer to an instance of the expected response type
-	RequestType() interface{}
-
-	// ResponseType returns a pointer to an instance of the expected response type
-	ResponseType() interface{}
+type Endpoint struct {
+	Name     string
+	Handler  func(Request) (proto.Message, error)
+	Request  interface{}
+	Response interface{}
 }
 
-type HandlerFunc func(Request) (Response, error)
+func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 
-// @todo DefaultEndpoint is a bit of a misnomer
-type DefaultEndpoint struct {
-	EndpointName string
-	Handler      func(req Request) (Response, error)
-	Request      interface{}
-	Response     interface{}
-}
+	// @todo check that `Request` and `Response` are set in RegisterEndpoint
+	// @todo don't tightly couple `HandleRequest` to the proto encoding
 
-func (e *DefaultEndpoint) RequestType() interface{} {
-	return e.Request
-}
-
-func (e *DefaultEndpoint) ResponseType() interface{} {
-	return e.Response
-}
-
-func (e *DefaultEndpoint) Name() string {
-	return e.EndpointName
-}
-
-func (e *DefaultEndpoint) HandleRequest(req Request) (Response, error) {
-
-	// TODO check that `Request` and `Response` are set in RegisterEndpoint
-	// TODO don't tightly couple `HandleRequest` to the proto encoding
-
-	if e.RequestType() != nil {
-		body := cloneTypedPtr(e.RequestType()).(proto.Message)
+	if e.Request != nil {
+		body := cloneTypedPtr(e.Request).(proto.Message)
 		if err := proto.Unmarshal(req.Payload(), body); err != nil {
-			return nil, fmt.Errorf("Could not unmarshal request")
+			return nil, errors.Wrap(fmt.Errorf("Could not unmarshal request"))
 		}
 		req.SetBody(body)
 	}
 
-	log.Debugf("%s.%s handler received request: %+v", req.Service(), e.Name(), req.Body())
+	log.Debugf("%s.%s handler received request: %+v", req.Service(), e.Name, req.Body())
 
 	resp, err := e.Handler(req)
 
 	if err != nil {
-		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name(), err.Error())
+		err = enrichError(err, req, e)
+		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name, err.Error())
 	} else {
-		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name(), resp.(*ProtoResponse).Pb)
+		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name, resp)
 	}
 
 	return resp, err
-	// TODO return error if e.ResponseType() is set and doesn't match
+	// @todo return error if e.Response is set and doesn't match
 }
 
 // cloneTypedPtr takes a pointer of any type and returns a pointer to
@@ -80,4 +56,22 @@ func cloneTypedPtr(reqType interface{}) interface{} {
 	// `reflectValue.Interface()` puts the type and value back together into an interface type
 	reflectValue := reflect.New(reflect.TypeOf(reqType).Elem())
 	return reflectValue.Interface()
+}
+
+// enrichError converts an error interface into *errors.Error and attaches
+// lots of information to it.
+// NOTE: if the error came from somewhere down the stack, it isn't modified
+// @todo once the server context gives us a parent request and trace id, we can store even more information in the error!
+func enrichError(err error, ctx Request, endpoint *Endpoint) *errors.Error {
+	wrappedErr := errors.Wrap(err)
+
+	// @todo an error will probably have a source_request_id or something that we can use to
+	// more reliably make sure this information is only attached once, as the error travels up the service stack
+	if wrappedErr.PrivateContext["service"] == "" {
+		wrappedErr.PrivateContext["service"] = ctx.Service()
+	}
+	if wrappedErr.PrivateContext["endpoint"] == "" {
+		wrappedErr.PrivateContext["endpoint"] = endpoint.Name
+	}
+	return wrappedErr
 }

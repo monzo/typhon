@@ -1,62 +1,75 @@
 package errors
 
 import (
+	"github.com/b2aio/typhon/errors/stack"
 	pe "github.com/b2aio/typhon/proto/error"
 )
 
 // Marshal an error into a protobuf for transmission
-func Marshal(e *ServiceError) *pe.Error {
+func Marshal(e *Error) *pe.Error {
 
 	// Account for nil errors
 	if e == nil {
 		return &pe.Error{
-			Type:        pe.ErrorType_UNKNOWN,
-			Code:        "unknown",
-			Description: "Unknown error, nil error marshalled",
+			Code:    ErrUnknown,
+			Message: "Unknown error, nil error marshalled",
 		}
 	}
-
 	return &pe.Error{
-		Type:           errorTypeToProto(e.Type()),
-		Code:           e.Code(),
-		Description:    e.Description(),
-		ClientCode:     int32(e.ClientCode()),
-		PublicContext:  e.PublicContext(),
-		PrivateContext: e.PrivateContext(),
+		Code:           int32(e.Code),
+		Message:        e.Message,
+		PublicContext:  e.PublicContext,
+		PrivateContext: e.PrivateContext,
+		Stack:          stackToProto(e.Stack),
 	}
 }
 
 // Unmarshal a protobuf error into a local error
-func Unmarshal(p *pe.Error) *ServiceError {
+func Unmarshal(p *pe.Error) *Error {
 	if p == nil {
-		// @todo should this actually be blank?
-		// or should we put a code and description in, like on marshaling
-		return &ServiceError{}
+		return &Error{
+			Message: "Nil error unmarshalled!",
+		}
 	}
-
-	return &ServiceError{
-		errorType:      protoToErrorType(p.Type),
-		code:           p.Code,
-		description:    p.Description,
-		clientCode:     int(p.ClientCode),
-		publicContext:  p.PublicContext,
-		privateContext: p.PrivateContext,
+	return &Error{
+		Code:           int(p.Code),
+		Message:        p.Message,
+		PublicContext:  p.PublicContext,
+		PrivateContext: p.PrivateContext,
+		Stack:          protoToStack(p.Stack),
 	}
 }
 
-// protoToErrorType marshals a protobuf error type to a local error type
-func protoToErrorType(p pe.ErrorType) ErrorType {
-	if e, ok := pe.ErrorType_name[int32(p)]; ok {
-		return ErrorType(e)
+// stackToProto converts a stack.Stack and returns a slice of *pe.StackFrame
+func protoToStack(protoStack []*pe.StackFrame) stack.Stack {
+	if protoStack == nil {
+		return stack.Stack{}
 	}
-	return ErrUnknown
+
+	s := make(stack.Stack, 0, len(protoStack))
+	for _, frame := range protoStack {
+		s = append(s, stack.Frame{
+			Filename: frame.Filename,
+			Line:     int(frame.Line),
+			Method:   frame.Method,
+		})
+	}
+	return s
 }
 
-// protoToErrorType marshals a protobuf error type to a local error type
-func errorTypeToProto(e ErrorType) pe.ErrorType {
-	if p, ok := pe.ErrorType_value[string(e)]; ok {
-		return pe.ErrorType(p)
+// stackToProto converts a stack.Stack and returns a slice of *pe.StackFrame
+func stackToProto(s stack.Stack) []*pe.StackFrame {
+	if s == nil {
+		return []*pe.StackFrame{}
 	}
 
-	return pe.ErrorType_UNKNOWN
+	protoStack := make([]*pe.StackFrame, 0, len(s))
+	for _, frame := range s {
+		protoStack = append(protoStack, &pe.StackFrame{
+			Filename: frame.Filename,
+			Line:     int32(frame.Line),
+			Method:   frame.Method,
+		})
+	}
+	return protoStack
 }

@@ -5,17 +5,18 @@ import (
 
 	"github.com/b2aio/typhon/example/proto/hello"
 	"github.com/b2aio/typhon/server"
+	"github.com/golang/protobuf/proto"
 )
 
-var Hello = &server.DefaultEndpoint{
-	EndpointName: "hello",
-	Handler:      helloHandler,
-	Request:      &hello.Request{},
-	Response:     &hello.Response{},
+var Hello = &server.Endpoint{
+	Name:     "hello",
+	Handler:  helloHandler,
+	Request:  &hello.Request{},
+	Response: &hello.Response{},
 }
 
 // Hello is a handler that responds to a hello request with a greeting
-func helloHandler(req server.Request) (server.Response, error) {
+func helloHandler(req server.Request) (proto.Message, error) {
 
 	// Cast req.Body() (unmarshalled for you by the server) into the type you're expecting
 	reqProto := req.Body().(*hello.Request)
@@ -25,5 +26,5 @@ func helloHandler(req server.Request) (server.Response, error) {
 		Greeting: fmt.Sprintf("Hello, %s!", reqProto.Name),
 	}
 
-	return server.NewProtoResponse(resp), nil
+	return resp, nil
 }

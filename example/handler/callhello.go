@@ -6,16 +6,17 @@ import (
 	"github.com/b2aio/typhon/example/proto/callhello"
 	"github.com/b2aio/typhon/example/proto/hello"
 	"github.com/b2aio/typhon/server"
+	"github.com/golang/protobuf/proto"
 )
 
-var CallHello = &server.DefaultEndpoint{
-	EndpointName: "callhello",
-	Handler:      callhelloHandler,
-	Request:      &callhello.Request{},
-	Response:     &callhello.Response{},
+var CallHello = &server.Endpoint{
+	Name:     "callhello",
+	Handler:  callhelloHandler,
+	Request:  &callhello.Request{},
+	Response: &callhello.Response{},
 }
 
-func callhelloHandler(req server.Request) (server.Response, error) {
+func callhelloHandler(req server.Request) (proto.Message, error) {
 
 	reqProto := req.Body().(*callhello.Request)
 	resp := &hello.Response{}
@@ -29,7 +30,7 @@ func callhelloHandler(req server.Request) (server.Response, error) {
 		resp,
 	)
 
-	return server.NewProtoResponse(&callhello.Response{
+	return &callhello.Response{
 		Value: fmt.Sprintf("example.hello says '%s'", resp.Greeting),
-	}), nil
+	}, nil
 }
