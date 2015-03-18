@@ -53,15 +53,16 @@ func TestErrorPropagation(t *testing.T) {
 
 	// Assert our error matches
 	require.NotNil(t, err)
-	assert.Equal(t, errorCode, err.Code)
-	assert.Equal(t, errorMessage, err.Error())
-	assert.Equal(t, errorMessage, err.Message)
+	typhonErr := err.(*errors.Error)
+	assert.Equal(t, errorCode, typhonErr.Code)
+	assert.Equal(t, errorMessage, typhonErr.Error())
+	assert.Equal(t, errorMessage, typhonErr.Message)
 	assert.Equal(t, map[string]string{
 		"public key": "public value",
-	}, err.PublicContext)
+	}, typhonErr.PublicContext)
 	assert.Equal(t, map[string]string{
 		"private key": "private value",
 		"service":     "test",
 		"endpoint":    "callerror",
-	}, err.PrivateContext)
+	}, typhonErr.PrivateContext)
 }

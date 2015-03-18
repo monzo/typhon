@@ -85,7 +85,7 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, req proto.Message, resp proto.Message) *errors.Error {
+func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, req proto.Message, resp proto.Message) error {
 
 	// Ensure we're initialised, but only do this once
 	//
@@ -126,11 +126,11 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	case delivery := <-replyChannel:
 		return handleResponse(delivery, resp)
 	case <-time.After(defaultTimeout):
-		e := fmt.Errorf("Timeout calling %s", routingKey)
-		log.Warnf("[Client] %v", e)
-		return errors.Timeout(fmt.Sprintf("%s timed out: %s", routingKey, err.Error()), nil, map[string]string{
-			"service":  serviceName,
-			"endpoint": endpoint,
+		log.Errorf("%s timed out", routingKey)
+
+		return errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
+			"called_service":  serviceName,
+			"called_endpoint": endpoint,
 		})
 	}
 }
@@ -141,7 +141,7 @@ func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
 
 // handleResponse returned from a service by marshaling into the response type,
 // or converting an error from the remote service
-func handleResponse(delivery amqp.Delivery, resp proto.Message) *errors.Error {
+func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
 	// deal with error responses, by converting back from wire format
 	if deliveryIsError(delivery) {
 		p := &pe.Error{}

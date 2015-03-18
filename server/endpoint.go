@@ -24,7 +24,7 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 	if e.Request != nil {
 		body := cloneTypedPtr(e.Request).(proto.Message)
 		if err := proto.Unmarshal(req.Payload(), body); err != nil {
-			return nil, fmt.Errorf("Could not unmarshal request")
+			return nil, errors.Wrap(fmt.Errorf("Could not unmarshal request"))
 		}
 		req.SetBody(body)
 	}
@@ -59,12 +59,19 @@ func cloneTypedPtr(reqType interface{}) interface{} {
 }
 
 // enrichError converts an error interface into errors.ServiceError and attaches
-// lots of information to it
+// lots of information to it.
+// NOTE: if the error came from somewhere down the stack, it isn't modified
 // @todo once the server context gives us a parent request and trace id, we can store even more information in the error!
 func enrichError(err error, ctx Request, endpoint *Endpoint) *errors.Error {
-	// cast err into *errors.Error if it isn't already
 	wrappedErr := errors.Wrap(err)
-	wrappedErr.PrivateContext["service"] = ctx.Service()
-	wrappedErr.PrivateContext["endpoint"] = endpoint.Name
+
+	// @todo an error will probably have a source_request_id or something that we can use to
+	// more reliably make sure this information is only attached once, as the error travels up the service stack
+	if wrappedErr.PrivateContext["service"] == "" {
+		wrappedErr.PrivateContext["service"] = ctx.Service()
+	}
+	if wrappedErr.PrivateContext["endpoint"] == "" {
+		wrappedErr.PrivateContext["endpoint"] = endpoint.Name
+	}
 	return wrappedErr
 }

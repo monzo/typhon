@@ -103,11 +103,9 @@ func TestWrapWithWrappedErr(t *testing.T) {
 	assert.Equal(t, ErrForbidden, wrappedErr.Code)
 	assert.Equal(t, wrappedErr.PublicContext, map[string]string{
 		"something old": "caesar",
-		"something new": "a computer",
 	})
 	assert.Equal(t, wrappedErr.PrivateContext, map[string]string{
 		"something old and secret": "also caesar",
-		"something new and secret": "also a computer",
 	})
 
 }

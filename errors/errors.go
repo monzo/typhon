@@ -31,7 +31,7 @@ const (
 // This means the Error implements the error interface
 func (p *Error) Error() string {
 	if p == nil {
-		return "FATAL: Nil error!"
+		return ""
 	}
 	return p.Message
 }
@@ -53,18 +53,14 @@ func New(code int, message string, context ...map[string]string) *Error {
 
 // Wrap takes any error interface and wraps it into an Error.
 // This is useful because an Error contains lots of useful goodies, like the stacktrace of the error.
-// If `err` is already an `Error` the passed public and private contexts (if any) will be merged into `err`
+// NOTE: If `err` is already an `Error` the passed contexts will be ignored
 func Wrap(err error, context ...map[string]string) *Error {
+	if err == nil {
+		return nil
+	}
 	wrappedErr, ok := err.(*Error)
 	if !ok {
 		wrappedErr = errorFactory(ErrInternalService, err.Error(), context...)
-	} else {
-		if len(context) >= 1 {
-			mergeMaps(wrappedErr.PublicContext, context[0])
-		}
-		if len(context) >= 2 {
-			mergeMaps(wrappedErr.PrivateContext, context[1])
-		}
 	}
 	return wrappedErr
 }
@@ -142,13 +138,4 @@ func errorFactory(code int, message string, context ...map[string]string) *Error
 
 	// ... ignore all remaining map[string]string
 	return err
-}
-
-func mergeMaps(dest, source map[string]string) {
-	if dest == nil || source == nil {
-		return
-	}
-	for key, val := range source {
-		dest[key] = val
-	}
 }
