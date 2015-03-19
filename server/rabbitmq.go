@@ -117,7 +117,7 @@ func (s *AMQPServer) Close() {
 
 // handleRequest takes a delivery from AMQP, attempts to process it and return a response
 func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
-	log.Tracef("Handling Request (delivery): %s\n\n", delivery.RoutingKey)
+	log.Tracef("Handling Request (delivery): %s", delivery.RoutingKey)
 
 	// See if we have a matching endpoint for this request
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
