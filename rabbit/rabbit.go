@@ -56,7 +56,9 @@ func (r *RabbitConnection) Init() chan bool {
 
 func (r *RabbitConnection) Connect(connected chan bool) {
 	for {
+		log.Debugf("[Rabbit] Attempting to connect")
 		if err := r.tryToConnect(); err != nil {
+			log.Debugf("[Rabbit] Failed to connect, sleeping 1s")
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -67,12 +69,13 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 
 		// Block until we get disconnected, or shut down
 		select {
-		case <-notifyClose:
+		case err := <-notifyClose:
 			// Spin around and reconnect
 			r.connected = false
 			log.Debugf("[Rabbit] AMQP connection closed (notifyClose): %s", err.Error())
 		case <-r.closeChan:
 			// Shut down connection
+			log.Debugf("[Rabbit] Closing AMQP connection (closeChan closed)")
 			if err := r.Connection.Close(); err != nil {
 				log.Errorf("Failed to close AMQP connection: %v", err)
 			}
