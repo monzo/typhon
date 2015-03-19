@@ -2,6 +2,7 @@ package test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/b2aio/typhon/server"
 	"github.com/golang/protobuf/proto"
@@ -27,7 +28,9 @@ func CallEndpoint(t *testing.T, endpoint *server.Endpoint, reqProto proto.Messag
 	reqBytes, err := proto.Marshal(reqProto)
 	require.NoError(t, err)
 	resp, err := endpoint.HandleRequest(server.NewAMQPRequest(&amqp.Delivery{
-		Body: reqBytes,
+		// todo - add other params here
+		Timestamp: time.Now().UTC(),
+		Body:      reqBytes,
 	}))
 	if err != nil {
 		return err
