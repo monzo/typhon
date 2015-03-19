@@ -105,7 +105,7 @@ func (r *RabbitChannel) ConsumeQueue(queue string) (<-chan amqp.Delivery, error)
 	return r.channel.Consume(
 		queue,  // queue
 		r.uuid, // consumer
-		false,  // autoAck
+		true,   // autoAck
 		false,  // exclusive
 		false,  // nolocal
 		false,  // nowait
