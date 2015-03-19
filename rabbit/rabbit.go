@@ -20,11 +20,13 @@ func init() {
 		RabbitURL = "amqp://localhost:5672"
 		log.Infof("Setting RABBIT_URL to default value %s", RabbitURL)
 	}
+	log.Infof("Set RABBIT_URL to %s", RabbitURL)
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 	if Exchange == "" {
 		Exchange = "typhon"
 		log.Infof("Setting RABBIT_EXCHANGE to default value %s", Exchange)
 	}
+	log.Infof("Set RABBIT_EXCHANGE to %s", Exchange)
 }
 
 func NewRabbitConnection() *RabbitConnection {
@@ -90,7 +92,7 @@ func (r *RabbitConnection) tryToConnect() error {
 	var err error
 	r.Connection, err = amqp.Dial(RabbitURL)
 	if err != nil {
-		log.Error("[Rabbit] Failed to establish connection with RabbitMQ")
+		log.Errorf("[Rabbit] Failed to establish connection with RabbitMQ: %s", RabbitURL)
 		return err
 	}
 	r.Channel, err = NewRabbitChannel(r.Connection)
