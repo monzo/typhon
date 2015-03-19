@@ -126,19 +126,29 @@ func (r *RabbitConnection) tryToConnect() error {
 func (r *RabbitConnection) Consume(serverName string) (<-chan amqp.Delivery, error) {
 	consumerChannel, err := NewRabbitChannel(r.Connection)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to create new channel")
-		log.Error(err.Error())
+		log.Errorf("[Rabbit] Failed to create new channel: %s", err.Error())
+		return nil, err
 	}
+
 	err = consumerChannel.DeclareQueue(serverName)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to declare queue %s", serverName)
-		log.Error(err.Error())
+		log.Errorf("[Rabbit] Failed to declare queue %s: %s", serverName, err.Error())
+		return nil, err
 	}
+
+	deliveries, err := consumerChannel.ConsumeQueue(serverName)
+	if err != nil {
+		log.Errorf("[Rabbit] Failed to declare queue %s: %s", serverName, err.Error())
+		return nil, err
+	}
+
 	err = consumerChannel.BindQueue(serverName, Exchange)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to bind %s to %s exchange", serverName, Exchange)
+		log.Errorf("[Rabbit] Failed to bind %s to %s exchange: %s", serverName, Exchange, err.Error())
+		return nil, err
 	}
-	return consumerChannel.ConsumeQueue(serverName)
+
+	return deliveries, nil
 }
 
 func (r *RabbitConnection) Publish(exchange, routingKey string, msg amqp.Publishing) error {
