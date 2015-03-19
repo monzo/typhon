@@ -91,8 +91,12 @@ func (s *AMQPServer) Run() {
 	// Handle deliveries
 	for {
 		select {
-		case req := <-deliveries:
-			log.Infof("[Server] [%s] Received new delivery", s.ServiceName)
+		case req, ok := <-deliveries:
+			if !ok {
+				log.Infof("[Server] Delivery channel closed, exiting")
+				return
+			}
+			log.Tracef("[Server] Received new delivery: %#v", req)
 			go s.handleRequest(req)
 		case <-s.closeChan:
 			// shut down server
