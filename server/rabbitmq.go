@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -118,6 +117,7 @@ func (s *AMQPServer) Close() {
 
 // handleRequest takes a delivery from AMQP, attempts to process it and return a response
 func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
+	log.Tracef("Handling Request (delivery): %s\n\n", delivery.RoutingKey)
 
 	// See if we have a matching endpoint for this request
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
@@ -156,6 +156,8 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 			"Content-Encoding": "RESPONSE",
 		},
 	}
+
+	log.Tracef("[Server] Sending response to %s", delivery.ReplyTo)
 	s.connection.Publish("", delivery.ReplyTo, msg)
 }
 
@@ -181,5 +183,6 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 	}
 
 	// Publish the error back to the client
+	log.Tracef("[Server] Sending error response to %s", delivery.ReplyTo)
 	s.connection.Publish("", delivery.ReplyTo, msg)
 }
