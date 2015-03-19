@@ -42,6 +42,8 @@ type RabbitConnection struct {
 	ExchangeChannel *RabbitChannel
 	notify          chan bool
 
+	connected bool
+
 	mtx       sync.Mutex
 	closeChan chan struct{}
 	closed    bool
@@ -59,6 +61,7 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 			continue
 		}
 		connected <- true
+		r.connected = true
 		notifyClose := make(chan *amqp.Error)
 		r.Connection.NotifyClose(notifyClose)
 
@@ -66,14 +69,21 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 		select {
 		case <-notifyClose:
 			// Spin around and reconnect
+			r.connected = false
+			log.Debugf("[Rabbit] AMQP connection closed (notifyClose): %s", err.Error())
 		case <-r.closeChan:
 			// Shut down connection
 			if err := r.Connection.Close(); err != nil {
 				log.Errorf("Failed to close AMQP connection: %v", err)
 			}
+			r.connected = false
 			return
 		}
 	}
+}
+
+func (r *RabbitConnection) IsConnected() bool {
+	return r.connected
 }
 
 func (r *RabbitConnection) Close() {
