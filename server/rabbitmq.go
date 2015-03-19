@@ -14,6 +14,8 @@ import (
 	"github.com/b2aio/typhon/rabbit"
 )
 
+var connectionTimeout time.Duration = 10 * time.Second
+
 type AMQPServer struct {
 	// this is the routing key prefix for all endpoints
 	ServiceName        string
@@ -76,9 +78,9 @@ func (s *AMQPServer) Run() {
 		for _, notify := range s.notifyConnected {
 			notify <- true
 		}
-	case <-time.After(10 * time.Second):
-		log.Critical("[Server] Failed to connect to RabbitMQ")
-		os.Exit(1)
+	case <-time.After(connectionTimeout):
+		log.Critical("[Server] Failed to connect to RabbitMQ after %v", connectionTimeout)
+		return
 	}
 
 	// Get a delivery channel from the connection
