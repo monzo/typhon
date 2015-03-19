@@ -95,6 +95,11 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	// and if not, block for a short period of time while attempting to reconnect
 	c.once.Do(c.Init)
 
+	// Don't even try to send if not connected
+	if !c.connection.IsConnected() {
+		return errors.Wrap(fmt.Errorf("Not connected to AMQP"))
+	}
+
 	routingKey := c.buildRoutingKey(serviceName, endpoint)
 
 	correlation, err := uuid.NewV4()
