@@ -70,6 +70,7 @@ func (s *AMQPServer) DeregisterEndpoint(endpointName string) {
 
 // Run the server, connecting to our transport and serving requests
 func (s *AMQPServer) Run() {
+	defer log.Flush()
 
 	// Connect to AMQP
 	select {
@@ -87,7 +88,8 @@ func (s *AMQPServer) Run() {
 	log.Infof("[Server] Listening for deliveries on %s.#", s.ServiceName)
 	deliveries, err := s.connection.Consume(s.ServiceName)
 	if err != nil {
-		log.Criticalf("[Server] [%s] Failed to consume from Rabbit", s.ServiceName)
+		log.Infof("[Server] Failed to consume from Rabbit: %s", err.Error())
+		return
 	}
 
 	// Handle deliveries
@@ -102,13 +104,12 @@ func (s *AMQPServer) Run() {
 			go s.handleRequest(req)
 		case <-s.closeChan:
 			// shut down server
+			log.Infof("[Server] Closing connection")
 			s.connection.Close()
-			break
+			log.Infof("[Server] Connection closed")
+			return
 		}
 	}
-
-	log.Infof("Exiting")
-	log.Flush()
 }
 
 func (s *AMQPServer) Close() {
