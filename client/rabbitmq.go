@@ -20,6 +20,8 @@ import (
 	"github.com/b2aio/typhon/rabbit"
 )
 
+var connectionTimeout time.Duration = 10 * time.Second
+
 type RabbitClient struct {
 	once       sync.Once
 	inflight   *inflightRegistry
@@ -44,8 +46,8 @@ func (c *RabbitClient) Init() {
 	select {
 	case <-c.connection.Init():
 		log.Info("[Client] Connected to RabbitMQ")
-	case <-time.After(10 * time.Second):
-		log.Critical("[Client] Failed to connect to RabbitMQ")
+	case <-time.After(connectionTimeout):
+		log.Critical("[Client] Failed to connect to RabbitMQ after %v", connectionTimeout)
 		os.Exit(1)
 	}
 	c.initConsume()
