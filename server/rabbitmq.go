@@ -155,6 +155,8 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		Headers: map[string]interface{}{
 			"Content-Type":     "application/x-protobuf",
 			"Content-Encoding": "response",
+			"Service":          s.ServiceName,
+			"Endpoint":         endpointName,
 		},
 	}
 
