@@ -156,10 +156,13 @@ func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
 // handleResponse returned from a service by marshaling into the response type,
 // or converting an error from the remote service
 func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
+
+	serverResp := deliveryToResponse(delivery)
+
 	// deal with error responses, by converting back from wire format
-	if deliveryIsError(delivery) {
+	if serverResp.IsError() {
 		p := &pe.Error{}
-		if err := proto.Unmarshal(delivery.Body, p); err != nil {
+		if err := proto.Unmarshal(serverResp.Payload(), p); err != nil {
 			return errors.BadResponse(err.Error())
 		}
 
@@ -167,25 +170,26 @@ func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
 	}
 
 	// Otherwise try to marshal to the expected response type
-	if err := proto.Unmarshal(delivery.Body, resp); err != nil {
+	if err := proto.Unmarshal(serverResp.Payload(), resp); err != nil {
 		return errors.BadResponse(err.Error())
 	}
 
 	return nil
 }
 
-// deliveryIsError checks if the delivered response contains an error
-func deliveryIsError(delivery amqp.Delivery) bool {
-	encoding, ok := delivery.Headers["Content-Encoding"].(string)
-	if !ok {
-		// Can't type assert header to string, assume error
-		log.Warnf("[Client] Service returned invalid Content-Encoding header %v", encoding)
-		return true
-	}
+// deliveryToResponse converts our AMQP response to a client Response
+func deliveryToResponse(delivery amqp.Delivery) *Response {
 
-	if encoding == "" || encoding == "error" {
-		return true
-	}
+	contentType, _ := delivery.Headers["Content-Type"].(string)
+	contentEncoding, _ := delivery.Headers["Content-Encoding"].(string)
+	service, _ := delivery.Headers["Service"].(string)
+	endpoint, _ := delivery.Headers["Endpoint"].(string)
 
-	return false
+	return &response{
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		service:         service,
+		endpoint:        endpoint,
+		payload:         delivery.Body,
+	}
 }
