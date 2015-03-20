@@ -11,6 +11,26 @@ type Request struct {
 	payload []byte
 }
 
+// ContentType of the request
+func (r *Request) ContentType() string {
+	return r.contentType
+}
+
+// Service to be delivered to
+func (r *Request) Service() string {
+	return r.service
+}
+
+// Endpoint to be delivered to at the service
+func (r *Request) Endpoint() string {
+	return r.endpoint
+}
+
+// Payload of the request
+func (r *Request) Payload() []byte {
+	return r.payload
+}
+
 // NewProtoRequest creates a new request with protobuf encoding
 func NewProtoRequest(service, endpoint string, payload []byte) *Request {
 	return &Request{
