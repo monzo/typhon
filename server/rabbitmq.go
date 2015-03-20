@@ -154,7 +154,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		Body:          body,
 		Headers: map[string]interface{}{
 			"Content-Type":     "application/x-protobuf",
-			"Content-Encoding": "RESPONSE",
+			"Content-Encoding": "response",
 		},
 	}
 
@@ -180,7 +180,7 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 		Body:          b,
 		Headers: map[string]interface{}{
 			"Content-Type":     "application/x-protobuf",
-			"Content-Encoding": "ERROR",
+			"Content-Encoding": "error",
 		},
 	}
 

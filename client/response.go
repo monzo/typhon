@@ -35,5 +35,5 @@ func (r *Response) Payload() []byte {
 }
 
 func (r *Response) IsError() bool {
-	return contentEncoding == "ERROR"
+	return contentEncoding == "error"
 }

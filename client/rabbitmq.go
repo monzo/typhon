@@ -183,7 +183,7 @@ func deliveryIsError(delivery amqp.Delivery) bool {
 		return true
 	}
 
-	if encoding == "" || encoding == "ERROR" {
+	if encoding == "" || encoding == "error" {
 		return true
 	}
 
