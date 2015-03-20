@@ -153,6 +153,7 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		Timestamp:     time.Now().UTC(),
 		Body:          body,
 		Headers: map[string]interface{}{
+			"Content-Type":     "application/x-protobuf",
 			"Content-Encoding": "RESPONSE",
 		},
 	}
@@ -178,6 +179,7 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 		Timestamp:     time.Now().UTC(),
 		Body:          b,
 		Headers: map[string]interface{}{
+			"Content-Type":     "application/x-protobuf",
 			"Content-Encoding": "ERROR",
 		},
 	}
