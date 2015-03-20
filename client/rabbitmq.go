@@ -87,7 +87,7 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *RabbitClient) Request(ctx context.Context, serviceName, endpoint string, req proto.Message, resp proto.Message) error {
+func (c *RabbitClient) Req(ctx context.Context, serviceName, endpoint string, req proto.Message, resp proto.Message) error {
 
 	// Ensure we're initialised, but only do this once
 	//

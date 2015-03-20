@@ -9,14 +9,15 @@ import (
 
 type Client interface {
 	Init()
-	Request(ctx context.Context, service, endpoint string, req proto.Message, res proto.Message) error
+	Req(ctx context.Context, service, endpoint string, req proto.Message, res proto.Message) error
 }
 
 var defaultTimeout time.Duration = 1 * time.Second
 
 var DefaultClient Client = NewRabbitClient()
 
-// Request sends a request to a service using the DefaultClient
-func Request(ctx context.Context, service, endpoint string, req proto.Message, res proto.Message) error {
-	return DefaultClient.Request(ctx, service, endpoint, req, res)
+// Req sends a request to a service using the DefaultClient
+// and unmarshals the response into the supplied protobuf
+func Req(ctx context.Context, service, endpoint string, req proto.Message, res proto.Message) error {
+	return DefaultClient.Req(ctx, service, endpoint, req, res)
 }
