@@ -145,6 +145,10 @@ func (c *RabbitClient) Req(ctx context.Context, serviceName, endpoint string, re
 	}
 }
 
+func (c *RabbitClient) CustomReq(req *Request) (*Response, error) {
+	return fmt.Errorf("not implemented")
+}
+
 func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
 	return fmt.Sprintf("%s.%s", serviceName, endpoint)
 }
