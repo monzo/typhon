@@ -20,6 +20,8 @@ import (
 	"github.com/b2aio/typhon/rabbit"
 )
 
+var connectionTimeout time.Duration = 10 * time.Second
+
 type RabbitClient struct {
 	once       sync.Once
 	inflight   *inflightRegistry
@@ -44,8 +46,8 @@ func (c *RabbitClient) Init() {
 	select {
 	case <-c.connection.Init():
 		log.Info("[Client] Connected to RabbitMQ")
-	case <-time.After(10 * time.Second):
-		log.Critical("[Client] Failed to connect to RabbitMQ")
+	case <-time.After(connectionTimeout):
+		log.Critical("[Client] Failed to connect to RabbitMQ after %v", connectionTimeout)
 		os.Exit(1)
 	}
 	c.initConsume()
@@ -54,14 +56,12 @@ func (c *RabbitClient) Init() {
 func (c *RabbitClient) initConsume() {
 	err := c.connection.Channel.DeclareReplyQueue(c.replyTo)
 	if err != nil {
-		log.Critical("[Client] Failed to declare reply queue")
-		log.Critical(err.Error())
+		log.Criticalf("[Client] Failed to declare reply queue: %s", err.Error())
 		os.Exit(1)
 	}
 	deliveries, err := c.connection.Channel.ConsumeQueue(c.replyTo)
 	if err != nil {
-		log.Critical("[Client] Failed to consume from reply queue")
-		log.Critical(err.Error())
+		log.Criticalf("[Client] Failed to consume from reply queue: %s", err.Error())
 		os.Exit(1)
 	}
 	go func() {
@@ -69,19 +69,21 @@ func (c *RabbitClient) initConsume() {
 		for delivery := range deliveries {
 			go c.handleDelivery(delivery)
 		}
+		log.Infof("[Client] Delivery channel %s closed", c.replyTo)
 	}()
 }
 
 func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	channel := c.inflight.pop(delivery.CorrelationId)
 	if channel == nil {
-		log.Errorf("[Client] CorrelationID '%s' does not exist in inflight registry", delivery.CorrelationId)
+		log.Warnf("[Client] CorrelationID '%s' does not exist in inflight registry", delivery.CorrelationId)
 		return
 	}
 	select {
 	case channel <- delivery:
+		log.Tracef("[Client] Dispatched delivery to response channel for %s", delivery.CorrelationId)
 	default:
-		log.Errorf("[Client] Error in delivery for correlation %s", delivery.CorrelationId)
+		log.Warnf("[Client] Error in delivery for message %s", delivery.CorrelationId)
 	}
 }
 
@@ -93,6 +95,11 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 	// and if not, block for a short period of time while attempting to reconnect
 	c.once.Do(c.Init)
 
+	// Don't even try to send if not connected
+	if !c.connection.IsConnected() {
+		return errors.Wrap(fmt.Errorf("Not connected to AMQP"))
+	}
+
 	routingKey := c.buildRoutingKey(serviceName, endpoint)
 
 	correlation, err := uuid.NewV4()
@@ -100,6 +107,8 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 		log.Errorf("[Client] Failed to create unique request id: %v", err)
 		return errors.Wrap(err) // @todo custom error code
 	}
+
+	log.Debugf("[Client] Dispatching request to %s with correlation ID %s", routingKey, correlation.String())
 
 	replyChannel := c.inflight.push(correlation.String())
 
@@ -118,15 +127,16 @@ func (c *RabbitClient) Call(ctx context.Context, serviceName, endpoint string, r
 
 	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
-		log.Errorf("[Client] Failed to publish to '%s': %v", routingKey, err)
+		log.Errorf("[Client] Failed to publish %s to '%s': %v", correlation.String(), routingKey, err)
 		return errors.Wrap(err) // @todo custom error code
 	}
 
 	select {
 	case delivery := <-replyChannel:
+		log.Debugf("[Client] Response received for %s from %s", correlation.String(), routingKey)
 		return handleResponse(delivery, resp)
 	case <-time.After(defaultTimeout):
-		log.Errorf("%s timed out", routingKey)
+		log.Errorf("[Client] Request %s timed out calling %s", correlation.String(), routingKey)
 
 		return errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
 			"called_service":  serviceName,
@@ -165,7 +175,7 @@ func deliveryIsError(delivery amqp.Delivery) bool {
 	encoding, ok := delivery.Headers["Content-Encoding"].(string)
 	if !ok {
 		// Can't type assert header to string, assume error
-		log.Warnf("Service returned invalid Content-Encoding header %v", encoding)
+		log.Warnf("[Client] Service returned invalid Content-Encoding header %v", encoding)
 		return true
 	}
 

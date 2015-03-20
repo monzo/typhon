@@ -3,10 +3,11 @@ package server
 import (
 	"strings"
 
-	"github.com/b2aio/typhon/client"
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
+
+	"github.com/b2aio/typhon/client"
 )
 
 type AMQPRequest struct {

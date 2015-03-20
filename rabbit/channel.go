@@ -54,26 +54,63 @@ func (r *RabbitChannel) Publish(exchange, routingKey string, message amqp.Publis
 }
 
 func (r *RabbitChannel) DeclareExchange(exchange string) error {
-	return r.channel.ExchangeDeclare(exchange, "topic", false, false, false, false, nil)
+	return r.channel.ExchangeDeclare(
+		exchange, // name
+		"topic",  // kind
+		false,    // durable
+		false,    // autoDelete
+		false,    // internal
+		false,    // noWait
+		nil,      // args
+	)
 }
 
 func (r *RabbitChannel) DeclareQueue(queue string) error {
-	_, err := r.channel.QueueDeclare(queue, false, true, false, false, nil)
+	_, err := r.channel.QueueDeclare(
+		queue, // name
+		false, // durable
+		true,  // autoDelete
+		false, // exclusive
+		false, // noWait
+		nil,   // args
+	)
 	return err
 }
 
 func (r *RabbitChannel) DeclareDurableQueue(queue string) error {
-	_, err := r.channel.QueueDeclare(queue, true, false, false, false, nil)
+	_, err := r.channel.QueueDeclare(
+		queue, // name
+		true,  // durable
+		false, // autoDelete
+		false, // exclusive
+		false, // noWait
+		nil,   // args
+	)
 	return err
 }
 
 func (r *RabbitChannel) DeclareReplyQueue(queue string) error {
-	_, err := r.channel.QueueDeclare(queue, false, true, true, false, nil)
+	_, err := r.channel.QueueDeclare(
+		queue, // name
+		false, // durable
+		true,  // autoDelete
+		true,  // exclusive
+		false, // noWait
+		nil,   // args
+	)
 	return err
 }
 
 func (r *RabbitChannel) ConsumeQueue(queue string) (<-chan amqp.Delivery, error) {
-	return r.channel.Consume(queue, r.uuid, false, false, false, false, nil)
+	return r.channel.Consume(
+		queue,  // queue
+		r.uuid, // consumer
+		true,   // autoAck
+		false,  // exclusive
+		false,  // nolocal
+		false,  // nowait
+		nil,    // args
+	)
 }
 
 func (r *RabbitChannel) BindQueue(queue, exchange string) error {

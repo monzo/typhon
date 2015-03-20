@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
 )
+
+var connectionTimeout time.Duration = 10 * time.Second
 
 type AMQPServer struct {
 	// this is the routing key prefix for all endpoints
@@ -68,6 +69,7 @@ func (s *AMQPServer) DeregisterEndpoint(endpointName string) {
 
 // Run the server, connecting to our transport and serving requests
 func (s *AMQPServer) Run() {
+	defer log.Flush()
 
 	// Connect to AMQP
 	select {
@@ -76,33 +78,37 @@ func (s *AMQPServer) Run() {
 		for _, notify := range s.notifyConnected {
 			notify <- true
 		}
-	case <-time.After(10 * time.Second):
-		log.Critical("[Server] Failed to connect to RabbitMQ")
-		os.Exit(1)
+	case <-time.After(connectionTimeout):
+		log.Critical("[Server] Failed to connect to RabbitMQ after %v", connectionTimeout)
+		return
 	}
 
 	// Get a delivery channel from the connection
 	log.Infof("[Server] Listening for deliveries on %s.#", s.ServiceName)
 	deliveries, err := s.connection.Consume(s.ServiceName)
 	if err != nil {
-		log.Criticalf("[Server] [%s] Failed to consume from Rabbit", s.ServiceName)
+		log.Infof("[Server] Failed to consume from Rabbit: %s", err.Error())
+		return
 	}
 
 	// Handle deliveries
 	for {
 		select {
-		case req := <-deliveries:
-			log.Infof("[Server] [%s] Received new delivery", s.ServiceName)
+		case req, ok := <-deliveries:
+			if !ok {
+				log.Infof("[Server] Delivery channel closed, exiting")
+				return
+			}
+			log.Tracef("[Server] Received new delivery: %#v", req)
 			go s.handleRequest(req)
 		case <-s.closeChan:
 			// shut down server
+			log.Infof("[Server] Closing connection")
 			s.connection.Close()
-			break
+			log.Infof("[Server] Connection closed")
+			return
 		}
 	}
-
-	log.Infof("Exiting")
-	log.Flush()
 }
 
 func (s *AMQPServer) Close() {
@@ -111,6 +117,7 @@ func (s *AMQPServer) Close() {
 
 // handleRequest takes a delivery from AMQP, attempts to process it and return a response
 func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
+	log.Tracef("Handling Request (delivery): %s", delivery.RoutingKey)
 
 	// See if we have a matching endpoint for this request
 	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
@@ -149,6 +156,8 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 			"Content-Encoding": "RESPONSE",
 		},
 	}
+
+	log.Tracef("[Server] Sending response to %s", delivery.ReplyTo)
 	s.connection.Publish("", delivery.ReplyTo, msg)
 }
 
@@ -174,5 +183,6 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 	}
 
 	// Publish the error back to the client
+	log.Tracef("[Server] Sending error response to %s", delivery.ReplyTo)
 	s.connection.Publish("", delivery.ReplyTo, msg)
 }
