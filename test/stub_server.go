@@ -25,51 +25,51 @@ type ServiceStub struct {
 	Handler     func(server.Request) (proto.Message, error)
 }
 
-// The stub server boots up a regular typhon server and registers a single
+// NewStubServer boots up a regular typhon server and registers a single
 // endpoint that subscribes to every routing key
 func NewStubServer(t *testing.T) *StubServer {
 
-	stubServer := &StubServer{
+	s := &StubServer{
 		Server: server.NewAMQPServer(),
 		t:      t,
 	}
 
 	// TODO `Name: "#"` is rather hokey
-	stubServer.Init(&server.Config{Name: "#", Description: "Stub Server"})
+	s.Init(&server.Config{Name: "#", Description: "Stub Server"})
 
-	go stubServer.Run()
+	go s.Run()
 
 	select {
-	case <-stubServer.NotifyConnected():
+	case <-s.NotifyConnected():
 	case <-time.After(1 * time.Second):
 		t.Fatalf("StubServer couldn't connect to RabbitMQ")
 	}
 
 	t.Log("[StubServer] Connected to RabbitMQ")
 
-	stubServer.RegisterEndpoint(&server.Endpoint{
+	s.RegisterEndpoint(&server.Endpoint{
 		Name: ".*", // TODO Name is not well-named
 		Handler: func(req server.Request) (proto.Message, error) {
-			return stubServer.handleRequest(req)
+			return s.handleRequest(req)
 		},
 	})
 
-	return stubServer
+	return s
 }
 
 // StubResponse is a convenience method to quickly set up stubs that return a fixed value
-func (stubServer *StubServer) StubResponse(serviceName, endpoint string, returnValue proto.Message) {
-	stubServer.stubResponseAndError(serviceName, endpoint, returnValue, nil)
+func (s *StubServer) StubResponse(serviceName, endpoint string, returnValue proto.Message) {
+	s.stubResponseAndError(serviceName, endpoint, returnValue, nil)
 }
 
 // StubError is a convenience method to stub out a service error
-func (stubServer *StubServer) StubError(serviceName, endpoint string, err error) {
-	stubServer.stubResponseAndError(serviceName, endpoint, nil, err)
+func (s *StubServer) StubError(serviceName, endpoint string, err error) {
+	s.stubResponseAndError(serviceName, endpoint, nil, err)
 }
 
 // stubResponseAndError registers a stub that returns the passed response and error
-func (stubServer *StubServer) stubResponseAndError(serviceName, endpoint string, returnValue proto.Message, err error) {
-	stubServer.RegisterStub(&ServiceStub{
+func (s *StubServer) stubResponseAndError(serviceName, endpoint string, returnValue proto.Message, err error) {
+	s.RegisterStub(&ServiceStub{
 		ServiceName: serviceName,
 		Endpoint:    endpoint,
 		Handler: func(_ server.Request) (proto.Message, error) {
@@ -78,31 +78,36 @@ func (stubServer *StubServer) stubResponseAndError(serviceName, endpoint string,
 	})
 }
 
-// Registers a stub with the server
-func (stubServer *StubServer) RegisterStub(stub *ServiceStub) {
-	stubServer.stubsMutex.Lock()
-	stubServer.t.Logf("[StubServer] Registered stub for %s.%s", stub.ServiceName, stub.Endpoint)
-	defer stubServer.stubsMutex.Unlock()
-	stubServer.stubs = append(stubServer.stubs, stub)
+// RegisterStub with the server
+func (s *StubServer) RegisterStub(stub *ServiceStub) {
+	s.stubsMutex.Lock()
+	s.t.Logf("[StubServer] Registered stub for %s.%s", stub.ServiceName, stub.Endpoint)
+	defer s.stubsMutex.Unlock()
+	s.stubs = append(s.stubs, stub)
 }
 
-// Clear out all server stubs. Test suites should run this between tests
-func (stubServer *StubServer) ResetStubs() {
-	stubServer.stubsMutex.Lock()
-	defer stubServer.stubsMutex.Unlock()
-	stubServer.stubs = nil
-	stubServer.t.Log("[StubServer] Stubs cleared")
+// ResetStubs clears out all server stubs. Test suites should run this between tests
+func (s *StubServer) ResetStubs() {
+	s.stubsMutex.Lock()
+	defer s.stubsMutex.Unlock()
+	s.stubs = nil
+	s.t.Log("[StubServer] Stubs cleared")
+}
+
+// Close cleanly shuts down the stub server
+func (s *StubServer) Close() {
+	s.Server.Close()
 }
 
 // Finds the relevant endpoint stub (if any), and calls its handler function
-func (stubServer *StubServer) handleRequest(req server.Request) (proto.Message, error) {
+func (s *StubServer) handleRequest(req server.Request) (proto.Message, error) {
 
-	stubServer.t.Logf("[StubServer] Handling request for %s", req.Service(), req.Endpoint())
-	stubServer.stubsMutex.RLock()
-	defer stubServer.stubsMutex.RUnlock()
+	s.t.Logf("[StubServer] Handling request for %s.%s", req.Service(), req.Endpoint())
+	s.stubsMutex.RLock()
+	defer s.stubsMutex.RUnlock()
 
 	// determine which endpoint to use
-	for _, stub := range stubServer.stubs {
+	for _, stub := range s.stubs {
 		if stub.ServiceName == req.Service() && stub.Endpoint == req.Endpoint() {
 			return stub.Handler(req)
 		}
