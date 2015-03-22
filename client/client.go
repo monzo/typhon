@@ -10,7 +10,7 @@ import (
 type Client interface {
 	Init()
 	Req(ctx context.Context, service, endpoint string, req proto.Message, res proto.Message) error
-	CustomReq(req *Request) (Response, error)
+	CustomReq(req Request) (Response, error)
 }
 
 var defaultTimeout time.Duration = 1 * time.Second
@@ -25,6 +25,6 @@ func Req(ctx context.Context, service, endpoint string, req proto.Message, res p
 
 // CustomReq sends a raw request using the DefaultClient
 // without the usual marshaling helpers
-func CustomReq(req *Request) (Response, error) {
+func CustomReq(req Request) (Response, error) {
 	return DefaultClient.CustomReq(req)
 }

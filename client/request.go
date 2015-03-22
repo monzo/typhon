@@ -1,6 +1,17 @@
 package client
 
-type Request struct {
+type Request interface {
+	// ContentType of the payload
+	ContentType() string
+	// Service to be delivered to
+	Service() string
+	// Endpoint to be delivered to at the service
+	Endpoint() string
+	// Payload stores our raw payload to send
+	Payload() []byte
+}
+
+type request struct {
 	// contentType of the payload
 	contentType string
 	// service to be delivered to
@@ -12,28 +23,28 @@ type Request struct {
 }
 
 // ContentType of the request
-func (r *Request) ContentType() string {
+func (r *request) ContentType() string {
 	return r.contentType
 }
 
 // Service to be delivered to
-func (r *Request) Service() string {
+func (r *request) Service() string {
 	return r.service
 }
 
 // Endpoint to be delivered to at the service
-func (r *Request) Endpoint() string {
+func (r *request) Endpoint() string {
 	return r.endpoint
 }
 
 // Payload of the request
-func (r *Request) Payload() []byte {
+func (r *request) Payload() []byte {
 	return r.payload
 }
 
 // NewProtoRequest creates a new request with protobuf encoding
-func NewProtoRequest(service, endpoint string, payload []byte) *Request {
-	return &Request{
+func NewProtoRequest(service, endpoint string, payload []byte) Request {
+	return &request{
 		contentType: "application/x-protobuf",
 		service:     service,
 		endpoint:    endpoint,
@@ -42,8 +53,8 @@ func NewProtoRequest(service, endpoint string, payload []byte) *Request {
 }
 
 // NewJsonRequest creates a new request with json encoding
-func NewJsonRequest(service, endpoint string, payload []byte) *Request {
-	return &Request{
+func NewJsonRequest(service, endpoint string, payload []byte) Request {
+	return &request{
 		contentType: "application/json",
 		service:     service,
 		endpoint:    endpoint,

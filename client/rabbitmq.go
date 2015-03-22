@@ -113,13 +113,13 @@ func (c *RabbitClient) Req(ctx context.Context, service, endpoint string, req pr
 
 // CustomReq makes a sends a request to a service and returns a
 // response without the usual marshaling helpers
-func (c *RabbitClient) CustomReq(req *Request) (Response, error) {
+func (c *RabbitClient) CustomReq(req Request) (Response, error) {
 	return c.do(req)
 }
 
 // do sends a request and returns a response, following policies
 // (e.g. redirects, cookies, auth) as configured on the client.
-func (c *RabbitClient) do(req *Request) (Response, error) {
+func (c *RabbitClient) do(req Request) (Response, error) {
 
 	// Ensure we're initialised, but only do this once
 	//
