@@ -137,7 +137,7 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 
 	replyChannel := c.inflight.push(req.Id())
 
-	routingKey := c.buildRoutingKey(req.Service(), req.Endpoint())
+	routingKey := buildRoutingKey(req.Service(), req.Endpoint())
 	log.Debugf("[Client] Dispatching request to %s with correlation ID %s", routingKey, req.Id())
 
 	// Build message from request
@@ -174,7 +174,7 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 }
 
 // buildRoutingKey to send the request via AMQP
-func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
+func buildRoutingKey(serviceName, endpoint string) string {
 	return fmt.Sprintf("%s.%s", serviceName, endpoint)
 }
 
