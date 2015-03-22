@@ -14,15 +14,37 @@ type AMQPRequest struct {
 	context.Context
 	body     interface{}
 	delivery *amqp.Delivery
+
+	id              string
+	contentType     string
+	contentEncoding string
+	service         string
+	endpoint        string
 }
 
 func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
+
+	contentType, _ := delivery.Headers["Content-Type"].(string)
+	contentEncoding, _ := delivery.Headers["Content-Encoding"].(string)
+	service, _ := delivery.Headers["Service"].(string)
+	endpoint, _ := delivery.Headers["Endpoint"].(string)
+
 	return &AMQPRequest{
 		delivery: delivery,
+
+		id:              delivery.CorrelationId,
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		service:         service,
+		endpoint:        endpoint,
 	}
 }
 
 // RabbitMQ / AMQP fields
+
+func (r *AMQPRequest) Id() string {
+	return r.id
+}
 
 func (r *AMQPRequest) Service() string {
 	routingKey := r.RoutingKey()
