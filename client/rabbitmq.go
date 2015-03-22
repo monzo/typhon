@@ -16,8 +16,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/b2aio/typhon/errors"
-	pe "github.com/b2aio/typhon/proto/error"
 	"github.com/b2aio/typhon/rabbit"
+
+	pe "github.com/b2aio/typhon/proto/error"
 )
 
 var connectionTimeout time.Duration = 10 * time.Second
@@ -146,6 +147,12 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 		Timestamp:     time.Now().UTC(),
 		Body:          req.Payload(),
 		ReplyTo:       c.replyTo,
+		Headers: amqp.Table{
+			"Content-Type":     req.ContentType(),
+			"Content-Encoding": "request",
+			"Service":          req.Service(),
+			"Endpoint":         req.Endpoint(),
+		},
 	}
 
 	err := c.connection.Publish(rabbit.Exchange, routingKey, message)
