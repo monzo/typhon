@@ -95,7 +95,10 @@ func (c *RabbitClient) Req(ctx context.Context, service, endpoint string, req pr
 		log.Errorf("[Client] Failed to marshal request: %v", err)
 		return errors.Wrap(err) // @todo custom error code
 	}
-	protoReq := NewProtoRequest(service, endpoint, payload)
+	protoReq, err := NewProtoRequest(service, endpoint, payload)
+	if err != nil {
+		return errors.Wrap(err)
+	}
 
 	// Execute
 	rsp, err := c.do(protoReq)
@@ -132,42 +135,35 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 		return nil, errors.Wrap(fmt.Errorf("Not connected to AMQP"))
 	}
 
+	replyChannel := c.inflight.push(req.Id())
+
 	routingKey := c.buildRoutingKey(req.Service(), req.Endpoint())
-
-	correlation, err := uuid.NewV4()
-	if err != nil {
-		log.Errorf("[Client] Failed to create unique request id: %v", err)
-		return nil, errors.Wrap(err) // @todo custom error code
-	}
-
-	log.Debugf("[Client] Dispatching request to %s with correlation ID %s", routingKey, correlation.String())
-
-	replyChannel := c.inflight.push(correlation.String())
+	log.Debugf("[Client] Dispatching request to %s with correlation ID %s", routingKey, req.Id())
 
 	// Build message from request
 	message := amqp.Publishing{
-		CorrelationId: correlation.String(),
+		CorrelationId: req.Id(),
 		Timestamp:     time.Now().UTC(),
 		Body:          req.Payload(),
 		ReplyTo:       c.replyTo,
 	}
 
-	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
+	err := c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
-		log.Errorf("[Client] Failed to publish %s to '%s': %v", correlation.String(), routingKey, err)
+		log.Errorf("[Client] Failed to publish %s to '%s': %v", req.Id(), routingKey, err)
 		return nil, errors.Wrap(err) // @todo custom error code
 	}
 
 	select {
 	case delivery := <-replyChannel:
-		log.Debugf("[Client] Response received for %s from %s", correlation.String(), routingKey)
+		log.Debugf("[Client] Response received for %s from %s", req.Id(), routingKey)
 		rsp := deliveryToResponse(delivery)
 		if rsp.IsError() {
 			return nil, unmarshalErrorResponse(rsp)
 		}
 		return rsp, nil
 	case <-time.After(defaultTimeout):
-		log.Errorf("[Client] Request %s timed out calling %s", correlation.String(), routingKey)
+		log.Errorf("[Client] Request %s timed out calling %s", req.Id(), routingKey)
 
 		return nil, errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
 			"called_service":  req.Service(),
