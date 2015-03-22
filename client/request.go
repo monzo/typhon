@@ -1,6 +1,15 @@
 package client
 
+import (
+	log "github.com/cihub/seelog"
+	"github.com/nu7hatch/gouuid"
+
+	"github.com/b2aio/typhon/errors"
+)
+
 type Request interface {
+	// Id of this request
+	Id() string
 	// ContentType of the payload
 	ContentType() string
 	// Service to be delivered to
@@ -12,6 +21,8 @@ type Request interface {
 }
 
 type request struct {
+	// id of this request
+	id string
 	// contentType of the payload
 	contentType string
 	// service to be delivered to
@@ -20,6 +31,11 @@ type request struct {
 	endpoint string
 	// payload stores our raw payload to send
 	payload []byte
+}
+
+// Id of the request
+func (r *request) Id() string {
+	return r.id
 }
 
 // ContentType of the request
@@ -43,21 +59,35 @@ func (r *request) Payload() []byte {
 }
 
 // NewProtoRequest creates a new request with protobuf encoding
-func NewProtoRequest(service, endpoint string, payload []byte) Request {
+func NewProtoRequest(service, endpoint string, payload []byte) (Request, error) {
+	requestId, err := uuid.NewV4()
+	if err != nil {
+		log.Errorf("[Client] Failed to create unique request id: %v", err)
+		return nil, errors.Wrap(err) // @todo custom error code
+	}
+
 	return &request{
+		id:          requestId.String(),
 		contentType: "application/x-protobuf",
 		service:     service,
 		endpoint:    endpoint,
 		payload:     payload,
-	}
+	}, nil
 }
 
 // NewJsonRequest creates a new request with json encoding
-func NewJsonRequest(service, endpoint string, payload []byte) Request {
+func NewJsonRequest(service, endpoint string, payload []byte) (Request, error) {
+	requestId, err := uuid.NewV4()
+	if err != nil {
+		log.Errorf("[Client] Failed to create unique request id: %v", err)
+		return nil, errors.Wrap(err) // @todo custom error code
+	}
+
 	return &request{
+		id:          requestId.String(),
 		contentType: "application/json",
 		service:     service,
 		endpoint:    endpoint,
 		payload:     payload,
-	}
+	}, nil
 }
