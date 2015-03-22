@@ -1,8 +1,6 @@
 package server
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -100,7 +98,7 @@ func (s *AMQPServer) Run() {
 				return
 			}
 			log.Tracef("[Server] Received new delivery: %#v", req)
-			go s.handleRequest(req)
+			go s.handleDelivery(req)
 		case <-s.closeChan:
 			// shut down server
 			log.Infof("[Server] Closing connection")
@@ -115,21 +113,22 @@ func (s *AMQPServer) Close() {
 	close(s.closeChan)
 }
 
-// handleRequest takes a delivery from AMQP, attempts to process it and return a response
-func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
+// handleDelivery takes a delivery from AMQP, attempts to process it and return a response
+func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	log.Tracef("Handling Request (delivery): %s", delivery.RoutingKey)
 
+	// Marshal to a request
+	req := NewAMQPRequest(&delivery)
+
 	// See if we have a matching endpoint for this request
-	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
-	endpoint := s.endpointRegistry.Get(endpointName)
+	endpoint := s.endpointRegistry.Get(req.Endpoint())
 	if endpoint == nil {
-		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", endpointName)
+		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", req.Endpoint())
 		s.respondWithError(delivery, errors.BadRequest("Endpoint not found"))
 		return
 	}
 
 	// Handle the delivery
-	req := NewAMQPRequest(&delivery)
 	resp, err := endpoint.HandleRequest(req)
 	if err != nil {
 		s.respondWithError(delivery, err)
@@ -149,14 +148,14 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 
 	// Build return delivery, and publish
 	msg := amqp.Publishing{
-		CorrelationId: delivery.CorrelationId,
+		CorrelationId: req.Id(),
 		Timestamp:     time.Now().UTC(),
 		Body:          body,
-		Headers: map[string]interface{}{
+		Headers: amqp.Table{
 			"Content-Type":     "application/x-protobuf",
 			"Content-Encoding": "response",
-			"Service":          s.ServiceName,
-			"Endpoint":         endpointName,
+			"Service":          req.Service(),
+			"Endpoint":         req.Endpoint(),
 		},
 	}
 
