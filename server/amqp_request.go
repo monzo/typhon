@@ -1,8 +1,6 @@
 package server
 
 import (
-	"strings"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
@@ -47,21 +45,11 @@ func (r *AMQPRequest) Id() string {
 }
 
 func (r *AMQPRequest) Service() string {
-	routingKey := r.RoutingKey()
-	lastDotIndex := strings.LastIndex(routingKey, ".")
-	if lastDotIndex == -1 {
-		return routingKey
-	}
-	return routingKey[:lastDotIndex]
+	return r.service
 }
 
 func (r *AMQPRequest) Endpoint() string {
-	routingKey := r.RoutingKey()
-	lastDotIndex := strings.LastIndex(routingKey, ".")
-	if lastDotIndex == -1 {
-		return ""
-	}
-	return routingKey[lastDotIndex+1:]
+	return r.endpoint
 }
 
 func (r *AMQPRequest) Payload() []byte {
@@ -77,7 +65,7 @@ func (r *AMQPRequest) SetBody(body interface{}) {
 }
 
 func (r *AMQPRequest) CorrelationID() string {
-	return r.delivery.CorrelationId
+	return r.id
 }
 
 func (r *AMQPRequest) ReplyTo() string {
