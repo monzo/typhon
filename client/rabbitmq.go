@@ -87,7 +87,39 @@ func (c *RabbitClient) handleDelivery(delivery amqp.Delivery) {
 	}
 }
 
-func (c *RabbitClient) Req(ctx context.Context, serviceName, endpoint string, req proto.Message, resp proto.Message) error {
+func (c *RabbitClient) Req(ctx context.Context, service, endpoint string, req proto.Message, resp proto.Message) error {
+
+	// Build request
+	payload, err := proto.Marshal(req)
+	if err != nil {
+		log.Errorf("[Client] Failed to marshal request: %v", err)
+		return errors.Wrap(err) // @todo custom error code
+	}
+	protoReq := NewProtoRequest(service, endpoint, payload)
+
+	// Execute
+	rsp, err := c.do(protoReq)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal response into the provided pointer
+	if err := unmarshalResponse(rsp, resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CustomReq makes a sends a request to a service and returns a
+// response without the usual marshaling helpers
+func (c *RabbitClient) CustomReq(req *Request) (Response, error) {
+	return c.do(req)
+}
+
+// do sends a request and returns a response, following policies
+// (e.g. redirects, cookies, auth) as configured on the client.
+func (c *RabbitClient) do(req *Request) (Response, error) {
 
 	// Ensure we're initialised, but only do this once
 	//
@@ -97,80 +129,62 @@ func (c *RabbitClient) Req(ctx context.Context, serviceName, endpoint string, re
 
 	// Don't even try to send if not connected
 	if !c.connection.IsConnected() {
-		return errors.Wrap(fmt.Errorf("Not connected to AMQP"))
+		return nil, errors.Wrap(fmt.Errorf("Not connected to AMQP"))
 	}
 
-	routingKey := c.buildRoutingKey(serviceName, endpoint)
+	routingKey := c.buildRoutingKey(req.Service(), req.Endpoint())
 
 	correlation, err := uuid.NewV4()
 	if err != nil {
 		log.Errorf("[Client] Failed to create unique request id: %v", err)
-		return errors.Wrap(err) // @todo custom error code
+		return nil, errors.Wrap(err) // @todo custom error code
 	}
 
 	log.Debugf("[Client] Dispatching request to %s with correlation ID %s", routingKey, correlation.String())
 
 	replyChannel := c.inflight.push(correlation.String())
 
-	requestBody, err := proto.Marshal(req)
-	if err != nil {
-		log.Errorf("[Client] Failed to marshal request: %v", err)
-		return errors.Wrap(err) // @todo custom error code
-	}
-
+	// Build message from request
 	message := amqp.Publishing{
 		CorrelationId: correlation.String(),
 		Timestamp:     time.Now().UTC(),
-		Body:          requestBody,
+		Body:          req.Payload(),
 		ReplyTo:       c.replyTo,
 	}
 
 	err = c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish %s to '%s': %v", correlation.String(), routingKey, err)
-		return errors.Wrap(err) // @todo custom error code
+		return nil, errors.Wrap(err) // @todo custom error code
 	}
 
 	select {
 	case delivery := <-replyChannel:
 		log.Debugf("[Client] Response received for %s from %s", correlation.String(), routingKey)
-		return handleResponse(delivery, resp)
+		rsp := deliveryToResponse(delivery)
+		if rsp.IsError() {
+			return nil, unmarshalErrorResponse(rsp)
+		}
+		return rsp, nil
 	case <-time.After(defaultTimeout):
 		log.Errorf("[Client] Request %s timed out calling %s", correlation.String(), routingKey)
 
-		return errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
-			"called_service":  serviceName,
-			"called_endpoint": endpoint,
+		return nil, errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
+			"called_service":  req.Service(),
+			"called_endpoint": req.Endpoint(),
 		})
 	}
+
 }
 
-func (c *RabbitClient) CustomReq(req *Request) (Response, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
+// buildRoutingKey to send the request via AMQP
 func (c *RabbitClient) buildRoutingKey(serviceName, endpoint string) string {
 	return fmt.Sprintf("%s.%s", serviceName, endpoint)
 }
 
-// handleResponse returned from a service by marshaling into the response type,
-// or converting an error from the remote service
-func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
-
-	serverResp := deliveryToResponse(delivery)
-
-	// deal with error responses, by converting back from wire format
-	if serverResp.IsError() {
-		p := &pe.Error{}
-		if err := proto.Unmarshal(serverResp.Payload(), p); err != nil {
-			return errors.BadResponse(err.Error())
-		}
-
-		return errors.Unmarshal(p)
-	}
-
-	// Otherwise try to marshal to the expected response type
-	if err := proto.Unmarshal(serverResp.Payload(), resp); err != nil {
+// unmarshalResponse returned from a service into the response type
+func unmarshalResponse(resp Response, respProto proto.Message) error {
+	if err := proto.Unmarshal(resp.Payload(), respProto); err != nil {
 		return errors.BadResponse(err.Error())
 	}
 
@@ -178,7 +192,7 @@ func handleResponse(delivery amqp.Delivery, resp proto.Message) error {
 }
 
 // deliveryToResponse converts our AMQP response to a client Response
-func deliveryToResponse(delivery amqp.Delivery) *Response {
+func deliveryToResponse(delivery amqp.Delivery) Response {
 
 	contentType, _ := delivery.Headers["Content-Type"].(string)
 	contentEncoding, _ := delivery.Headers["Content-Encoding"].(string)
@@ -192,4 +206,14 @@ func deliveryToResponse(delivery amqp.Delivery) *Response {
 		endpoint:        endpoint,
 		payload:         delivery.Body,
 	}
+}
+
+// unmarshalErrorResponse from our wire format to a typhon error
+func unmarshalErrorResponse(resp Response) *errors.Error {
+	p := &pe.Error{}
+	if err := proto.Unmarshal(resp.Payload(), p); err != nil {
+		return errors.BadResponse(err.Error())
+	}
+
+	return errors.Unmarshal(p)
 }
