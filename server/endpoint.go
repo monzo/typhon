@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -17,15 +18,22 @@ type Endpoint struct {
 }
 
 func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
+	var err error
 
 	// @todo check that `Request` and `Response` are set in RegisterEndpoint
-	// @todo don't tightly couple `HandleRequest` to the proto encoding
 
 	if e.Request != nil {
 		body := cloneTypedPtr(e.Request).(proto.Message)
-		if err := proto.Unmarshal(req.Payload(), body); err != nil {
+
+		if req.ContentType() == "application/x-protobuf" {
+			err = proto.Unmarshal(req.Payload(), body)
+		} else {
+			err = json.Unmarshal(req.Payload(), body)
+		}
+		if err != nil {
 			return nil, errors.Wrap(fmt.Errorf("Could not unmarshal request"))
 		}
+
 		req.SetBody(body)
 	}
 
