@@ -150,7 +150,7 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 		body, err = json.Marshal(resp)
 	}
 	if err != nil {
-		log.Errorf("[Server] Failed to marshal response")
+		log.Errorf("[Server] Failed to marshal response: %s", err.Error())
 		s.respondWithError(delivery, errors.BadResponse("Failed to marshal response: "+err.Error()))
 		return
 	}
