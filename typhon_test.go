@@ -20,7 +20,7 @@ func TestExample(t *testing.T) {
 	s.RegisterEndpoint(handler.CallHello)
 
 	resp := &callhello.Response{}
-	client.Request(
+	client.Req(
 		nil,                                // context
 		"example",                          // service
 		"callhello",                        // service endpoint to call
