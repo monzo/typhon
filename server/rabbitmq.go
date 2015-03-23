@@ -188,7 +188,7 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 		CorrelationId: delivery.CorrelationId,
 		Timestamp:     time.Now().UTC(),
 		Body:          b,
-		Headers: map[string]interface{}{
+		Headers: amqp.Table{
 			"Content-Type":     "application/x-protobuf",
 			"Content-Encoding": "error",
 		},
