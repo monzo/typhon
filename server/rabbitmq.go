@@ -133,6 +133,7 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	// Handle the delivery
 	resp, err := endpoint.HandleRequest(req)
 	if err != nil {
+		log.Warnf("[Server] Failed to handle request: %s", err.Error())
 		s.respondWithError(delivery, err)
 		return
 	}
