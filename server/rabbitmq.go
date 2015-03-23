@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -116,6 +117,7 @@ func (s *AMQPServer) Close() {
 // handleDelivery takes a delivery from AMQP, attempts to process it and return a response
 func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	log.Tracef("Handling Request (delivery): %s", delivery.RoutingKey)
+	var err error
 
 	// Marshal to a request
 	req := NewAMQPRequest(&delivery)
@@ -139,7 +141,14 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 		return
 	}
 
-	body, err := proto.Marshal(resp)
+	// Marshal the response
+	// @todo we're currently always marshaling errors as proto
+	var body []byte
+	if req.ContentType() == "application/x-protobuf" {
+		body, err = proto.Marshal(resp)
+	} else {
+		body, err = json.Marshal(resp)
+	}
 	if err != nil {
 		log.Errorf("[Server] Failed to marshal response")
 		s.respondWithError(delivery, errors.BadResponse("Failed to marshal response: "+err.Error()))
@@ -152,7 +161,7 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 		Timestamp:     time.Now().UTC(),
 		Body:          body,
 		Headers: amqp.Table{
-			"Content-Type":     "application/x-protobuf",
+			"Content-Type":     req.ContentType(),
 			"Content-Encoding": "response",
 			"Service":          req.Service(),
 			"Endpoint":         req.Endpoint(),
