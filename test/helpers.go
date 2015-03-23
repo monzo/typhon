@@ -31,6 +31,10 @@ func CallEndpoint(t *testing.T, endpoint *server.Endpoint, reqProto proto.Messag
 		// todo - add other params here
 		Timestamp: time.Now().UTC(),
 		Body:      reqBytes,
+		Headers: amqp.Table{
+			"Content-Type":     "application/x-protobuf",
+			"Content-Encoding": "request",
+		},
 	}))
 	if err != nil {
 		return err
