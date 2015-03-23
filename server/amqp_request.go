@@ -44,6 +44,14 @@ func (r *AMQPRequest) Id() string {
 	return r.id
 }
 
+func (r *AMQPRequest) ContentType() string {
+	return r.contentType
+}
+
+func (r *AMQPRequest) ContentEncoding() string {
+	return r.contentEncoding
+}
+
 func (r *AMQPRequest) Service() string {
 	return r.service
 }
