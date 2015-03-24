@@ -1,8 +1,7 @@
 package server
 
 import (
-	"fmt"
-	"strings"
+	"encoding/json"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -100,7 +99,7 @@ func (s *AMQPServer) Run() {
 				return
 			}
 			log.Tracef("[Server] Received new delivery: %#v", req)
-			go s.handleRequest(req)
+			go s.handleDelivery(req)
 		case <-s.closeChan:
 			// shut down server
 			log.Infof("[Server] Closing connection")
@@ -115,23 +114,26 @@ func (s *AMQPServer) Close() {
 	close(s.closeChan)
 }
 
-// handleRequest takes a delivery from AMQP, attempts to process it and return a response
-func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
+// handleDelivery takes a delivery from AMQP, attempts to process it and return a response
+func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	log.Tracef("Handling Request (delivery): %s", delivery.RoutingKey)
+	var err error
+
+	// Marshal to a request
+	req := NewAMQPRequest(&delivery)
 
 	// See if we have a matching endpoint for this request
-	endpointName := strings.Replace(delivery.RoutingKey, fmt.Sprintf("%s.", s.ServiceName), "", -1)
-	endpoint := s.endpointRegistry.Get(endpointName)
+	endpoint := s.endpointRegistry.Get(req.Endpoint())
 	if endpoint == nil {
-		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", endpointName)
+		log.Errorf("[Server] Endpoint '%s' not found, cannot handle request", req.Endpoint())
 		s.respondWithError(delivery, errors.BadRequest("Endpoint not found"))
 		return
 	}
 
 	// Handle the delivery
-	req := NewAMQPRequest(&delivery)
 	resp, err := endpoint.HandleRequest(req)
 	if err != nil {
+		log.Warnf("[Server] Failed to handle request: %s", err.Error())
 		s.respondWithError(delivery, err)
 		return
 	}
@@ -140,20 +142,30 @@ func (s *AMQPServer) handleRequest(delivery amqp.Delivery) {
 		return
 	}
 
-	body, err := proto.Marshal(resp)
+	// Marshal the response
+	// @todo we're currently always marshaling errors as proto
+	var body []byte
+	if req.ContentType() == "application/x-protobuf" {
+		body, err = proto.Marshal(resp)
+	} else {
+		body, err = json.Marshal(resp)
+	}
 	if err != nil {
-		log.Errorf("[Server] Failed to marshal response")
+		log.Errorf("[Server] Failed to marshal response: %s", err.Error())
 		s.respondWithError(delivery, errors.BadResponse("Failed to marshal response: "+err.Error()))
 		return
 	}
 
 	// Build return delivery, and publish
 	msg := amqp.Publishing{
-		CorrelationId: delivery.CorrelationId,
+		CorrelationId: req.Id(),
 		Timestamp:     time.Now().UTC(),
 		Body:          body,
-		Headers: map[string]interface{}{
-			"Content-Encoding": "RESPONSE",
+		Headers: amqp.Table{
+			"Content-Type":     req.ContentType(),
+			"Content-Encoding": "response",
+			"Service":          req.Service(),
+			"Endpoint":         req.Endpoint(),
 		},
 	}
 
@@ -177,8 +189,9 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 		CorrelationId: delivery.CorrelationId,
 		Timestamp:     time.Now().UTC(),
 		Body:          b,
-		Headers: map[string]interface{}{
-			"Content-Encoding": "ERROR",
+		Headers: amqp.Table{
+			"Content-Type":     "application/x-protobuf",
+			"Content-Encoding": "error",
 		},
 	}
 

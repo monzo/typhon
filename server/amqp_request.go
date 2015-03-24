@@ -1,8 +1,6 @@
 package server
 
 import (
-	"strings"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
@@ -14,32 +12,52 @@ type AMQPRequest struct {
 	context.Context
 	body     interface{}
 	delivery *amqp.Delivery
+
+	id              string
+	contentType     string
+	contentEncoding string
+	service         string
+	endpoint        string
 }
 
 func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
+
+	contentType, _ := delivery.Headers["Content-Type"].(string)
+	contentEncoding, _ := delivery.Headers["Content-Encoding"].(string)
+	service, _ := delivery.Headers["Service"].(string)
+	endpoint, _ := delivery.Headers["Endpoint"].(string)
+
 	return &AMQPRequest{
 		delivery: delivery,
+
+		id:              delivery.CorrelationId,
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		service:         service,
+		endpoint:        endpoint,
 	}
 }
 
 // RabbitMQ / AMQP fields
 
+func (r *AMQPRequest) Id() string {
+	return r.id
+}
+
+func (r *AMQPRequest) ContentType() string {
+	return r.contentType
+}
+
+func (r *AMQPRequest) ContentEncoding() string {
+	return r.contentEncoding
+}
+
 func (r *AMQPRequest) Service() string {
-	routingKey := r.RoutingKey()
-	lastDotIndex := strings.LastIndex(routingKey, ".")
-	if lastDotIndex == -1 {
-		return routingKey
-	}
-	return routingKey[:lastDotIndex]
+	return r.service
 }
 
 func (r *AMQPRequest) Endpoint() string {
-	routingKey := r.RoutingKey()
-	lastDotIndex := strings.LastIndex(routingKey, ".")
-	if lastDotIndex == -1 {
-		return ""
-	}
-	return routingKey[lastDotIndex+1:]
+	return r.endpoint
 }
 
 func (r *AMQPRequest) Payload() []byte {
@@ -55,7 +73,7 @@ func (r *AMQPRequest) SetBody(body interface{}) {
 }
 
 func (r *AMQPRequest) CorrelationID() string {
-	return r.delivery.CorrelationId
+	return r.id
 }
 
 func (r *AMQPRequest) ReplyTo() string {
@@ -80,5 +98,5 @@ func (r *AMQPRequest) ScopedRequest(service string, endpoint string, req proto.M
 	// This means we can nail down our external interface, and work the internals out properly
 	// where we can initialise a 'client' and separate out the connected transport layer
 	// a client in this case would allow multiple parallel requests etc.
-	return client.Request(r, service, endpoint, req, resp)
+	return client.Req(r, service, endpoint, req, resp)
 }

@@ -43,7 +43,7 @@ func TestErrorPropagation(t *testing.T) {
 
 	// call the service
 	resp := &callhello.Response{}
-	err := client.Request(
+	err := client.Req(
 		nil,                                // context
 		"test",                             // service
 		"callerror",                        // service endpoint to call
