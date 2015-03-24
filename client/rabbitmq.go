@@ -212,7 +212,7 @@ func deliveryToResponse(delivery amqp.Delivery) Response {
 }
 
 // unmarshalErrorResponse from our wire format to a typhon error
-func unmarshalErrorResponse(resp Response) *errors.Error {
+func unmarshalErrorResponse(resp Response) error {
 	p := &pe.Error{}
 	if err := proto.Unmarshal(resp.Payload(), p); err != nil {
 		return errors.BadResponse(err.Error())
