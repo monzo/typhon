@@ -155,9 +155,15 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 		},
 	}
 
+	// Attempt to publish through our connection
+	// @todo refactor this to not know about rabbitmq internals
 	err := c.connection.Publish(rabbit.Exchange, routingKey, message)
 	if err != nil {
 		log.Errorf("[Client] Failed to publish %s to '%s': %v", req.Id(), routingKey, err)
+
+		// Remove from inflight requests
+		_ = c.inflight.pop(req.Id())
+
 		return nil, errors.Wrap(err) // @todo custom error code
 	}
 
