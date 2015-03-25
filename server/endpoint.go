@@ -24,16 +24,9 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 
 	if e.Request != nil {
 		body := cloneTypedPtr(e.Request).(proto.Message)
-
-		if req.ContentType() == "application/x-protobuf" {
-			err = proto.Unmarshal(req.Payload(), body)
-		} else {
-			err = json.Unmarshal(req.Payload(), body)
+		if err := unmarshalRequest(req, body); err != nil {
+			return nil, err
 		}
-		if err != nil {
-			return nil, errors.Wrap(fmt.Errorf("Could not unmarshal request"))
-		}
-
 		req.SetBody(body)
 	}
 
@@ -82,4 +75,19 @@ func enrichError(err error, ctx Request, endpoint *Endpoint) *errors.Error {
 		wrappedErr.PrivateContext["endpoint"] = endpoint.Name
 	}
 	return wrappedErr
+}
+
+// unmarshalRequest payload into the body based on content-type
+func unmarshalRequest(req Request, body proto.Message) (err error) {
+	if len(req.Payload()) == 0 {
+		return nil
+	}
+
+	if req.ContentType() == "application/x-protobuf" {
+		return proto.Unmarshal(req.Payload(), body)
+	} else {
+		return json.Unmarshal(req.Payload(), body)
+	}
+
+	return errors.Wrap(fmt.Errorf("Could not unmarshal request"))
 }
