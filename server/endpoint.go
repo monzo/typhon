@@ -30,15 +30,15 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 		req.SetBody(body)
 	}
 
-	log.Debugf("%s.%s handler received request: %+v", req.Service(), e.Name, req.Body())
+	log.Debugf("[Server] %s.%s handler received request: %+v", req.Service(), e.Name, req.Body())
 
 	resp, err := e.Handler(req)
 
 	if err != nil {
 		err = enrichError(err, req, e)
-		log.Errorf("%s.%s handler error: %s", req.Service(), e.Name, err.Error())
+		log.Errorf("[Server] %s.%s handler error: %s", req.Service(), e.Name, err.Error())
 	} else {
-		log.Debugf("%s.%s handler response: %+v", req.Service(), e.Name, resp)
+		log.Debugf("[Server] %s.%s handler response: %+v", req.Service(), e.Name, resp)
 	}
 
 	return resp, err
