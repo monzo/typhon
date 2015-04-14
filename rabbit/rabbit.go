@@ -12,6 +12,11 @@ import (
 var (
 	RabbitURL string
 	Exchange  string
+
+	// Enable deadletter exchange creation and alternate exchange routing
+	// This will cause unroutable messages to be routed to the deadletter exchange
+	// and onto a durable queue for inspection
+	EnableDeadletter bool = true
 )
 
 // Initialize rabbitmq connection from env vars. The defaults are expected to work
@@ -118,7 +123,19 @@ func (r *RabbitConnection) tryToConnect() error {
 		log.Error("[Rabbit] Failed to create Bunny Channel")
 		return err
 	}
-	r.Channel.DeclareExchange(Exchange)
+
+	// Declare our exchange
+	// We have our primary topic exchange which is used for routing betweeen services
+	// The deadletter exchange collects unroutable messages for inspection
+	if EnableDeadletter {
+		if err := r.Channel.SetupDeadletterExchange(Exchange); err != nil {
+			return err
+		}
+	}
+	if err := r.Channel.DeclareExchange(Exchange); err != nil {
+		return err
+	}
+
 	r.ExchangeChannel, err = NewRabbitChannel(r.Connection)
 	if err != nil {
 		log.Error("[Rabbit] Failed to create default Channel")

@@ -53,6 +53,15 @@ func (r *RabbitChannel) Publish(exchange, routingKey string, message amqp.Publis
 }
 
 func (r *RabbitChannel) DeclareExchange(exchange string) error {
+
+	args := amqp.Table{}
+
+	// If our deadletter exchange is enabled, set this as the alternate exchange
+	// See https://www.rabbitmq.com/ae.html for more info
+	if EnableDeadletter {
+		args["alternate-exchange"] = deadletterExchangeName(exchange)
+	}
+
 	return r.channel.ExchangeDeclare(
 		exchange, // name
 		"topic",  // kind
@@ -60,8 +69,40 @@ func (r *RabbitChannel) DeclareExchange(exchange string) error {
 		false,    // autoDelete
 		false,    // internal
 		false,    // noWait
-		nil,      // args
+		args,     // optional arguments
 	)
+}
+
+func deadletterExchangeName(exchange string) string {
+	return fmt.Sprintf("%s.deadletter", exchange)
+}
+
+func (r *RabbitChannel) SetupDeadletterExchange(exchange string) error {
+
+	// First set up the deadletter exchange
+	if err := r.channel.ExchangeDeclare(
+		deadletterExchangeName(exchange), // name
+		"fanout", // kind
+		true,     // durable
+		false,    // autoDelete
+		false,    // internal
+		false,    // noWait
+		nil,      // args
+	); err != nil {
+		return err
+	}
+
+	// If successful, declare a queue on this exchange
+	if err := r.DeclareDurableQueue("deadletter"); err != nil {
+		return err
+	}
+
+	// Finally bind this to the deadletter exchange
+	if err := r.BindQueue("deadletter", deadletterExchangeName(exchange)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *RabbitChannel) DeclareQueue(queue string) error {
