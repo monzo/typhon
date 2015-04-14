@@ -74,9 +74,6 @@ func (s *AMQPServer) Run() {
 	select {
 	case <-s.connection.Init():
 		log.Info("[Server] Connected to RabbitMQ")
-		for _, notify := range s.notifyConnected {
-			notify <- true
-		}
 	case <-time.After(connectionTimeout):
 		log.Critical("[Server] Failed to connect to RabbitMQ after %v", connectionTimeout)
 		return
@@ -88,6 +85,14 @@ func (s *AMQPServer) Run() {
 	if err != nil {
 		log.Infof("[Server] Failed to consume from Rabbit: %s", err.Error())
 		return
+	}
+
+	// Notify observers that we are ready to consume
+	for _, notify := range s.notifyConnected {
+		select {
+		case notify <- true:
+		default:
+		}
 	}
 
 	// Handle deliveries
