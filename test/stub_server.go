@@ -15,27 +15,28 @@ type StubServer struct {
 	server.Server
 	t *testing.T
 
+	ServiceName string
+
 	stubsMutex sync.RWMutex
 	stubs      []*ServiceStub
 }
 
 type ServiceStub struct {
-	ServiceName string
-	Endpoint    string
-	Handler     func(server.Request) (proto.Message, error)
+	Endpoint string
+	Handler  func(server.Request) (proto.Message, error)
 }
 
 // NewStubServer boots up a regular typhon server and registers a single
-// endpoint that subscribes to every routing key
-func NewStubServer(t *testing.T) *StubServer {
+// endpoint that subscribes to every routing key under the service name
+func NewStubServer(t *testing.T, serviceName string) *StubServer {
 
 	s := &StubServer{
-		Server: server.NewAMQPServer(),
-		t:      t,
+		ServiceName: serviceName,
+		Server:      server.NewAMQPServer(),
+		t:           t,
 	}
 
-	// TODO `Name: "#"` is rather hokey
-	s.Init(&server.Config{Name: "#", Description: "Stub Server"})
+	s.Init(&server.Config{Name: serviceName, Description: "Stub Server"})
 
 	go s.Run()
 
@@ -44,12 +45,12 @@ func NewStubServer(t *testing.T) *StubServer {
 	case <-time.After(1 * time.Second):
 		t.Fatalf("StubServer couldn't connect to RabbitMQ")
 	}
-
-	t.Log("[StubServer] Connected to RabbitMQ")
+	t.Logf("[StubServer] Connected to RabbitMQ as %s", s.ServiceName)
 
 	s.RegisterEndpoint(&server.Endpoint{
 		Name: ".*", // TODO Name is not well-named
 		Handler: func(req server.Request) (proto.Message, error) {
+			s.t.Logf("[StubServer] Received request for %s.%s (id: %s)", s.ServiceName, req.Endpoint(), req.Id())
 			return s.handleRequest(req)
 		},
 	})
@@ -58,20 +59,19 @@ func NewStubServer(t *testing.T) *StubServer {
 }
 
 // StubResponse is a convenience method to quickly set up stubs that return a fixed value
-func (s *StubServer) StubResponse(serviceName, endpoint string, returnValue proto.Message) {
-	s.stubResponseAndError(serviceName, endpoint, returnValue, nil)
+func (s *StubServer) StubResponse(endpoint string, returnValue proto.Message) {
+	s.stubResponseAndError(endpoint, returnValue, nil)
 }
 
 // StubError is a convenience method to stub out a service error
-func (s *StubServer) StubError(serviceName, endpoint string, err error) {
-	s.stubResponseAndError(serviceName, endpoint, nil, err)
+func (s *StubServer) StubError(endpoint string, err error) {
+	s.stubResponseAndError(endpoint, nil, err)
 }
 
 // stubResponseAndError registers a stub that returns the passed response and error
-func (s *StubServer) stubResponseAndError(serviceName, endpoint string, returnValue proto.Message, err error) {
+func (s *StubServer) stubResponseAndError(endpoint string, returnValue proto.Message, err error) {
 	s.RegisterStub(&ServiceStub{
-		ServiceName: serviceName,
-		Endpoint:    endpoint,
+		Endpoint: endpoint,
 		Handler: func(_ server.Request) (proto.Message, error) {
 			return returnValue, err
 		},
@@ -81,7 +81,7 @@ func (s *StubServer) stubResponseAndError(serviceName, endpoint string, returnVa
 // RegisterStub with the server
 func (s *StubServer) RegisterStub(stub *ServiceStub) {
 	s.stubsMutex.Lock()
-	s.t.Logf("[StubServer] Registered stub for %s.%s", stub.ServiceName, stub.Endpoint)
+	s.t.Logf("[StubServer] Registered stub for %s.%s", s.ServiceName, stub.Endpoint)
 	defer s.stubsMutex.Unlock()
 	s.stubs = append(s.stubs, stub)
 }
@@ -108,7 +108,7 @@ func (s *StubServer) handleRequest(req server.Request) (proto.Message, error) {
 
 	// determine which endpoint to use
 	for _, stub := range s.stubs {
-		if stub.ServiceName == req.Service() && stub.Endpoint == req.Endpoint() {
+		if s.ServiceName == req.Service() && stub.Endpoint == req.Endpoint() {
 			return stub.Handler(req)
 		}
 	}
