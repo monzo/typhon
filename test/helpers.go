@@ -12,9 +12,9 @@ import (
 
 var stubServer *StubServer
 
-func InitStubServer(t *testing.T) *StubServer {
+func InitStubServer(t *testing.T, serviceName string) *StubServer {
 	if stubServer == nil {
-		stubServer = NewStubServer(t)
+		stubServer = NewStubServer(t, serviceName)
 	}
 	return stubServer
 }
