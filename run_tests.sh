@@ -16,7 +16,7 @@ else
   docker_ip=127.0.0.1
 fi
 
-rabbit_port=25672
+rabbit_port=5672
 export RABBIT_EXCHANGE=typhon_tests
 export RABBIT_URL=${RABBIT_URL:-amqp://admin:guest@$docker_ip:$rabbit_port}
 
