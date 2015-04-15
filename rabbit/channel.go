@@ -2,6 +2,7 @@ package rabbit
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
