@@ -138,8 +138,8 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 
 	replyChannel := c.inflight.push(req.Id())
 
-	routingKey := buildRoutingKey(req.Service(), req.Endpoint())
-	log.Debugf("[Client] Dispatching request to %s with correlation ID %s", routingKey, req.Id())
+	routingKey := req.Service()
+	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s", routingKey, req.Id(), c.replyTo)
 
 	// Build message from request
 	message := amqp.Publishing{
@@ -184,11 +184,6 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 		})
 	}
 
-}
-
-// buildRoutingKey to send the request via AMQP
-func buildRoutingKey(serviceName, endpoint string) string {
-	return fmt.Sprintf("%s.%s", serviceName, endpoint)
 }
 
 // unmarshalResponse returned from a service into the response type

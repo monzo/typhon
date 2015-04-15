@@ -2,7 +2,6 @@ package rabbit
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
@@ -114,5 +113,11 @@ func (r *RabbitChannel) ConsumeQueue(queue string) (<-chan amqp.Delivery, error)
 }
 
 func (r *RabbitChannel) BindQueue(queue, exchange string) error {
-	return r.channel.QueueBind(queue, fmt.Sprintf("%s.#", queue), exchange, false, nil)
+	return r.channel.QueueBind(
+		queue,    // name
+		queue,    // key
+		exchange, // exchange
+		false,    // noWait
+		nil,      // args
+	)
 }
