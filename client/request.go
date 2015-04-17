@@ -1,6 +1,8 @@
 package client
 
 import (
+	"time"
+
 	log "github.com/cihub/seelog"
 	"github.com/nu7hatch/gouuid"
 
@@ -18,6 +20,9 @@ type Request interface {
 	Endpoint() string
 	// Payload stores our raw payload to send
 	Payload() []byte
+	// Request timeout
+	Timeout() time.Duration
+	SetTimeout(time.Duration)
 }
 
 type request struct {
@@ -31,6 +36,8 @@ type request struct {
 	endpoint string
 	// payload stores our raw payload to send
 	payload []byte
+	// request timeout
+	timeout time.Duration
 }
 
 // Id of the request
@@ -56,6 +63,17 @@ func (r *request) Endpoint() string {
 // Payload of the request
 func (r *request) Payload() []byte {
 	return r.payload
+}
+
+// Payload of the request
+func (r *request) Timeout() time.Duration {
+	if r.timeout == 0 {
+		return defaultTimeout
+	}
+	return r.timeout
+}
+func (r *request) SetTimeout(d time.Duration) {
+	r.timeout = d
 }
 
 // NewProtoRequest creates a new request with protobuf encoding
