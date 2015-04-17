@@ -175,7 +175,7 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 			return nil, unmarshalErrorResponse(rsp)
 		}
 		return rsp, nil
-	case <-time.After(defaultTimeout):
+	case <-time.After(req.Timeout()):
 		log.Errorf("[Client] Request %s timed out calling %s", req.Id(), routingKey)
 
 		return nil, errors.Timeout(fmt.Sprintf("%s timed out", routingKey), nil, map[string]string{
