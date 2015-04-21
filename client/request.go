@@ -65,7 +65,7 @@ func (r *request) Payload() []byte {
 	return r.payload
 }
 
-// Payload of the request
+// Timeout of the request
 func (r *request) Timeout() time.Duration {
 	if r.timeout == 0 {
 		return defaultTimeout
