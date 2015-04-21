@@ -14,12 +14,13 @@ var (
 	Exchange  string
 )
 
-// Initialize rabbitmq connection from env vars. The defaults are expected to work
-// in development. ci, dev-ci and mesos override these defaults
-// @todo Refactor initialization of the connection to allow the "server" abstraction we'll introduce to inject the configuration
-// @todo once config server has http interface, we should use values from the config
-// server to connect to rabbit
-func init() {
+func NewRabbitConnection() *RabbitConnection {
+
+	// Initialize rabbitmq connection from env vars. The defaults are expected to work
+	// in development. ci, dev-ci and mesos override these defaults
+	// @todo Refactor initialization of the connection to allow the "server" abstraction we'll introduce to inject the configuration
+	// @todo once config server has http interface, we should use values from the config
+	// server to connect to rabbit
 	RabbitURL = os.Getenv("RABBIT_URL")
 	if RabbitURL == "" {
 		RabbitURL = "amqp://admin:guest@192.168.59.103:5672"
@@ -32,9 +33,7 @@ func init() {
 		log.Infof("Setting RABBIT_EXCHANGE to default value %s", Exchange)
 	}
 	log.Infof("Set RABBIT_EXCHANGE to %s", Exchange)
-}
 
-func NewRabbitConnection() *RabbitConnection {
 	return &RabbitConnection{
 		notify:    make(chan bool, 1),
 		closeChan: make(chan struct{}),
