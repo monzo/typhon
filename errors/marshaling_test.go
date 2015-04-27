@@ -13,7 +13,7 @@ func TestMarshalNilError(t *testing.T) {
 	protoError := Marshal(input)
 
 	assert.NotNil(t, protoError)
-	assert.Equal(t, ErrUnknown, protoError.Code)
+	assert.Equal(t, ErrUnknown, int(protoError.Code))
 	assert.NotEmpty(t, protoError.Message)
 }
 
