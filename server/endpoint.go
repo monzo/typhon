@@ -66,6 +66,12 @@ func cloneTypedPtr(reqType interface{}) interface{} {
 func enrichError(err error, ctx Request, endpoint *Endpoint) *errors.Error {
 	wrappedErr := errors.Wrap(err)
 
+	// @todo perhaps make methods PrivateContext() and PublicContext() that
+	// to deal with nil contexts
+	if wrappedErr.PrivateContext == nil {
+		wrappedErr.PrivateContext = map[string]string{}
+	}
+
 	// @todo an error will probably have a source_request_id or something that we can use to
 	// more reliably make sure this information is only attached once, as the error travels up the service stack
 	if wrappedErr.PrivateContext["service"] == "" {

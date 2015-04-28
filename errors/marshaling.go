@@ -31,11 +31,20 @@ func Unmarshal(p *pe.Error) *Error {
 			Message: "Nil error unmarshalled!",
 		}
 	}
+	// empty map[string]string come out as nil. thanks proto.
+	publicContext := p.PublicContext
+	if publicContext == nil {
+		publicContext = map[string]string{}
+	}
+	privateContext := p.PrivateContext
+	if privateContext == nil {
+		privateContext = map[string]string{}
+	}
 	return &Error{
 		Code:           int(p.Code),
 		Message:        p.Message,
-		PublicContext:  p.PublicContext,
-		PrivateContext: p.PrivateContext,
+		PublicContext:  publicContext,
+		PrivateContext: privateContext,
 		Stack:          protoToStack(p.Stack),
 	}
 }
