@@ -152,6 +152,7 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 			"Content-Encoding": "request",
 			"Service":          req.Service(),
 			"Endpoint":         req.Endpoint(),
+			"Access-Token":     req.AccessToken(),
 		},
 	}
 

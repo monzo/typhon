@@ -23,6 +23,9 @@ type Request interface {
 	// Request timeout
 	Timeout() time.Duration
 	SetTimeout(time.Duration)
+	// AccessToken for this request, used for authentication
+	AccessToken() string
+	SetAccessToken(string)
 }
 
 type request struct {
@@ -38,6 +41,8 @@ type request struct {
 	payload []byte
 	// request timeout
 	timeout time.Duration
+	// accessToken used for authentication
+	accessToken string
 }
 
 // Id of the request
@@ -74,6 +79,14 @@ func (r *request) Timeout() time.Duration {
 }
 func (r *request) SetTimeout(d time.Duration) {
 	r.timeout = d
+}
+
+// Handle basic authentication details
+func (r *request) AccessToken() string {
+	return r.accessToken
+}
+func (r *request) SetAccessToken(t string) {
+	r.accessToken = t
 }
 
 // NewProtoRequest creates a new request with protobuf encoding
