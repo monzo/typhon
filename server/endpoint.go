@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/b2aio/typhon/auth"
 	"github.com/b2aio/typhon/errors"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
 
 type Endpoint struct {
-	Name     string
-	Handler  func(Request) (proto.Message, error)
-	Request  interface{}
-	Response interface{}
+	Name       string
+	Handler    func(Request) (proto.Message, error)
+	Request    interface{}
+	Response   interface{}
+	Authorizer auth.Authorizer
 }
 
 func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
