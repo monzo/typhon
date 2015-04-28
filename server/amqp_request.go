@@ -18,6 +18,8 @@ type AMQPRequest struct {
 	contentEncoding string
 	service         string
 	endpoint        string
+
+	accessToken string
 }
 
 func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
@@ -26,6 +28,7 @@ func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
 	contentEncoding, _ := delivery.Headers["Content-Encoding"].(string)
 	service, _ := delivery.Headers["Service"].(string)
 	endpoint, _ := delivery.Headers["Endpoint"].(string)
+	accessToken, _ := delivery.Headers["Access-Token"].(string)
 
 	return &AMQPRequest{
 		delivery: delivery,
@@ -35,6 +38,7 @@ func NewAMQPRequest(delivery *amqp.Delivery) *AMQPRequest {
 		contentEncoding: contentEncoding,
 		service:         service,
 		endpoint:        endpoint,
+		accessToken:     accessToken,
 	}
 }
 
@@ -86,6 +90,10 @@ func (r *AMQPRequest) RoutingKey() string {
 
 func (r *AMQPRequest) Interface() interface{} {
 	return r.delivery
+}
+
+func (r *AMQPRequest) AccessToken() string {
+	return r.accessToken
 }
 
 // Client implementation
