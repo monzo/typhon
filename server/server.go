@@ -18,6 +18,7 @@ type Server interface {
 	RegisterEndpoint(endpoint *Endpoint)
 	DeregisterEndpoint(pattern string)
 
+	AuthenticationProvider() auth.AuthenticationProvider
 	RegisterAuthenticationProvider(auth.AuthenticationProvider)
 }
 

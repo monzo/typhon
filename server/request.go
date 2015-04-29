@@ -26,4 +26,7 @@ type Request interface {
 	// ScopedRequest makes a client request within the scope of the current request
 	// @todo change the request & response interface to decouple from protobuf
 	ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error
+
+	// AccessToken provided on this request
+	AccessToken() string
 }

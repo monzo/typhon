@@ -70,6 +70,11 @@ func (s *AMQPServer) DeregisterEndpoint(endpointName string) {
 	s.endpointRegistry.Deregister(endpointName)
 }
 
+// AuthenticationProvider returns the current authentication provider
+func (s *AMQPServer) AuthenticationProvider() auth.AuthenticationProvider {
+	return s.authenticationProvider
+}
+
 // RegisterAuthenticationProvider with the server
 // This is used to handle authentication tasks, allowing us to override this with
 // implementations using custom authentication services
