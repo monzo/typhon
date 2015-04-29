@@ -17,6 +17,9 @@ type Endpoint struct {
 	Request    interface{}
 	Response   interface{}
 	Authorizer auth.Authorizer
+
+	// server is a reference to the parent server this endpoint is registered with
+	server Server
 }
 
 func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
