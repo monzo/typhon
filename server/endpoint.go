@@ -37,6 +37,12 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 
 	log.Debugf("[Server] %s.%s handler received request: %+v", req.Service(), e.Name, req.Body())
 
+	// Authenticate access to this endpoint
+	if err := authenticateEndpointAccess(e, req); err != nil {
+		log.Warnf("Failed to authenticate access to %s endpoint", e.Name)
+		return nil, err
+	}
+
 	resp, err := e.Handler(req)
 
 	if err != nil {
