@@ -6,9 +6,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-// CredentialProvider provides helper methods to convert tokens to sessions
+// AuthenticationProvider provides helper methods to convert tokens to sessions
 // using our own internal authorization services
-type CredentialProvider interface {
+type AuthenticationProvider interface {
 	// RecoverSession from a given access token, converting this into a set of credentials
 	RecoverSession(ctx context.Context, accessToken string) (Credentials, error)
 }
