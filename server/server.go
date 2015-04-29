@@ -1,5 +1,9 @@
 package server
 
+import (
+	"github.com/b2aio/typhon/auth"
+)
+
 // Server is an interface that all servers must implement
 // so that we can register endpoints, and serve requests
 type Server interface {

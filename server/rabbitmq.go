@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 
+	"github.com/b2aio/typhon/auth"
 	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
 )
@@ -21,6 +22,9 @@ type AMQPServer struct {
 	endpointRegistry   *EndpointRegistry
 	connection         *rabbit.RabbitConnection
 	notifyConnected    []chan bool
+
+	// authenticationProvider handles authentication tasks
+	authenticationProvider auth.AuthenticationProvider
 
 	closeChan chan struct{}
 }
@@ -64,6 +68,13 @@ func (s *AMQPServer) RegisterEndpoint(endpoint *Endpoint) {
 
 func (s *AMQPServer) DeregisterEndpoint(endpointName string) {
 	s.endpointRegistry.Deregister(endpointName)
+}
+
+// RegisterAuthenticationProvider with the server
+// This is used to handle authentication tasks, allowing us to override this with
+// implementations using custom authentication services
+func (s *AMQPServer) RegisterAuthenticationProvider(ap auth.AuthenticationProvider) {
+	s.authenticationProvider = ap
 }
 
 // Run the server, connecting to our transport and serving requests
