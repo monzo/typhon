@@ -21,7 +21,7 @@ type AMQPRequest struct {
 	delivery *amqp.Delivery
 
 	// session holds our authentication information
-	session *auth.Session
+	session auth.Session
 
 	id              string
 	contentType     string
@@ -62,7 +62,7 @@ func NewAMQPRequest(s Server, delivery *amqp.Delivery) (*AMQPRequest, error) {
 		contentEncoding: contentEncoding,
 		service:         service,
 		endpoint:        endpoint,
-	}
+	}, nil
 }
 
 // RabbitMQ / AMQP fields
