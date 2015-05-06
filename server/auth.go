@@ -23,7 +23,7 @@ func authenticateEndpointAccess(e *Endpoint, req Request) error {
 	// Recover credentials from Authentication Provider
 	// @todo this should be moved into the authorizer so that
 	// it is lazily evaluated
-	creds, err := ap.RecoverSession(req, req.AccessToken())
+	creds, err := ap.RecoverCredentials(req, req.AccessToken())
 	if err != nil {
 		return err
 	}

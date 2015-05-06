@@ -10,7 +10,7 @@ import (
 // using our own internal authorization services
 type AuthenticationProvider interface {
 	// RecoverSession from a given access token, converting this into a set of credentials
-	RecoverSession(ctx context.Context, accessToken string) (Credentials, error)
+	RecoverCredentials(ctx context.Context, accessToken string) (Credentials, error)
 }
 
 // Credentials
