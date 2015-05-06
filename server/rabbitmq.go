@@ -142,7 +142,7 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	var err error
 
 	// Marshal to a request
-	req := NewAMQPRequest(&delivery)
+	req := NewAMQPRequest(s, &delivery)
 
 	// See if we have a matching endpoint for this request
 	endpoint := s.endpointRegistry.Get(req.Endpoint())
