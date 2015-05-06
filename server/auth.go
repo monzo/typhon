@@ -1,11 +1,9 @@
 package server
 
-import (
-	log "github.com/cihub/seelog"
-)
+import log "github.com/cihub/seelog"
 
 // authenticateEndpointAccess for a given request
-func authenticateEndpointAccess(e *Endpoint, req Request) error {
+func authenticateEndpointAccess(ctx Request, e *Endpoint) error {
 
 	// First check if we need authentication on this endpoint
 	if e.Authorizer == nil {
@@ -23,10 +21,10 @@ func authenticateEndpointAccess(e *Endpoint, req Request) error {
 	// Recover credentials from Authentication Provider
 	// @todo this should be moved into the authorizer so that
 	// it is lazily evaluated
-	creds, err := ap.RecoverCredentials(req, req.AccessToken())
+	creds, err := ap.RecoverCredentials(ctx, ctx.AccessToken())
 	if err != nil {
 		return err
 	}
 
-	return e.Authorizer(req, creds)
+	return e.Authorizer(ctx, creds)
 }
