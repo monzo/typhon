@@ -5,12 +5,6 @@ import log "github.com/cihub/seelog"
 // authenticateEndpointAccess for a given request
 func authenticateEndpointAccess(ctx Request, e *Endpoint) error {
 
-	// First check if we need authentication on this endpoint
-	if e.Authorizer == nil {
-		log.Debugf("No authorizer set for endpoint %s, skipping authentication", e.Name)
-		return nil
-	}
-
 	// We also need an Authentication Provider to actually handle authentication tasks
 	ap := e.server.AuthenticationProvider()
 	if ap == nil {
