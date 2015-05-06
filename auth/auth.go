@@ -7,25 +7,26 @@ import (
 	"golang.org/x/net/context"
 )
 
-// AuthenticationProvider provides helper methods to convert tokens to credentials
+// AuthenticationProvider provides helper methods to convert tokens to sessions
 // using our own internal authorization services
 type AuthenticationProvider interface {
-	// MarshalCredentials into wire format for transmission between services
-	MarshalCredentials(c Credentials) ([]byte, error)
-	// UnmarshalCredentials from wire format used during transmission between services
-	UnmarshalCredentials(b []byte) (Credentials, error)
+	// MarshalSession into wire format for transmission between services
+	MarshalSession(s Session) ([]byte, error)
+	// UnmarshalSession from wire format used during transmission between services
+	UnmarshalSession(b []byte) (Session, error)
 
-	// RecoverSession from a given access token, converting this into a set of credentials
-	RecoverCredentials(ctx context.Context, accessToken string) (Credentials, error)
+	// RecoverSession from a given access token, converting this into a session
+	RecoverSession(ctx context.Context, accessToken string) (Session, error)
 }
 
-// Credentials represent an OAuth access token along with expiry information
+// Session represents an OAuth access token along with expiry information,
 // user and client information
-type Credentials interface {
+type Session interface {
 	AccessToken() string
 	RefreshToken() string
 	Expiry() time.Time
-	Scopes() []string // aggregated scope information from a combination of the user and client scopes
+	// @todo add Signature() string
+
 	User() User
 	Client() Client
 }
