@@ -3,6 +3,7 @@ package auth
 import (
 	"time"
 
+	"github.com/b2aio/typhon/server"
 	"golang.org/x/net/context"
 )
 
@@ -31,7 +32,7 @@ type Credentials interface {
 
 // Authorizer provides an interface to validate authorization credentials
 // for access to resources, eg. oauth scopes, or other access control
-type Authorizer func(ctx context.Context, creds Credentials) error
+type Authorizer func(ctx server.Request) error
 
 // User represents the resource owner ie. an end-user of the application
 type User interface {
