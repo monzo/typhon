@@ -1,10 +1,12 @@
 package server
 
 import (
+	"github.com/b2aio/typhon/auth"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 )
 
+// Request received by the server
 type Request interface {
 	context.Context
 
@@ -27,6 +29,8 @@ type Request interface {
 	// @todo change the request & response interface to decouple from protobuf
 	ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error
 
-	// AccessToken provided on this request
-	AccessToken() string
+	// Credentials provided on this request
+	Credentials() auth.Credentials
+	// SetCredentials for this request, useful at api level and for mocking
+	SetCredentials() auth.Credentials
 }
