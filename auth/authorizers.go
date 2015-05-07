@@ -11,8 +11,8 @@ import (
 var DefaultAuthorizer = None()
 
 // None authorizer requires no authorization and is therefore accessible to all callers
-func None() func(ctx context.Context, s Session) error {
-	return func(ctx context.Context, s Session) error {
+func None() func(ctx context.Context) error {
+	return func(ctx context.Context) error {
 		log.Debugf("No auth required for endpoint as the None authorizer is being used")
 		return nil
 	}

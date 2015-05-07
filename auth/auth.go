@@ -32,7 +32,7 @@ type Session interface {
 
 // Authorizer provides an interface to validate session authorization
 // for access to resources, eg. oauth scopes, or other access control
-type Authorizer func(ctx context.Context, session Session) error
+type Authorizer func(ctx context.Context) error
 
 // User represents the resource owner ie. an end-user of the application
 type User interface {
