@@ -27,7 +27,8 @@ func CallEndpoint(t *testing.T, endpoint *server.Endpoint, reqProto proto.Messag
 	// Call handler with amqp delivery
 	reqBytes, err := proto.Marshal(reqProto)
 	require.NoError(t, err)
-	resp, err := endpoint.HandleRequest(server.NewAMQPRequest(&amqp.Delivery{
+
+	req, err := server.NewAMQPRequest(endpoint.Server, &amqp.Delivery{
 		// todo - add other params here
 		Timestamp: time.Now().UTC(),
 		Body:      reqBytes,
@@ -35,7 +36,10 @@ func CallEndpoint(t *testing.T, endpoint *server.Endpoint, reqProto proto.Messag
 			"Content-Type":     "application/x-protobuf",
 			"Content-Encoding": "request",
 		},
-	}))
+	})
+	require.NoError(t, err)
+
+	resp, err := endpoint.HandleRequest(req)
 	if err != nil {
 		return err
 	}
