@@ -17,6 +17,7 @@ import (
 
 	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
+	"github.com/b2aio/typhon/server"
 
 	pe "github.com/b2aio/typhon/proto/error"
 )
@@ -136,14 +137,27 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 		return nil, errors.Wrap(fmt.Errorf("Not connected to AMQP"))
 	}
 
+	// To marshal the session we need the authentication provider from our server context
+	srv, err := server.RecoverServerFromContext(ctx)
+	if err != nil {
+		log.Warnf("[Client] Could not recover server context: %s", err.Error())
+		return nil, err
+	}
+
+	// Marshal session if we are configured with an authentication provider
+	var session []byte
+	if ap := srv.AuthenticationProvider(); ap != nil {
+		session, err = ap.MarshalSession(req.Session())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Push the reply channel into our request registry
 	replyChannel := c.inflight.push(req.Id())
 
 	routingKey := req.Service()
 	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s", routingKey, req.Id(), c.replyTo)
-
-	// Marshal our session
-	// @todo retrieve authentication provider from context
-	session := []byte{}
 
 	// Build message from request
 	message := amqp.Publishing{
