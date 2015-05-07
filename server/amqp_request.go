@@ -129,8 +129,13 @@ func (r *AMQPRequest) Interface() interface{} {
 }
 
 // Session returns the session associated with this request
-func (r *AMQPRequest) Session() string {
+func (r *AMQPRequest) Session() auth.Session {
 	return r.session
+}
+
+// SetSession information into the request
+func (r *AMQPRequest) SetSession(s auth.Session) {
+	r.session = s
 }
 
 // Client implementation

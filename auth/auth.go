@@ -30,7 +30,7 @@ type Session interface {
 	Client() Client
 }
 
-// Authorizer provides an interface to validate authorization credentials
+// Authorizer provides an interface to validate session authorization
 // for access to resources, eg. oauth scopes, or other access control
 type Authorizer func(ctx context.Context, session Session) error
 

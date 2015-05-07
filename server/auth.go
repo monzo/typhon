@@ -12,7 +12,7 @@ func authenticateEndpointAccess(ctx Request, e *Endpoint) error {
 		return nil
 	}
 
-	// Recover credentials from Authentication Provider
+	// Recover session from Authentication Provider
 	// @todo this should be moved into the authorizer so that
 	// it is lazily evaluated
 	session, err := ap.RecoverSession(ctx, ctx.Session().AccessToken())

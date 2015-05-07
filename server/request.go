@@ -31,6 +31,6 @@ type Request interface {
 
 	// Session provided on this request
 	Session() auth.Session
-	// SetCredentials for this request, useful at api level and for mocking
-	SetSession() auth.Session
+	// SetSession for this request, useful at api level and for mocking
+	SetSession(auth.Session)
 }
