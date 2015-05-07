@@ -142,7 +142,12 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	var err error
 
 	// Marshal to a request
-	req := NewAMQPRequest(s, &delivery)
+	req, err := NewAMQPRequest(s, &delivery)
+	if err != nil {
+		log.Warnf("[Server] Failed to build request from delivery: %s", err.Error())
+		s.respondWithError(delivery, err)
+		return
+	}
 
 	// See if we have a matching endpoint for this request
 	endpoint := s.endpointRegistry.Get(req.Endpoint())
