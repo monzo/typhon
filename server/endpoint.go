@@ -19,7 +19,7 @@ type Endpoint struct {
 	Authorizer auth.Authorizer
 
 	// server is a reference to the parent server this endpoint is registered with
-	server Server
+	Server Server
 }
 
 func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {

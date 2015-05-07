@@ -63,7 +63,7 @@ func (s *AMQPServer) NotifyConnected() chan bool {
 }
 
 func (s *AMQPServer) RegisterEndpoint(endpoint *Endpoint) {
-	endpoint.server = s
+	endpoint.Server = s
 	s.endpointRegistry.Register(endpoint)
 }
 

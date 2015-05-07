@@ -6,7 +6,7 @@ import log "github.com/cihub/seelog"
 func authenticateEndpointAccess(ctx Request, e *Endpoint) error {
 
 	// We also need an Authentication Provider to actually handle authentication tasks
-	ap := e.server.AuthenticationProvider()
+	ap := e.Server.AuthenticationProvider()
 	if ap == nil {
 		log.Debugf("No authentication provider configured, skipping authentication")
 		return nil
