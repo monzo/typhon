@@ -141,6 +141,10 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 	routingKey := req.Service()
 	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s", routingKey, req.Id(), c.replyTo)
 
+	// Marshal our session
+	// @todo retrieve authentication provider from context
+	session := []byte{}
+
 	// Build message from request
 	message := amqp.Publishing{
 		CorrelationId: req.Id(),
@@ -152,7 +156,7 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 			"Content-Encoding": "request",
 			"Service":          req.Service(),
 			"Endpoint":         req.Endpoint(),
-			"Access-Token":     req.AccessToken(),
+			"Session":          string(session),
 		},
 	}
 
