@@ -29,8 +29,8 @@ type Request interface {
 	// @todo change the request & response interface to decouple from protobuf
 	ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error
 
-	// Credentials provided on this request
-	Credentials() auth.Credentials
+	// Session provided on this request
+	Session() auth.Session
 	// SetCredentials for this request, useful at api level and for mocking
-	SetCredentials() auth.Credentials
+	SetSession() auth.Session
 }
