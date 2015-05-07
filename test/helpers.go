@@ -12,6 +12,7 @@ import (
 
 var stubServer *StubServer
 
+// InitStubServer at a package level with the given service name
 func InitStubServer(t *testing.T, serviceName string) *StubServer {
 	if stubServer == nil {
 		stubServer = NewStubServer(t, serviceName)
@@ -19,7 +20,7 @@ func InitStubServer(t *testing.T, serviceName string) *StubServer {
 	return stubServer
 }
 
-// Helper method to call a handler function (the function being tested)
+// CallEndpoint Helper method to call a handler function (the function being tested)
 // directly with a `proto.Message`.
 // Returns errors that were returned from the handler function directly.
 // Marshalling errors cause the test to fail instantly
