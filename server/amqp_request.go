@@ -138,6 +138,11 @@ func (r *AMQPRequest) SetSession(s auth.Session) {
 	r.session = s
 }
 
+// Session returns the session associated with this request
+func (r *AMQPRequest) Server() Server {
+	return r.s
+}
+
 // Client implementation
 
 // ScopedRequest calls a service within the scope of the current request

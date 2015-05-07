@@ -33,4 +33,7 @@ type Request interface {
 	Session() auth.Session
 	// SetSession for this request, useful at api level and for mocking
 	SetSession(auth.Session)
+
+	// Server is a reference to the server currently processing this request
+	Server() Server
 }
