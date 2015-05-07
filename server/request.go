@@ -1,6 +1,8 @@
 package server
 
 import (
+	"fmt"
+
 	"github.com/b2aio/typhon/auth"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
@@ -36,4 +38,13 @@ type Request interface {
 
 	// Server is a reference to the server currently processing this request
 	Server() Server
+}
+
+// RecoverServerFromContext retrieves the server in which this context is executing
+func RecoverServerFromContext(ctx context.Context) (Server, error) {
+	if req, ok := ctx.(Request); ok {
+		return req.Server(), nil
+	}
+
+	return nil, fmt.Errorf("Server not present in context")
 }
