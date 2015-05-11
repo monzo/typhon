@@ -1,12 +1,10 @@
 package server
 
 import (
-	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 
 	"github.com/b2aio/typhon/auth"
-	"github.com/b2aio/typhon/client"
 )
 
 // AMQPRequest satisfies our server Request interface, and
@@ -28,40 +26,35 @@ type AMQPRequest struct {
 	contentEncoding string
 	service         string
 	endpoint        string
+	accessToken     string
+	traceID         string
+	parentRequestID string
 }
 
 // NewAMQPRequest marshals a raw AMQP delivery to a Request interface
 func NewAMQPRequest(s Server, delivery *amqp.Delivery) (*AMQPRequest, error) {
-	var (
-		session auth.Session
-		err     error
-	)
-
 	// Handle basic headers
 	contentType, _ := delivery.Headers["Content-Type"].(string)
 	contentEncoding, _ := delivery.Headers["Content-Encoding"].(string)
 	service, _ := delivery.Headers["Service"].(string)
 	endpoint, _ := delivery.Headers["Endpoint"].(string)
+	accessToken, _ := delivery.Headers["Access-Token"].(string)
+	parentRequestID, _ := delivery.Headers["Parent-Request-ID"].(string)
 
-	// Attempt to unmarshal the session information
-	sess, _ := delivery.Headers["Session"].(string)
-	if sess != "" {
-		session, err = s.AuthenticationProvider().UnmarshalSession([]byte(sess))
-	}
-	if err != nil {
-		return nil, err
-	}
+	// @todo if traceID is empty, that indicates a problem that should be logged somewhere
+	traceID, _ := delivery.Headers["Trace-ID"].(string)
 
 	return &AMQPRequest{
-		s:        s,
-		delivery: delivery,
-		session:  session,
-
+		s:               s,
+		delivery:        delivery,
 		id:              delivery.CorrelationId,
 		contentType:     contentType,
 		contentEncoding: contentEncoding,
 		service:         service,
 		endpoint:        endpoint,
+		accessToken:     accessToken,
+		parentRequestID: parentRequestID,
+		traceID:         traceID,
 	}, nil
 }
 
@@ -143,15 +136,17 @@ func (r *AMQPRequest) Server() Server {
 	return r.s
 }
 
-// Client implementation
+// AccessToken() returns the authentication token sent with this request
+func (r *AMQPRequest) AccessToken() string {
+	return r.accessToken
+}
 
-// ScopedRequest calls a service within the scope of the current request
-// This allows request context to be passed transparently,
-// and child requests to be 'scoped' within a parent request
-func (r *AMQPRequest) ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error {
-	// Temporarily just call the default client
-	// This means we can nail down our external interface, and work the internals out properly
-	// where we can initialise a 'client' and separate out the connected transport layer
-	// a client in this case would allow multiple parallel requests etc.
-	return client.Req(r, service, endpoint, req, resp)
+// TraceID() is the trace id of this request. It should never be unset
+func (r *AMQPRequest) TraceID() string {
+	return r.traceID
+}
+
+// ParentRequestID() is the ID of the parent request, if any
+func (r *AMQPRequest) ParentRequestID() string {
+	return r.parentRequestID
 }

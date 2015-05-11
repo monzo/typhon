@@ -6,7 +6,6 @@ import (
 	log "github.com/cihub/seelog"
 	"github.com/nu7hatch/gouuid"
 
-	"github.com/b2aio/typhon/auth"
 	"github.com/b2aio/typhon/errors"
 )
 
@@ -25,9 +24,10 @@ type Request interface {
 	// Request timeout
 	Timeout() time.Duration
 	SetTimeout(time.Duration)
+
 	// Session for this request containing authentication info
-	Session() auth.Session
-	SetSession(s auth.Session)
+	AccessToken() string
+	SetAccessToken(string)
 }
 
 type request struct {
@@ -43,8 +43,8 @@ type request struct {
 	payload []byte
 	// request timeout
 	timeout time.Duration
-	// session used for authentication
-	session auth.Session
+	// access token used for authentication
+	accessToken string
 }
 
 // Id of the request
@@ -83,14 +83,14 @@ func (r *request) SetTimeout(d time.Duration) {
 	r.timeout = d
 }
 
-// Session stores authentication details
-func (r *request) Session() auth.Session {
-	return r.session
+// AccessToken stores authentication details
+func (r *request) AccessToken() string {
+	return r.accessToken
 }
 
-// SetSession information on this request
-func (r *request) SetSession(s auth.Session) {
-	r.session = s
+// SetAccessToken on this request
+func (r *request) SetAccessToken(s string) {
+	r.accessToken = s
 }
 
 // NewProtoRequest creates a new request with protobuf encoding

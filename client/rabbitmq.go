@@ -137,27 +137,10 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 		return nil, errors.Wrap(fmt.Errorf("Not connected to AMQP"))
 	}
 
-	// To marshal the session we need the authentication provider from our server context
-	srv, err := server.RecoverServerFromContext(ctx)
-	if err != nil {
-		log.Warnf("[Client] Could not recover server context: %s", err.Error())
-		return nil, err
-	}
-
-	// Marshal session if we are configured with an authentication provider
-	var session []byte
-	if ap := srv.AuthenticationProvider(); ap != nil {
-		session, err = ap.MarshalSession(req.Session())
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Push the reply channel into our request registry
 	replyChannel := c.inflight.push(req.Id())
 
 	routingKey := req.Service()
-	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s", routingKey, req.Id(), c.replyTo)
 
 	// Build message from request
 	message := amqp.Publishing{
@@ -170,9 +153,34 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 			"Content-Encoding": "request",
 			"Service":          req.Service(),
 			"Endpoint":         req.Endpoint(),
-			"Session":          string(session),
 		},
 	}
+
+	// if there's a parent request, set the parent request id
+	// and trace ID from it. If not, generate a new trace ID
+	parentRequest := server.RecoverRequestFromContext(ctx)
+	if parentRequest != nil {
+		message.Headers["Parent-Request-ID"] = parentRequest.Id()
+		message.Headers["Trace-ID"] = parentRequest.TraceID()
+	} else {
+		traceID, err := uuid.NewV4()
+		if err != nil {
+			return nil, err
+		}
+		// @todo the trace id format could be doner nicer
+		message.Headers["Trace-ID"] = "trace_" + traceID.String()
+	}
+
+	// Look for access token on the request first, context second
+	accessToken := req.AccessToken()
+	if accessToken == "" && parentRequest != nil {
+		accessToken = parentRequest.AccessToken()
+	}
+	if accessToken != "" {
+		message.Headers["Access-Token"] = accessToken
+	}
+
+	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s and headers %+v", routingKey, req.Id(), c.replyTo, message.Headers)
 
 	// Attempt to publish through our connection
 	// @todo refactor this to not know about rabbitmq internals
