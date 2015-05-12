@@ -3,6 +3,8 @@ package server
 import (
 	"regexp"
 	"sync"
+
+	"github.com/b2aio/typhon/auth"
 )
 
 // EndpointRegistry stores a list of endpoints for the server
@@ -32,6 +34,10 @@ func (r *EndpointRegistry) Get(endpointName string) *Endpoint {
 
 // Register an endpoint with the registry
 func (r *EndpointRegistry) Register(e *Endpoint) {
+	// Always set an Authorizer on an endpoint
+	if e.Authorizer == nil {
+		e.Authorizer = auth.DefaultAuthorizer
+	}
 	r.Lock()
 	defer r.Unlock()
 	r.endpoints[e.Name] = e

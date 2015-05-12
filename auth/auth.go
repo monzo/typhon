@@ -37,6 +37,11 @@ type Session interface {
 // for access to resources, eg. oauth scopes, or other access control
 type Authorizer func(ctx context.Context, session Session) error
 
+// DefaultAuthorizer is an authorizer used on endpoint registration if the endpoint
+// does not have an authorizer specified. It is STRONGLY recommended that this be replaced
+// by a secure authorizer that asserts that the user is an admin or something
+var DefaultAuthorizer Authorizer = nil
+
 // User represents the resource owner ie. an end-user of the application
 type User interface {
 	ID() string
