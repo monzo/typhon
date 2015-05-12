@@ -157,24 +157,6 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 		return
 	}
 
-	// recover session from access token
-	// @todo this code needs to be moved/refactored. we want to pass the recovered session (signed) between all child requests
-	if req.AccessToken() != "" {
-		authProvider := s.AuthenticationProvider()
-		if authProvider == nil {
-			// @todo implement a default authentication provider for use in tests that creates a session
-			//       that just contains access token and nothing else
-			s.respondWithError(delivery, errors.InternalService("Server doesn't have an AuthenticationProvider! Can't recover session from access token."))
-			return
-		}
-		session, err := authProvider.RecoverSession(req, req.AccessToken())
-		if err != nil {
-			s.respondWithError(delivery, err)
-			return
-		}
-		req.SetSession(session)
-	}
-
 	// Handle the delivery
 	resp, err := endpoint.HandleRequest(req)
 	if err != nil {

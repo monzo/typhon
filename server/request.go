@@ -25,10 +25,15 @@ type Request interface {
 	// Endpoint to be called on the receiving service
 	Endpoint() string
 
-	// Session provided on this request
-	Session() auth.Session
+	// Session provided on this request. Recovers session on first call.
+	Session() (auth.Session, error)
 	// SetSession for this request, useful at api level and for mocking
 	SetSession(auth.Session)
+
+	// HasRecoveredSession returns true if the session was previously successfully
+	// recovered from the access token
+	// @todo this is ugly and needs to be refactored
+	HasRecoveredSession() bool
 
 	AccessToken() string
 	TraceID() string

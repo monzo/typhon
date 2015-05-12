@@ -156,9 +156,10 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 		},
 	}
 
+	parentRequest := server.RecoverRequestFromContext(ctx)
+
 	// if there's a parent request, set the parent request id
 	// and trace ID from it. If not, generate a new trace ID
-	parentRequest := server.RecoverRequestFromContext(ctx)
 	if parentRequest != nil {
 		message.Headers["Parent-Request-ID"] = parentRequest.Id()
 		message.Headers["Trace-ID"] = parentRequest.TraceID()
@@ -178,6 +179,23 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 	}
 	if accessToken != "" {
 		message.Headers["Access-Token"] = accessToken
+	}
+
+	// If we have a recovered session for the parent request, set it on the child request
+	// so that the called service doesn't have to call RecoverSession() again
+	if parentRequest != nil && parentRequest.HasRecoveredSession() &&
+		parentRequest.Server().AuthenticationProvider() != nil {
+		log.Debugf("Hullo %+v %+v %+v", parentRequest.HasRecoveredSession())
+		session, err := parentRequest.Session()
+		if err != nil {
+			return nil, err
+		}
+		sessionBytes, err := parentRequest.Server().AuthenticationProvider().MarshalSession(session)
+		if err != nil {
+			log.Warnf("Failed to marshal recovered session") // @todo log somewhere
+		} else {
+			message.Headers["Session"] = sessionBytes
+		}
 	}
 
 	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s and headers %+v", routingKey, req.Id(), c.replyTo, message.Headers)

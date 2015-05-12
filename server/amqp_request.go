@@ -5,6 +5,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/b2aio/typhon/auth"
+	log "github.com/cihub/seelog"
 )
 
 // AMQPRequest satisfies our server Request interface, and
@@ -40,6 +41,20 @@ func NewAMQPRequest(s Server, delivery *amqp.Delivery) (*AMQPRequest, error) {
 	endpoint, _ := delivery.Headers["Endpoint"].(string)
 	accessToken, _ := delivery.Headers["Access-Token"].(string)
 	parentRequestID, _ := delivery.Headers["Parent-Request-ID"].(string)
+	sessionBytes, _ := delivery.Headers["Session"].(string)
+
+	var (
+		session auth.Session
+		err     error
+	)
+	if sessionBytes != "" {
+		if s.AuthenticationProvider() != nil {
+			session, err = s.AuthenticationProvider().UnmarshalSession([]byte(sessionBytes))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	// @todo if traceID is empty, that indicates a problem that should be logged somewhere
 	traceID, _ := delivery.Headers["Trace-ID"].(string)
@@ -55,6 +70,7 @@ func NewAMQPRequest(s Server, delivery *amqp.Delivery) (*AMQPRequest, error) {
 		accessToken:     accessToken,
 		parentRequestID: parentRequestID,
 		traceID:         traceID,
+		session:         session,
 	}, nil
 }
 
@@ -121,14 +137,38 @@ func (r *AMQPRequest) Interface() interface{} {
 	return r.delivery
 }
 
-// Session returns the session associated with this request
-func (r *AMQPRequest) Session() auth.Session {
-	return r.session
+// Session returns the session associated with this request and recovers it
+// using AuthenticationProvider's RecoverSession if not set
+func (r *AMQPRequest) Session() (auth.Session, error) {
+	if r.session != nil {
+		log.Debugf("req.Session() returning memoized session %+v", r.session)
+		return r.session, nil
+	}
+	if r.AccessToken() == "" {
+		return nil, nil
+	}
+	authProvider := r.Server().AuthenticationProvider()
+	if authProvider == nil {
+		log.Warnf("Server doesn't have an AuthenticationProvider, returning nil session")
+		return nil, nil
+	}
+	session, err := authProvider.RecoverSession(r, r.AccessToken())
+	if err != nil {
+		return nil, err
+	}
+	r.session = session
+	return r.session, nil
 }
 
 // SetSession information into the request
 func (r *AMQPRequest) SetSession(s auth.Session) {
 	r.session = s
+}
+
+// HasRecoveredSession returns true if the session was previously successfully
+// recovered from the access token
+func (r *AMQPRequest) HasRecoveredSession() bool {
+	return r.session != nil
 }
 
 // Session returns the session associated with this request

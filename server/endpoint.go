@@ -39,10 +39,14 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 
 	// Authenticate access to this endpoint if we're set up to do this
 	if e.Authorizer != nil {
-		if req.Session() == nil {
+		session, err := req.Session()
+		if err != nil {
+			return nil, enrichError(err, req, e)
+		}
+		if session == nil {
 			return nil, errors.Unauthorized("This endpoint requires authentication. Please provide an access token.")
 		}
-		if err := e.Authorizer(req, req.Session()); err != nil {
+		if err := e.Authorizer(req, session); err != nil {
 			err = enrichError(err, req, e)
 			log.Warnf("Failed to authenticate access to %s endpoint", e.Name)
 			return nil, err
