@@ -4,8 +4,8 @@ import (
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 
-	"github.com/b2aio/typhon/auth"
 	log "github.com/cihub/seelog"
+	"github.com/mondough/typhon/auth"
 )
 
 // AMQPRequest satisfies our server Request interface, and

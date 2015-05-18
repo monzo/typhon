@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	"github.com/b2aio/typhon/server"
+	"github.com/mondough/typhon/server"
 )
 
 type StubServer struct {

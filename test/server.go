@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/b2aio/typhon/server"
+	"github.com/mondough/typhon/server"
 )
 
 // InitServer for testing

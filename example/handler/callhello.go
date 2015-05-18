@@ -3,11 +3,11 @@ package handler
 import (
 	"fmt"
 
-	"github.com/b2aio/typhon/client"
-	"github.com/b2aio/typhon/example/proto/callhello"
-	"github.com/b2aio/typhon/example/proto/hello"
-	"github.com/b2aio/typhon/server"
 	"github.com/golang/protobuf/proto"
+	"github.com/mondough/typhon/client"
+	"github.com/mondough/typhon/example/proto/callhello"
+	"github.com/mondough/typhon/example/proto/hello"
+	"github.com/mondough/typhon/server"
 )
 
 var CallHello = &server.Endpoint{

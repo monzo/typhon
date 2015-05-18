@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/b2aio/typhon/auth"
+	"github.com/mondough/typhon/auth"
 )
 
 // Server is an interface that all servers must implement

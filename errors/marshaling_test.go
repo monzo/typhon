@@ -3,8 +3,8 @@ package errors
 import (
 	"testing"
 
-	"github.com/b2aio/typhon/errors/stack"
-	pe "github.com/b2aio/typhon/proto/error"
+	"github.com/mondough/typhon/errors/stack"
+	pe "github.com/mondough/typhon/proto/error"
 	"github.com/stretchr/testify/assert"
 )
 
