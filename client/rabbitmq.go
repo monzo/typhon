@@ -185,14 +185,15 @@ func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 	// so that the called service doesn't have to call RecoverSession() again
 	if parentRequest != nil && parentRequest.HasRecoveredSession() &&
 		parentRequest.Server().AuthenticationProvider() != nil {
-		log.Debugf("Hullo %+v %+v %+v", parentRequest.HasRecoveredSession())
+
 		session, err := parentRequest.Session()
 		if err != nil {
 			return nil, err
 		}
+
 		sessionBytes, err := parentRequest.Server().AuthenticationProvider().MarshalSession(session)
 		if err != nil {
-			log.Warnf("Failed to marshal recovered session") // @todo log somewhere
+			log.Warnf("[Client] Failed to marshal recovered session") // @todo log somewhere
 		} else {
 			message.Headers["Session"] = sessionBytes
 		}

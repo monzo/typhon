@@ -171,22 +171,22 @@ func (r *AMQPRequest) HasRecoveredSession() bool {
 	return r.session != nil
 }
 
-// Session returns the session associated with this request
+// Server returns the server which is processing this request
 func (r *AMQPRequest) Server() Server {
 	return r.s
 }
 
-// AccessToken() returns the authentication token sent with this request
+// AccessToken returns the authentication token sent with this request
 func (r *AMQPRequest) AccessToken() string {
 	return r.accessToken
 }
 
-// TraceID() is the trace id of this request. It should never be unset
+// TraceID is the trace id of this request. It should never be unset
 func (r *AMQPRequest) TraceID() string {
 	return r.traceID
 }
 
-// ParentRequestID() is the ID of the parent request, if any
+// ParentRequestID is the ID of the parent request, if any
 func (r *AMQPRequest) ParentRequestID() string {
 	return r.parentRequestID
 }
