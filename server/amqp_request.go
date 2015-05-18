@@ -47,12 +47,10 @@ func NewAMQPRequest(s Server, delivery *amqp.Delivery) (*AMQPRequest, error) {
 		session auth.Session
 		err     error
 	)
-	if sessionBytes != "" {
-		if s.AuthenticationProvider() != nil {
-			session, err = s.AuthenticationProvider().UnmarshalSession([]byte(sessionBytes))
-			if err != nil {
-				return nil, err
-			}
+	if sessionBytes != "" && s.AuthenticationProvider() != nil {
+		session, err = s.AuthenticationProvider().UnmarshalSession([]byte(sessionBytes))
+		if err != nil {
+			return nil, err
 		}
 	}
 
