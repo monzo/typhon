@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mondough/typhon/auth"
-	"github.com/mondough/typhon/errors"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
+	"github.com/mondough/typhon/auth"
+	"github.com/mondough/typhon/errors"
 )
 
 type Endpoint struct {

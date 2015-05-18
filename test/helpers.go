@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mondough/typhon/server"
 	"github.com/golang/protobuf/proto"
+	"github.com/mondough/typhon/server"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/require"
 )

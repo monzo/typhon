@@ -5,11 +5,11 @@ package test
 import (
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/mondough/typhon/client"
 	"github.com/mondough/typhon/errors"
 	"github.com/mondough/typhon/example/proto/callhello"
 	"github.com/mondough/typhon/server"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
