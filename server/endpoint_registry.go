@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/b2aio/typhon/auth"
+	"github.com/mondough/typhon/auth"
 )
 
 // EndpointRegistry stores a list of endpoints for the server

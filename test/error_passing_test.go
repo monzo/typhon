@@ -5,10 +5,10 @@ package test
 import (
 	"testing"
 
-	"github.com/b2aio/typhon/client"
-	"github.com/b2aio/typhon/errors"
-	"github.com/b2aio/typhon/example/proto/callhello"
-	"github.com/b2aio/typhon/server"
+	"github.com/mondough/typhon/client"
+	"github.com/mondough/typhon/errors"
+	"github.com/mondough/typhon/example/proto/callhello"
+	"github.com/mondough/typhon/server"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

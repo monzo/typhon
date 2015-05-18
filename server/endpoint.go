@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/b2aio/typhon/auth"
-	"github.com/b2aio/typhon/errors"
+	"github.com/mondough/typhon/auth"
+	"github.com/mondough/typhon/errors"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )

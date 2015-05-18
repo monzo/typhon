@@ -6,7 +6,7 @@ import (
 	log "github.com/cihub/seelog"
 	"github.com/nu7hatch/gouuid"
 
-	"github.com/b2aio/typhon/errors"
+	"github.com/mondough/typhon/errors"
 )
 
 // Request to be sent to another service

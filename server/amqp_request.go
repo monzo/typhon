@@ -4,7 +4,7 @@ import (
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 
-	"github.com/b2aio/typhon/auth"
+	"github.com/mondough/typhon/auth"
 	log "github.com/cihub/seelog"
 )
 
