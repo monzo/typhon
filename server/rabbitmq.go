@@ -208,8 +208,9 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 	svcErr := errors.Wrap(err)
 	b, err := proto.Marshal(errors.Marshal(svcErr))
 	if err != nil {
-		// shit. Nothing we can do. The bytes come out empty.
-		log.Warnf("Failed to marshal error. Shit.")
+		// shit. Nothing we can do, as we're already responding with an error
+		// and we're now failed to marshal that error too.
+		log.Warnf("[Server] Failed to marshal error for message %s", delivery.CorrelationId)
 	}
 
 	// Construct a return message with an error
