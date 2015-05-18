@@ -1,5 +1,9 @@
 package server
 
+import (
+	"github.com/b2aio/typhon/auth"
+)
+
 // Server is an interface that all servers must implement
 // so that we can register endpoints, and serve requests
 type Server interface {
@@ -13,14 +17,18 @@ type Server interface {
 
 	RegisterEndpoint(endpoint *Endpoint)
 	DeregisterEndpoint(pattern string)
+
+	AuthenticationProvider() auth.AuthenticationProvider
+	RegisterAuthenticationProvider(auth.AuthenticationProvider)
 }
 
 // DefaultServer stores a default implementation, for simple usage
 var DefaultServer Server = NewAMQPServer()
 
 // Init our DefaultServer with a Config
-func Init(c *Config) {
+func Init(c *Config) Server {
 	DefaultServer.Init(c)
+	return DefaultServer
 }
 
 // RegisterEndpoint with the DefaultServer

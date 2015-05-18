@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/b2aio/typhon/auth"
 	"github.com/b2aio/typhon/errors"
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
 
 type Endpoint struct {
-	Name     string
-	Handler  func(Request) (proto.Message, error)
-	Request  interface{}
-	Response interface{}
+	Name       string
+	Handler    func(Request) (proto.Message, error)
+	Request    interface{}
+	Response   interface{}
+	Authorizer auth.Authorizer
+
+	// server is a reference to the parent server this endpoint is registered with
+	Server Server
 }
 
 func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
@@ -32,8 +37,24 @@ func (e *Endpoint) HandleRequest(req Request) (proto.Message, error) {
 
 	log.Debugf("[Server] %s.%s handler received request: %+v", req.Service(), e.Name, req.Body())
 
-	resp, err := e.Handler(req)
+	// Authenticate access to this endpoint if we're set up to do this
+	if e.Authorizer != nil {
+		session, err := req.Session()
+		if err != nil {
+			return nil, enrichError(err, req, e)
+		}
+		if session == nil {
+			return nil, errors.Unauthorized("This endpoint requires authentication. Please provide an access token.")
+		}
+		if err := e.Authorizer(req, session); err != nil {
+			err = enrichError(err, req, e)
+			log.Warnf("Failed to authenticate access to %s endpoint", e.Name)
+			return nil, err
+		}
+	}
 
+	// Execute the handler
+	resp, err := e.Handler(req)
 	if err != nil {
 		err = enrichError(err, req, e)
 		log.Errorf("[Server] %s.%s handler error: %s", req.Service(), e.Name, err.Error())

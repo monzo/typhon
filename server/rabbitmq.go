@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 
+	"github.com/b2aio/typhon/auth"
 	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
 )
@@ -21,6 +22,9 @@ type AMQPServer struct {
 	endpointRegistry   *EndpointRegistry
 	connection         *rabbit.RabbitConnection
 	notifyConnected    []chan bool
+
+	// authenticationProvider handles authentication tasks
+	authenticationProvider auth.AuthenticationProvider
 
 	closeChan chan struct{}
 }
@@ -59,11 +63,24 @@ func (s *AMQPServer) NotifyConnected() chan bool {
 }
 
 func (s *AMQPServer) RegisterEndpoint(endpoint *Endpoint) {
+	endpoint.Server = s
 	s.endpointRegistry.Register(endpoint)
 }
 
 func (s *AMQPServer) DeregisterEndpoint(endpointName string) {
 	s.endpointRegistry.Deregister(endpointName)
+}
+
+// AuthenticationProvider returns the current authentication provider
+func (s *AMQPServer) AuthenticationProvider() auth.AuthenticationProvider {
+	return s.authenticationProvider
+}
+
+// RegisterAuthenticationProvider with the server
+// This is used to handle authentication tasks, allowing us to override this with
+// implementations using custom authentication services
+func (s *AMQPServer) RegisterAuthenticationProvider(ap auth.AuthenticationProvider) {
+	s.authenticationProvider = ap
 }
 
 // Run the server, connecting to our transport and serving requests
@@ -125,7 +142,12 @@ func (s *AMQPServer) handleDelivery(delivery amqp.Delivery) {
 	var err error
 
 	// Marshal to a request
-	req := NewAMQPRequest(&delivery)
+	req, err := NewAMQPRequest(s, &delivery)
+	if err != nil {
+		log.Warnf("[Server] Failed to build request from delivery: %s", err.Error())
+		s.respondWithError(delivery, err)
+		return
+	}
 
 	// See if we have a matching endpoint for this request
 	endpoint := s.endpointRegistry.Get(req.Endpoint())
@@ -186,7 +208,9 @@ func (s *AMQPServer) respondWithError(delivery amqp.Delivery, err error) {
 	svcErr := errors.Wrap(err)
 	b, err := proto.Marshal(errors.Marshal(svcErr))
 	if err != nil {
-		// shit
+		// shit. Nothing we can do, as we're already responding with an error
+		// and we're now failed to marshal that error too.
+		log.Warnf("[Server] Failed to marshal error for message %s", delivery.CorrelationId)
 	}
 
 	// Construct a return message with an error

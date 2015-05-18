@@ -17,6 +17,7 @@ import (
 
 	"github.com/b2aio/typhon/errors"
 	"github.com/b2aio/typhon/rabbit"
+	"github.com/b2aio/typhon/server"
 
 	pe "github.com/b2aio/typhon/proto/error"
 )
@@ -102,7 +103,7 @@ func (c *RabbitClient) Req(ctx context.Context, service, endpoint string, req pr
 	}
 
 	// Execute
-	rsp, err := c.do(protoReq)
+	rsp, err := c.do(ctx, protoReq)
 	if err != nil {
 		return err
 	}
@@ -117,13 +118,13 @@ func (c *RabbitClient) Req(ctx context.Context, service, endpoint string, req pr
 
 // CustomReq makes a sends a request to a service and returns a
 // response without the usual marshaling helpers
-func (c *RabbitClient) CustomReq(req Request) (Response, error) {
-	return c.do(req)
+func (c *RabbitClient) CustomReq(ctx context.Context, req Request) (Response, error) {
+	return c.do(ctx, req)
 }
 
 // do sends a request and returns a response, following policies
 // (e.g. redirects, cookies, auth) as configured on the client.
-func (c *RabbitClient) do(req Request) (Response, error) {
+func (c *RabbitClient) do(ctx context.Context, req Request) (Response, error) {
 
 	// Ensure we're initialised, but only do this once
 	//
@@ -136,10 +137,10 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 		return nil, errors.Wrap(fmt.Errorf("Not connected to AMQP"))
 	}
 
+	// Push the reply channel into our request registry
 	replyChannel := c.inflight.push(req.Id())
 
 	routingKey := req.Service()
-	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s", routingKey, req.Id(), c.replyTo)
 
 	// Build message from request
 	message := amqp.Publishing{
@@ -154,6 +155,51 @@ func (c *RabbitClient) do(req Request) (Response, error) {
 			"Endpoint":         req.Endpoint(),
 		},
 	}
+
+	parentRequest := server.RecoverRequestFromContext(ctx)
+
+	// if there's a parent request, set the parent request id
+	// and trace ID from it. If not, generate a new trace ID
+	if parentRequest != nil {
+		message.Headers["Parent-Request-ID"] = parentRequest.Id()
+		message.Headers["Trace-ID"] = parentRequest.TraceID()
+	} else {
+		traceID, err := uuid.NewV4()
+		if err != nil {
+			return nil, err
+		}
+		// @todo the trace id format could be doner nicer
+		message.Headers["Trace-ID"] = "trace_" + traceID.String()
+	}
+
+	// Look for access token on the request first, context second
+	accessToken := req.AccessToken()
+	if accessToken == "" && parentRequest != nil {
+		accessToken = parentRequest.AccessToken()
+	}
+	if accessToken != "" {
+		message.Headers["Access-Token"] = accessToken
+	}
+
+	// If we have a recovered session for the parent request, set it on the child request
+	// so that the called service doesn't have to call RecoverSession() again
+	if parentRequest != nil && parentRequest.HasRecoveredSession() &&
+		parentRequest.Server().AuthenticationProvider() != nil {
+
+		session, err := parentRequest.Session()
+		if err != nil {
+			return nil, err
+		}
+
+		sessionBytes, err := parentRequest.Server().AuthenticationProvider().MarshalSession(session)
+		if err != nil {
+			log.Warnf("[Client] Failed to marshal recovered session") // @todo log somewhere
+		} else {
+			message.Headers["Session"] = sessionBytes
+		}
+	}
+
+	log.Debugf("[Client] Dispatching request to %s with correlation ID %s, reply to %s and headers %+v", routingKey, req.Id(), c.replyTo, message.Headers)
 
 	// Attempt to publish through our connection
 	// @todo refactor this to not know about rabbitmq internals

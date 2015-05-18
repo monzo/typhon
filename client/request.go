@@ -9,6 +9,7 @@ import (
 	"github.com/b2aio/typhon/errors"
 )
 
+// Request to be sent to another service
 type Request interface {
 	// Id of this request
 	Id() string
@@ -23,6 +24,10 @@ type Request interface {
 	// Request timeout
 	Timeout() time.Duration
 	SetTimeout(time.Duration)
+
+	// Session for this request containing authentication info
+	AccessToken() string
+	SetAccessToken(string)
 }
 
 type request struct {
@@ -38,6 +43,8 @@ type request struct {
 	payload []byte
 	// request timeout
 	timeout time.Duration
+	// access token used for authentication
+	accessToken string
 }
 
 // Id of the request
@@ -74,6 +81,16 @@ func (r *request) Timeout() time.Duration {
 }
 func (r *request) SetTimeout(d time.Duration) {
 	r.timeout = d
+}
+
+// AccessToken stores authentication details
+func (r *request) AccessToken() string {
+	return r.accessToken
+}
+
+// SetAccessToken on this request
+func (r *request) SetAccessToken(s string) {
+	r.accessToken = s
 }
 
 // NewProtoRequest creates a new request with protobuf encoding

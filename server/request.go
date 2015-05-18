@@ -1,10 +1,11 @@
 package server
 
 import (
-	"github.com/golang/protobuf/proto"
+	"github.com/b2aio/typhon/auth"
 	"golang.org/x/net/context"
 )
 
+// Request received by the server
 type Request interface {
 	context.Context
 
@@ -23,7 +24,30 @@ type Request interface {
 	Service() string
 	// Endpoint to be called on the receiving service
 	Endpoint() string
-	// ScopedRequest makes a client request within the scope of the current request
-	// @todo change the request & response interface to decouple from protobuf
-	ScopedRequest(service string, endpoint string, req proto.Message, resp proto.Message) error
+
+	// Session provided on this request. Recovers session on first call.
+	Session() (auth.Session, error)
+	// SetSession for this request, useful at api level and for mocking
+	SetSession(auth.Session)
+
+	// HasRecoveredSession returns true if the session was previously successfully
+	// recovered from the access token
+	// @todo this is ugly and needs to be refactored
+	HasRecoveredSession() bool
+
+	AccessToken() string
+	TraceID() string
+	ParentRequestID() string
+
+	// Server is a reference to the server currently processing this request
+	Server() Server
+}
+
+// RecoverServerFromContext retrieves the request in which this context is executing
+// This is used when making nested requests
+func RecoverRequestFromContext(ctx context.Context) Request {
+	if req, ok := ctx.(Request); ok {
+		return req
+	}
+	return nil
 }
