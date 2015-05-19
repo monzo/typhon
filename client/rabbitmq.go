@@ -38,13 +38,16 @@ var NewRabbitClient = func() Client {
 		os.Exit(1)
 	}
 	return &RabbitClient{
-		inflight:   newInflightRegistry(),
-		connection: rabbit.NewRabbitConnection(),
-		replyTo:    fmt.Sprintf("replyTo-%s", uuidQueue.String()),
+		inflight: newInflightRegistry(),
+		replyTo:  fmt.Sprintf("replyTo-%s", uuidQueue.String()),
 	}
 }
 
 func (c *RabbitClient) Init() {
+
+	// Initialise connection lazily
+	c.connection = rabbit.NewRabbitConnection()
+
 	select {
 	case <-c.connection.Init():
 		log.Info("[Client] Connected to RabbitMQ")

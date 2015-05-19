@@ -32,7 +32,6 @@ type AMQPServer struct {
 func NewAMQPServer() Server {
 	return &AMQPServer{
 		endpointRegistry: NewEndpointRegistry(),
-		connection:       rabbit.NewRabbitConnection(),
 		closeChan:        make(chan struct{}),
 	}
 }
@@ -52,6 +51,10 @@ func (s *AMQPServer) Description() string {
 }
 
 func (s *AMQPServer) Init(c *Config) {
+
+	// Initialise the rabbit connection lazily
+	s.connection = rabbit.NewRabbitConnection()
+
 	s.ServiceName = c.Name
 	s.ServiceDescription = c.Description
 }
