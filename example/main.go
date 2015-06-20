@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/mondough/typhon/server"
+	"github.com/obeattie/typhon/server"
 
-	"github.com/mondough/typhon/example/handler"
+	"github.com/obeattie/typhon/example/handler"
 )
 
 // main is the definition of our server

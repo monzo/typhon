@@ -15,11 +15,11 @@ import (
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 
-	"github.com/mondough/typhon/errors"
-	"github.com/mondough/typhon/rabbit"
-	"github.com/mondough/typhon/server"
+	"github.com/obeattie/typhon/errors"
+	"github.com/obeattie/typhon/rabbit"
+	"github.com/obeattie/typhon/server"
 
-	pe "github.com/mondough/typhon/proto/error"
+	pe "github.com/obeattie/typhon/proto/error"
 )
 
 var connectionTimeout time.Duration = 10 * time.Second

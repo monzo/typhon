@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/mondough/typhon/client"
-	"github.com/mondough/typhon/errors"
-	"github.com/mondough/typhon/example/proto/callhello"
-	"github.com/mondough/typhon/server"
+	"github.com/obeattie/typhon/client"
+	"github.com/obeattie/typhon/errors"
+	"github.com/obeattie/typhon/example/proto/callhello"
+	"github.com/obeattie/typhon/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

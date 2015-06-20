@@ -7,8 +7,8 @@ import (
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	"github.com/mondough/typhon/auth"
-	"github.com/mondough/typhon/errors"
+	"github.com/obeattie/typhon/auth"
+	"github.com/obeattie/typhon/errors"
 )
 
 type Endpoint struct {

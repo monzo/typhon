@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/mondough/typhon/auth"
+	"github.com/obeattie/typhon/auth"
 	"golang.org/x/net/context"
 )
 

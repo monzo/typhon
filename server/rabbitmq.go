@@ -8,9 +8,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 
-	"github.com/mondough/typhon/auth"
-	"github.com/mondough/typhon/errors"
-	"github.com/mondough/typhon/rabbit"
+	"github.com/obeattie/typhon/auth"
+	"github.com/obeattie/typhon/errors"
+	"github.com/obeattie/typhon/rabbit"
 )
 
 var connectionTimeout time.Duration = 10 * time.Second

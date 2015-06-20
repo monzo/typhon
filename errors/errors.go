@@ -3,7 +3,7 @@ package errors
 import (
 	"fmt"
 
-	"github.com/mondough/typhon/errors/stack"
+	"github.com/obeattie/typhon/errors/stack"
 )
 
 type Error struct {

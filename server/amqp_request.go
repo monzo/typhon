@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/cihub/seelog"
-	"github.com/mondough/typhon/auth"
+	"github.com/obeattie/typhon/auth"
 )
 
 // AMQPRequest satisfies our server Request interface, and

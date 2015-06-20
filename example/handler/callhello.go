@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/mondough/typhon/client"
-	"github.com/mondough/typhon/example/proto/callhello"
-	"github.com/mondough/typhon/example/proto/hello"
-	"github.com/mondough/typhon/server"
+	"github.com/obeattie/typhon/client"
+	"github.com/obeattie/typhon/example/proto/callhello"
+	"github.com/obeattie/typhon/example/proto/hello"
+	"github.com/obeattie/typhon/server"
 )
 
 var CallHello = &server.Endpoint{

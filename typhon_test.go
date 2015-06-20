@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/mondough/typhon/client"
-	"github.com/mondough/typhon/example/handler"
-	"github.com/mondough/typhon/example/proto/callhello"
-	"github.com/mondough/typhon/test"
+	"github.com/obeattie/typhon/client"
+	"github.com/obeattie/typhon/example/handler"
+	"github.com/obeattie/typhon/example/proto/callhello"
+	"github.com/obeattie/typhon/test"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
