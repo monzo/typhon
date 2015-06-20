@@ -115,6 +115,4 @@ func unmarshalRequest(req Request, body proto.Message) (err error) {
 	} else {
 		return json.Unmarshal(req.Payload(), body)
 	}
-
-	return errors.Wrap(fmt.Errorf("Could not unmarshal request"))
 }
