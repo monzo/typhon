@@ -6,13 +6,18 @@ go:
 services:
   - rabbitmq
 
+env:
+  - RABBIT_URL=amqp://guest:guest@localhost:5672
+
 install:
   - export PATH=${PATH}:${HOME}/gopath/bin
   - go get -v -t ./...
   - go get -v github.com/golang/lint/golint
   - go get -v golang.org/x/tools/cmd/vet
 
-script:
+before_script:
   - go vet ./...
-  - RABBIT_URL="amqp://guest:guest@localhost:5672" go test -v ./...
   - golint .
+
+script:
+  - go test -v ./...
