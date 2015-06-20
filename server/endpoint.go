@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 
 	log "github.com/cihub/seelog"
