@@ -14,5 +14,6 @@ install:
 
 script:
   - go vet ./...
+  - env
   - go test -v ./...
   - golint .
