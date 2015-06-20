@@ -8,7 +8,7 @@ func (r *response) Copy() Response {
 	r.RLock()
 	defer r.RUnlock()
 	return &response{
-		message: r.message.copy(),
+		message: *(r.message.copy()),
 	}
 }
 
