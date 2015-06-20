@@ -337,8 +337,6 @@ func (t *rabbitTransport) listenReplies() error {
 			return tomb.ErrDying
 		}
 	}
-
-	return tomb.ErrStillAlive // Control flow should not reach this point anyway
 }
 
 func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.Message) {

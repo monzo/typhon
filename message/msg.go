@@ -61,9 +61,9 @@ func (m *message) Headers() map[string]string {
 	return m.headersCopy()
 }
 
-func (m *message) copy() message {
+func (m *message) copy() *message {
 	// Callers must ensure they hold a read lock before invoking this method
-	return message{
+	return &message{
 		id:       m.id,
 		payload:  m.payload,
 		body:     m.body,
