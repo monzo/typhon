@@ -276,7 +276,6 @@ func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (mes
 		return nil, transport.ErrTimeout
 	}
 
-	log.Tracef("[Typhon:RabbitTransport] Sending request %s…", req.Id())
 	if err := t.connection().Publish(Exchange, req.Service(), amqp.Publishing{
 		CorrelationId: req.Id(),
 		Timestamp:     time.Now().UTC(),
