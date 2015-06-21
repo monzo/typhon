@@ -38,7 +38,7 @@ func (ju *jsonUnmarshaler) UnmarshalPayload(msg Message) error {
 	var result interface{}
 
 	_body := msg.Body()
-	if bodyT := reflect.TypeOf(_body); bodyT != nil && bodyT.AssignableTo(pu.T) {
+	if bodyT := reflect.TypeOf(_body); bodyT != nil && bodyT.AssignableTo(ju.T) {
 		// The message already has an appropriate body; unmarshal into it
 		result = _body
 	} else {
