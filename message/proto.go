@@ -45,7 +45,8 @@ func (pu *protoUnmarshaler) UnmarshalPayload(msg Message) error {
 	result := proto.Message(nil)
 	err := error(nil)
 
-	if _body := msg.Body(); _body != nil && reflect.TypeOf(_body).AssignableTo(pu.T) {
+	_body := msg.Body()
+	if bodyT := reflect.TypeOf(_body); bodyT != nil && bodyT.AssignableTo(pu.T) {
 		// The message already has an appropriate body; unmarshal into it
 		result = _body.(proto.Message)
 	} else {
