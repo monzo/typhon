@@ -1,8 +1,8 @@
 package errors
 
 import (
-	"github.com/obeattie/typhon/errors/stack"
-	pe "github.com/obeattie/typhon/proto/error"
+	"github.com/mondough/typhon/errors/stack"
+	pe "github.com/mondough/typhon/proto/error"
 )
 
 // Marshal an error into a protobuf for transmission

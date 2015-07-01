@@ -11,9 +11,9 @@ import (
 	"github.com/streadway/amqp"
 	"gopkg.in/tomb.v2"
 
-	"github.com/obeattie/typhon/errors"
-	"github.com/obeattie/typhon/message"
-	"github.com/obeattie/typhon/transport"
+	"github.com/mondough/typhon/errors"
+	"github.com/mondough/typhon/message"
+	"github.com/mondough/typhon/transport"
 )
 
 const (

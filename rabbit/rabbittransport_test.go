@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/obeattie/typhon/transport"
+	"github.com/mondough/typhon/transport"
 )
 
 func TestRabbitTransportSuite(t *testing.T) {

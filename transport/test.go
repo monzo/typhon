@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/obeattie/typhon/message"
+	"github.com/mondough/typhon/message"
 )
 
 const testService = "service.example"

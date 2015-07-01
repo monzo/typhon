@@ -3,8 +3,8 @@ package transport
 import (
 	"time"
 
-	"github.com/obeattie/typhon/errors"
-	"github.com/obeattie/typhon/message"
+	"github.com/mondough/typhon/errors"
+	"github.com/mondough/typhon/message"
 	"gopkg.in/tomb.v2"
 )
 

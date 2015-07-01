@@ -9,8 +9,8 @@ import (
 	log "github.com/cihub/seelog"
 	uuid "github.com/nu7hatch/gouuid"
 
-	"github.com/obeattie/typhon/message"
-	"github.com/obeattie/typhon/transport"
+	"github.com/mondough/typhon/message"
+	"github.com/mondough/typhon/transport"
 )
 
 const (
