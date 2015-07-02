@@ -1,0 +1,25 @@
+language: go
+
+go:
+  - 1.4.1
+  - 1.4.2
+
+services:
+  - rabbitmq
+
+env:
+  - RABBIT_URL=amqp://guest:guest@localhost:5672
+
+install:
+  - export PATH=${PATH}:${HOME}/gopath/bin
+  - go get -v -t ./...
+  - go get -v github.com/golang/lint/golint
+  - go get -v golang.org/x/tools/cmd/vet
+
+before_script:
+  - go vet ./...
+  - golint .
+
+script:
+  - go test -v ./...
+  - go test -v -test.race ./...

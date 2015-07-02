@@ -15,7 +15,6 @@ var (
 )
 
 func NewRabbitConnection() *RabbitConnection {
-
 	// Initialize rabbitmq connection from env vars. The defaults are expected to work
 	// in development. ci, dev-ci and mesos override these defaults
 	// @todo Refactor initialization of the connection to allow the "server" abstraction we'll introduce to inject the configuration
@@ -60,10 +59,11 @@ func (r *RabbitConnection) Init() chan bool {
 
 func (r *RabbitConnection) Connect(connected chan bool) {
 	for {
-		log.Debugf("[Rabbit] Attempting to connect")
+		log.Debug("[Rabbit] Attempting to connect…")
 		if err := r.tryToConnect(); err != nil {
-			log.Debugf("[Rabbit] Failed to connect, sleeping 1s")
-			time.Sleep(1 * time.Second)
+			sleepFor := time.Second
+			log.Debugf("[Rabbit] Failed to connect, sleeping %s…", sleepFor.String())
+			time.Sleep(sleepFor)
 			continue
 		}
 		connected <- true
@@ -74,12 +74,13 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 		// Block until we get disconnected, or shut down
 		select {
 		case err := <-notifyClose:
-			// Spin around and reconnect
 			r.connected = false
 			log.Debugf("[Rabbit] AMQP connection closed (notifyClose): %s", err.Error())
+			return
+
 		case <-r.closeChan:
 			// Shut down connection
-			log.Debugf("[Rabbit] Closing AMQP connection (closeChan closed)")
+			log.Debug("[Rabbit] Closing AMQP connection (closeChan closed)…")
 			if err := r.Connection.Close(); err != nil {
 				log.Errorf("Failed to close AMQP connection: %v", err)
 			}
@@ -96,13 +97,10 @@ func (r *RabbitConnection) IsConnected() bool {
 func (r *RabbitConnection) Close() {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-
-	if r.closed {
-		return
+	if !r.closed {
+		close(r.closeChan)
+		r.closed = true
 	}
-
-	close(r.closeChan)
-	r.closed = true
 }
 
 func (r *RabbitConnection) tryToConnect() error {
@@ -127,32 +125,32 @@ func (r *RabbitConnection) tryToConnect() error {
 	return nil
 }
 
-func (r *RabbitConnection) Consume(serverName string) (<-chan amqp.Delivery, error) {
+func (r *RabbitConnection) Consume(serverName string) (<-chan amqp.Delivery, *RabbitChannel, error) {
 	consumerChannel, err := NewRabbitChannel(r.Connection)
 	if err != nil {
 		log.Errorf("[Rabbit] Failed to create new channel: %s", err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = consumerChannel.DeclareQueue(serverName)
 	if err != nil {
 		log.Errorf("[Rabbit] Failed to declare queue %s: %s", serverName, err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
 	deliveries, err := consumerChannel.ConsumeQueue(serverName)
 	if err != nil {
 		log.Errorf("[Rabbit] Failed to declare queue %s: %s", serverName, err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = consumerChannel.BindQueue(serverName, Exchange)
 	if err != nil {
 		log.Errorf("[Rabbit] Failed to bind %s to %s exchange: %s", serverName, Exchange, err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
-	return deliveries, nil
+	return deliveries, consumerChannel, nil
 }
 
 func (r *RabbitConnection) Publish(exchange, routingKey string, msg amqp.Publishing) error {

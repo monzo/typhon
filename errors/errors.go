@@ -58,11 +58,12 @@ func Wrap(err error, context ...map[string]string) *Error {
 	if err == nil {
 		return nil
 	}
-	wrappedErr, ok := err.(*Error)
-	if !ok {
-		wrappedErr = errorFactory(ErrInternalService, err.Error(), context...)
+	switch err := err.(type) {
+	case *Error:
+		return err
+	default:
+		return errorFactory(ErrInternalService, err.Error(), context...)
 	}
-	return wrappedErr
 }
 
 // InternalService creates a new error to represent an internal service error.
@@ -109,7 +110,7 @@ func Unauthorized(message string, context ...map[string]string) *Error {
 }
 
 // errorConstructor returns a `*Error` with the specified code, message and context. The main work
-// consists of managing the map[string]string at the end of the arguments list.
+// consists of managing the map[string]string's at the end of the arguments list.
 // In practice we only ever pass in two: the first one is public and will be sent to the client,
 // the second one is private and can contain internal information that is useful for debugging
 func errorFactory(code int, message string, context ...map[string]string) *Error {
