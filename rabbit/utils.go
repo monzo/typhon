@@ -21,7 +21,7 @@ func tableToHeaders(table amqp.Table) map[string]string {
 		case string:
 			result[k] = v
 		default:
-			log.Tracef("[Bedrock:RabbitTransport] Received non-string header value for %s; discarding", k)
+			log.Tracef("[Typhon:RabbitTransport] Received non-string header value for %s; discarding", k)
 		}
 	}
 	return result

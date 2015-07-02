@@ -149,10 +149,9 @@ func (t *rabbitTransport) Listen(serviceName string, rc chan<- message.Request) 
 	if _, ok := t.listeners[cn]; ok {
 		t.listenersM.Unlock()
 		return transport.ErrAlreadyListening
-	} else {
-		t.listeners[cn] = tm
-		t.listenersM.Unlock()
 	}
+	t.listeners[cn] = tm
+	t.listenersM.Unlock()
 
 	// Used to convey a connection error to the caller (we block until listening has begun)
 	errChan := make(chan error)

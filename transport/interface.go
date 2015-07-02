@@ -21,7 +21,8 @@ type Transport interface {
 	// A Tomb tracking the lifecycle of the Transport.
 	Tomb() *tomb.Tomb
 	// Ready vends a channel to wait on until the Transport is ready for use. Note that this will block indefinitely if
-	// the Transport never reaches readiness
+	// the Transport never reaches readiness. When ready, the channel is closed (so it's safe to listen in many
+	// goroutines)
 	Ready() <-chan struct{}
 	// Listen for requests destined for a specific service, forwarding them down the passed channel. If another listener
 	// is already listening, returns ErrAlreadyListening.
