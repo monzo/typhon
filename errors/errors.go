@@ -45,9 +45,9 @@ func (p *Error) StackString() string {
 	return stackStr
 }
 
-// FullString returns the error message, stack trace and contexts
-func (p *Error) FullString() string {
-	return fmt.Sprintf("%s\n%s\nPublic context: %+v\nPrivate context: %+v", p.Error(), p.StackString(), p.PublicContext, p.PrivateContext)
+// VerboseString returns the error message, stack trace and contexts
+func (p *Error) VerboseString() string {
+	return fmt.Sprintf("%s\nPublic context: %+v\nPrivate context: %+v\n%s", p.Error(), p.PublicContext, p.PrivateContext, p.StackString())
 }
 
 // New creates a new error for you. Use this if you want to pass along a custom error code.
