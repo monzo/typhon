@@ -45,6 +45,11 @@ func (p *Error) StackString() string {
 	return stackStr
 }
 
+// VerboseString returns the error message, stack trace and contexts
+func (p *Error) VerboseString() string {
+	return fmt.Sprintf("%s\nPublic context: %+v\nPrivate context: %+v\n%s", p.Error(), p.PublicContext, p.PrivateContext, p.StackString())
+}
+
 // New creates a new error for you. Use this if you want to pass along a custom error code.
 // Otherwise use the handy shorthand factories below
 func New(code int, message string, context ...map[string]string) *Error {
