@@ -1,7 +1,6 @@
 package message
 
 import (
-	"encoding/json"
 	"errors"
 	"reflect"
 
@@ -25,7 +24,7 @@ func (p *protoMarshaler) MarshalBody(msg Message) error {
 		return err
 
 	default:
-		return errors.New("Protobuf request marshaler can only marshal proto.Message objects")
+		return errors.New("Protobuf marshaler can only marshal proto.Message objects")
 	}
 }
 
@@ -43,7 +42,6 @@ type protoUnmarshaler struct {
 
 func (pu *protoUnmarshaler) UnmarshalPayload(msg Message) error {
 	result := proto.Message(nil)
-	err := error(nil)
 
 	_body := msg.Body()
 	if bodyT := reflect.TypeOf(_body); bodyT != nil && bodyT.AssignableTo(pu.T) {
@@ -54,19 +52,14 @@ func (pu *protoUnmarshaler) UnmarshalPayload(msg Message) error {
 		result = reflect.New(pu.T.Elem()).Interface().(proto.Message)
 	}
 
-	if msg.Headers()["Content-Type"] == ProtoContentType {
-		err = proto.Unmarshal(msg.Payload(), result)
-	} else {
-		err = json.Unmarshal(msg.Payload(), result)
-	}
-
+	err := proto.Unmarshal(msg.Payload(), result)
 	if err == nil {
 		msg.SetBody(result)
 	}
 	return err
 }
 
-// ProtoUnmarshaler returns an Unmarshaler that unmarshals wire-format protobuf (or JSON protobuf) into a decoded Body.
+// ProtoUnmarshaler returns an Unmarshaler that unmarshals wire-format protobuf into a decoded Body.
 // A "template" object must be provided (an object of the appropriate type).
 func ProtoUnmarshaler(protocol proto.Message) Unmarshaler {
 	return &protoUnmarshaler{
