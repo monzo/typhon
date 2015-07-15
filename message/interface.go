@@ -5,7 +5,7 @@ type Marshaler interface {
 	MarshalBody(msg Message) error
 }
 
-// An Unmarshaler knows how to take a Message's raw Payload and unmarshal it into the Body. If the request's Body is
+// An Unmarshaler knows how to take a Message's raw Payload and unmarshal it into the Body. If the message's Body is
 // non-nil, it should unmarshal into the existing object pointed to.
 type Unmarshaler interface {
 	UnmarshalPayload(msg Message) error
