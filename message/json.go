@@ -38,15 +38,21 @@ func (ju *jsonUnmarshaler) UnmarshalPayload(msg Message) error {
 	var result interface{}
 
 	_body := msg.Body()
+	var err error
 	if bodyT := reflect.TypeOf(_body); bodyT != nil && bodyT.AssignableTo(ju.T) {
 		// The message already has an appropriate body; unmarshal into it
-		result = _body
+		err = json.Unmarshal(msg.Payload(), result)
 	} else {
 		// No body (or an inappropriate type); overwrite with a new object
-		result = reflect.New(ju.T.Elem()).Interface()
+		if t := ju.T; t.Kind() == reflect.Ptr {
+			result = reflect.New(t.Elem()).Interface()
+			err = json.Unmarshal(msg.Payload(), result)
+		} else {
+			result = reflect.Indirect(reflect.New(t)).Interface()
+			err = json.Unmarshal(msg.Payload(), &result)
+		}
 	}
 
-	err := json.Unmarshal(msg.Payload(), result)
 	if err == nil {
 		msg.SetBody(result)
 	}
