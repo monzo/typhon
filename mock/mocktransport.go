@@ -117,10 +117,6 @@ func (t *mockTransport) Listen(serviceName string, rc chan<- message.Request) er
 }
 
 func (t *mockTransport) Send(req message.Request, timeout time.Duration) (message.Response, error) {
-	// Make a copy of the response that does not preserve the Body (this is not preserved over the wire)
-	req = req.Copy()
-	req.SetBody(nil)
-
 	id := req.Id()
 	if id == "" {
 		_uuid, err := uuid.NewV4()
@@ -130,6 +126,10 @@ func (t *mockTransport) Send(req message.Request, timeout time.Duration) (messag
 		}
 		req.SetId(_uuid.String())
 	}
+
+	// Make a copy of the response that does not preserve the Body (this is not preserved over the wire)
+	req = req.Copy()
+	req.SetBody(nil)
 
 	t.RLock()
 	l, ok := t.listeners[req.Service()]
