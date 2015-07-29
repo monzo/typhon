@@ -48,8 +48,9 @@ func (ju *jsonUnmarshaler) UnmarshalPayload(msg Message) error {
 			result = reflect.New(t.Elem()).Interface()
 			err = json.Unmarshal(msg.Payload(), result)
 		} else {
-			result = reflect.Indirect(reflect.New(t)).Interface()
-			err = json.Unmarshal(msg.Payload(), &result)
+			result = reflect.New(t).Interface()
+			err = json.Unmarshal(msg.Payload(), result)
+			result = reflect.Indirect(reflect.ValueOf(result)).Interface()
 		}
 	}
 
