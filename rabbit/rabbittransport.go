@@ -360,7 +360,7 @@ func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.
 	}
 	switch originEndpoint := delivery.Headers["Origin-Endpoint"].(type) {
 	case string:
-		msg.SetEndpoint(originEndpoint)
+		msg.SetOriginEndpoint(originEndpoint)
 	}
 }
 
