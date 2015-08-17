@@ -218,6 +218,8 @@ func (t *rabbitTransport) Respond(req message.Request, rsp message.Response) err
 	headers["Content-Encoding"] = "response"
 	headers["Service"] = rsp.Service()
 	headers["Endpoint"] = rsp.Endpoint()
+	headers["Origin-Service"] = rsp.OriginService()
+	headers["Origin-Endpoint"] = rsp.OriginEndpoint()
 
 	timeout := time.NewTimer(respondTimeout)
 	defer timeout.Stop()
@@ -267,6 +269,8 @@ func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (mes
 	headers["Content-Encoding"] = "request"
 	headers["Service"] = req.Service()
 	headers["Endpoint"] = req.Endpoint()
+	headers["Origin-Service"] = req.OriginService()
+	headers["Origin-Endpoint"] = req.OriginEndpoint()
 
 	select {
 	case <-t.Ready():
@@ -350,6 +354,14 @@ func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.
 	case string:
 		msg.SetEndpoint(endpoint)
 	}
+	switch originService := delivery.Headers["Origin-Service"].(type) {
+	case string:
+		msg.SetOriginService(originService)
+	}
+	switch originEndpoint := delivery.Headers["Origin-Endpoint"].(type) {
+	case string:
+		msg.SetOriginEndpoint(originEndpoint)
+	}
 }
 
 func (t *rabbitTransport) handleReqDelivery(delivery amqp.Delivery, reqChan chan<- message.Request) {
@@ -397,7 +409,7 @@ func (t *rabbitTransport) handleRspDelivery(delivery amqp.Delivery) {
 		select {
 		case rspChan <- rsp:
 		case <-timeout.C:
-			log.Errorf("[Typhon:RabbitTransport] Could not deliver responde %s after %s: receiving channel is full",
+			log.Errorf("[Typhon:RabbitTransport] Could not deliver response %s after %s: receiving channel is full",
 				logId, chanSendTimeout.String())
 		}
 
