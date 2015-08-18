@@ -6,14 +6,12 @@ import (
 
 type message struct {
 	sync.RWMutex
-	id             string
-	payload        []byte
-	body           interface{}
-	service        string
-	endpoint       string
-	originService  string
-	originEndpoint string
-	headers        map[string]string
+	id       string
+	payload  []byte
+	body     interface{}
+	service  string
+	endpoint string
+	headers  map[string]string
 }
 
 // Message implementation
@@ -48,18 +46,6 @@ func (m *message) Endpoint() string {
 	return m.endpoint
 }
 
-func (m *message) OriginService() string {
-	m.RLock()
-	defer m.RUnlock()
-	return m.originService
-}
-
-func (m *message) OriginEndpoint() string {
-	m.RLock()
-	defer m.RUnlock()
-	return m.originEndpoint
-}
-
 func (m *message) headersCopy() map[string]string {
 	// Callers must ensure they hold a read lock before invoking this method
 	result := make(map[string]string, len(m.headers))
@@ -78,14 +64,12 @@ func (m *message) Headers() map[string]string {
 func (m *message) copy() *message {
 	// Callers must ensure they hold a read lock before invoking this method
 	return &message{
-		id:             m.id,
-		payload:        m.payload,
-		body:           m.body,
-		service:        m.service,
-		endpoint:       m.endpoint,
-		originService:  m.originService,
-		originEndpoint: m.originEndpoint,
-		headers:        m.headersCopy(),
+		id:       m.id,
+		payload:  m.payload,
+		body:     m.body,
+		service:  m.service,
+		endpoint: m.endpoint,
+		headers:  m.headersCopy(),
 	}
 }
 
@@ -117,18 +101,6 @@ func (m *message) SetEndpoint(e string) {
 	m.Lock()
 	defer m.Unlock()
 	m.endpoint = e
-}
-
-func (m *message) SetOriginService(s string) {
-	m.Lock()
-	defer m.Unlock()
-	m.originService = s
-}
-
-func (m *message) SetOriginEndpoint(e string) {
-	m.Lock()
-	defer m.Unlock()
-	m.originEndpoint = e
 }
 
 func (m *message) SetHeader(k, v string) {

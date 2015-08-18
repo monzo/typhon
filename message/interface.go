@@ -24,10 +24,6 @@ type Message interface {
 	Service() string
 	// The destination endpoint.
 	Endpoint() string
-	// The originating service.
-	OriginService() string
-	// The originating endpoint.
-	OriginEndpoint() string
 	// Headers returns a map of header keys and their values. Mutating the map will have no effect on the Request.
 	Headers() map[string]string
 
@@ -41,10 +37,6 @@ type Message interface {
 	SetService(service string)
 	// SetEndpoint sets the destination endpoint.
 	SetEndpoint(endpoint string)
-	// SetOriginService sets the originating service.
-	SetOriginService(service string)
-	// SetOriginEndpoint sets the originating endpoint.
-	SetOriginEndpoint(endpoint string)
 	// SetHeader sets the value of a given header key.
 	SetHeader(key, value string)
 	// UnsetHeader removes a given header. Removing a nonexistent header is a no-op.
