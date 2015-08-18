@@ -218,8 +218,6 @@ func (t *rabbitTransport) Respond(req message.Request, rsp message.Response) err
 	headers["Content-Encoding"] = "response"
 	headers["Service"] = rsp.Service()
 	headers["Endpoint"] = rsp.Endpoint()
-	headers["Origin-Service"] = rsp.OriginService()
-	headers["Origin-Endpoint"] = rsp.OriginEndpoint()
 
 	timeout := time.NewTimer(respondTimeout)
 	defer timeout.Stop()
@@ -269,8 +267,6 @@ func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (mes
 	headers["Content-Encoding"] = "request"
 	headers["Service"] = req.Service()
 	headers["Endpoint"] = req.Endpoint()
-	headers["Origin-Service"] = req.OriginService()
-	headers["Origin-Endpoint"] = req.OriginEndpoint()
 
 	select {
 	case <-t.Ready():
@@ -353,14 +349,6 @@ func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.
 	switch endpoint := delivery.Headers["Endpoint"].(type) {
 	case string:
 		msg.SetEndpoint(endpoint)
-	}
-	switch originService := delivery.Headers["Origin-Service"].(type) {
-	case string:
-		msg.SetOriginService(originService)
-	}
-	switch originEndpoint := delivery.Headers["Origin-Endpoint"].(type) {
-	case string:
-		msg.SetOriginEndpoint(originEndpoint)
 	}
 }
 

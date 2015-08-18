@@ -11,8 +11,6 @@ func TestRequestCopying(t *testing.T) {
 	r.SetId("id_123")
 	r.SetService("service.foo")
 	r.SetEndpoint("bar")
-	r.SetOriginService("api.foo")
-	r.SetOriginEndpoint("boop")
 	r.SetHeader("X-Foo", "Bar")
 	r.SetPayload([]byte("Mr. and Mrs. Payload lived happily ever after"))
 
@@ -20,8 +18,6 @@ func TestRequestCopying(t *testing.T) {
 	assert.Equal(t, "id_123", r2.Id())
 	assert.Equal(t, "service.foo", r2.Service())
 	assert.Equal(t, "bar", r2.Endpoint())
-	assert.Equal(t, "api.foo", r2.OriginService())
-	assert.Equal(t, "boop", r2.OriginEndpoint())
 	assert.Equal(t, "Bar", r2.Headers()["X-Foo"])
 	assert.Equal(t, "Mr. and Mrs. Payload lived happily ever after", string(r2.Payload()))
 
