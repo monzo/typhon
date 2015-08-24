@@ -7,11 +7,11 @@ import (
 )
 
 type Error struct {
-	Code           int
-	Message        string
-	PublicContext  map[string]string
-	PrivateContext map[string]string
-	Stack          stack.Stack
+	Code           int               `json:"code"`
+	Message        string            `json:"message"`
+	PublicContext  map[string]string `json:"public_context"`
+	PrivateContext map[string]string `json:"private_context"`
+	Stack          stack.Stack       `json:"stack"`
 }
 
 // Generic error codes. Each of these has their own constructor for convenience.
