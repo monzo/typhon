@@ -7,9 +7,11 @@ message StackFrame {
 }
 
 message Error {
-	int32 code = 1;
+	//int32 deprecated_code = 1;
 	string message = 2;
-	map<string, string> public_context = 3;
-	map<string, string> private_context = 4;
+	//map<string, string> public_context = 3;
+	//map<string, string> private_context = 4;
 	repeated StackFrame stack = 5;
+	map<string, string> params = 6; // making this 6 should mean non breaking
+	string code = 7;
 }

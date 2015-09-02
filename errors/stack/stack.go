@@ -18,13 +18,40 @@ var (
 	}
 )
 
-type Frame struct {
-	Filename string `json:"filename"`
-	Method   string `json:"method"`
-	Line     int    `json:"lineno"`
+type Frame interface {
+	Filename() string
+	Method() string
+	Line() int
+}
+
+type frame struct {
+	filename string
+	method   string
+	line     int
+}
+
+func (f frame) Filename() string {
+	return f.filename
+}
+
+func (f frame) Method() string {
+	return f.method
+}
+
+func (f frame) Line() int {
+	return f.line
 }
 
 type Stack []Frame
+
+// NewFrame returns a new Frame impl
+func NewFrame(filename, method string, line int) Frame {
+	return &frame{
+		filename: filename,
+		method:   method,
+		line:     line,
+	}
+}
 
 func BuildStack(skip int) Stack {
 	stack := make(Stack, 0)
@@ -35,7 +62,11 @@ func BuildStack(skip int) Stack {
 			break
 		}
 		file = shortenFilePath(file)
-		stack = append(stack, Frame{file, functionName(pc), line})
+		stack = append(stack, frame{
+			filename: file,
+			method:   functionName(pc),
+			line:     line,
+		})
 	}
 
 	return stack
@@ -48,7 +79,7 @@ func BuildStack(skip int) Stack {
 func (s Stack) Fingerprint() string {
 	hash := crc32.NewIEEE()
 	for _, frame := range s {
-		fmt.Fprintf(hash, "%s%s%d", frame.Filename, frame.Method, frame.Line)
+		fmt.Fprintf(hash, "%s%s%d", frame.Filename(), frame.Method(), frame.Line())
 	}
 	return fmt.Sprintf("%x", hash.Sum32())
 }

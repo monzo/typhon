@@ -10,9 +10,9 @@ import (
 
 var (
 	// ErrAlreadyListening indicates a listener channel is already active for a given service
-	ErrAlreadyListening = errors.InternalService("Listener already registered for service")
+	ErrAlreadyListening = errors.InternalService("", "Listener already registered for service", nil)
 	// ErrTimeout indicates a timeout was exceeded
-	ErrTimeout = errors.Timeout("Timed out")
+	ErrTimeout = errors.Timeout("", "Timed out", nil)
 )
 
 // A Transport provides a persistent interface to a transport layer. It is capable of sending and receiving Messages

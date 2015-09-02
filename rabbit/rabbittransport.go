@@ -23,9 +23,9 @@ const (
 )
 
 var (
-	ErrCouldntConnect   = errors.InternalService("Could not connect to RabbitMQ")
-	ErrDeliveriesClosed = errors.InternalService("Delivery channel closed")
-	ErrNoReplyTo        = errors.BadRequest("Request does not have appropriate X-Rabbit-ReplyTo header")
+	ErrCouldntConnect   = errors.InternalService("", "Could not connect to RabbitMQ", nil)
+	ErrDeliveriesClosed = errors.InternalService("", "Delivery channel closed", nil)
+	ErrNoReplyTo        = errors.BadRequest("", "Request does not have appropriate X-Rabbit-ReplyTo header", nil)
 )
 
 type rabbitTransport struct {
