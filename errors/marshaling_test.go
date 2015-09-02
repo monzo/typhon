@@ -9,7 +9,7 @@ import (
 )
 
 func TestMarshalNilError(t *testing.T) {
-	var input Error // nil
+	var input *Error // nil
 	protoError := Marshal(input)
 
 	assert.NotNil(t, protoError)
@@ -22,34 +22,34 @@ func TestUnmarshalNilError(t *testing.T) {
 	platError := Unmarshal(input)
 
 	assert.NotNil(t, platError)
-	assert.Equal(t, ErrUnknown, platError.Code())
-	assert.Equal(t, "Nil error unmarshalled!", platError.Message())
+	assert.Equal(t, ErrUnknown, platError.Code)
+	assert.Equal(t, "Nil error unmarshalled!", platError.Message)
 }
 
 // marshalTestCases represents a set of error formats
 // which should be marshaled
 var marshalTestCases = []struct {
-	platErr  Error
+	platErr  *Error
 	protoErr *pe.Error
 }{
 	// confirm blank errors (shouldn't be possible) are UNKNOWN
 	{
-		&errorImpl{},
+		&Error{},
 		&pe.Error{
 			Code: ErrUnknown,
 		},
 	},
 	// normal cases
 	{
-		&errorImpl{
-			code:    ErrTimeout,
-			message: "omg help plz",
-			params: map[string]string{
+		&Error{
+			Code:    ErrTimeout,
+			Message: "omg help plz",
+			Params: map[string]string{
 				"something": "hullo",
 			},
-			stackFrames: []stack.Frame{
-				stack.NewFrame("some file", "someMethod", 123),
-				stack.NewFrame("another file", "someOtherMethod", 1),
+			StackFrames: []*stack.Frame{
+				&stack.Frame{Filename: "some file", Method: "someMethod", Line: 123},
+				&stack.Frame{Filename: "another file", Method: "someOtherMethod", Line: 1},
 			},
 		},
 		&pe.Error{
@@ -73,9 +73,9 @@ var marshalTestCases = []struct {
 		},
 	},
 	{
-		&errorImpl{
-			code:    ErrForbidden,
-			message: "NO. FORBIDDEN",
+		&Error{
+			Code:    ErrForbidden,
+			Message: "NO. FORBIDDEN",
 		},
 		&pe.Error{
 			Code:    ErrForbidden,
@@ -96,33 +96,29 @@ func TestMarshal(t *testing.T) {
 // these are separate from above because the marshaling and unmarshaling isn't symmetric.
 // protobuf turns empty maps[string]string into nil :(
 var unmarshalTestCases = []struct {
-	platErr  Error
+	platErr  *Error
 	protoErr *pe.Error
 }{
 	{
-		&errorImpl{
-			params: map[string]string{},
-		},
+		New("", "", nil),
 		&pe.Error{},
 	},
 	{
-		&errorImpl{
-			params: map[string]string{},
-		},
+		New("", "", nil),
 		&pe.Error{
 			Code: ErrUnknown,
 		},
 	},
 	{
-		&errorImpl{
-			code:    ErrTimeout,
-			message: "omg help plz",
-			params: map[string]string{
+		&Error{
+			Code:    ErrTimeout,
+			Message: "omg help plz",
+			Params: map[string]string{
 				"something": "hullo",
 			},
-			stackFrames: []stack.Frame{
-				stack.NewFrame("some file", "someMethod", 123),
-				stack.NewFrame("another file", "someOtherMethod", 1),
+			StackFrames: []*stack.Frame{
+				&stack.Frame{Filename: "some file", Method: "someMethod", Line: 123},
+				&stack.Frame{Filename: "another file", Method: "someOtherMethod", Line: 1},
 			},
 		},
 		&pe.Error{
@@ -146,10 +142,10 @@ var unmarshalTestCases = []struct {
 		},
 	},
 	{
-		&errorImpl{
-			code:    ErrForbidden,
-			message: "NO. FORBIDDEN",
-			params:  map[string]string{},
+		&Error{
+			Code:    ErrForbidden,
+			Message: "NO. FORBIDDEN",
+			Params:  map[string]string{},
 		},
 		&pe.Error{
 			Code:    ErrForbidden,
@@ -161,8 +157,8 @@ var unmarshalTestCases = []struct {
 func TestUnmarshal(t *testing.T) {
 	for _, tc := range unmarshalTestCases {
 		platErr := Unmarshal(tc.protoErr)
-		assert.Equal(t, tc.platErr.Code(), platErr.Code())
-		assert.Equal(t, tc.platErr.Message(), platErr.Message())
-		assert.Equal(t, tc.platErr.Params(), platErr.Params())
+		assert.Equal(t, tc.platErr.Code, platErr.Code)
+		assert.Equal(t, tc.platErr.Message, platErr.Message)
+		assert.Equal(t, tc.platErr.Params, platErr.Params)
 	}
 }

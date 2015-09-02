@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type newError func(code, message string, params map[string]string) Error
+type newError func(code, message string, params map[string]string) *Error
 
 func TestErrorConstructors(t *testing.T) {
 
@@ -46,10 +46,10 @@ func TestErrorConstructors(t *testing.T) {
 
 	for _, tc := range testCases {
 		err := tc.constructor(tc.code, tc.message, tc.params)
-		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Code())
+		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Code)
 		assert.Equal(t, tc.message, err.Error())
 		if len(tc.params) > 0 {
-			assert.Equal(t, tc.params, err.Params())
+			assert.Equal(t, tc.params, err.Params)
 		}
 
 	}
@@ -60,18 +60,18 @@ func TestNew(t *testing.T) {
 		"public": "value",
 	})
 
-	assert.Equal(t, "service.foo", err.Code())
-	assert.Equal(t, "Some message", err.Message())
+	assert.Equal(t, "service.foo", err.Code)
+	assert.Equal(t, "Some message", err.Message)
 	assert.Equal(t, map[string]string{
 		"public": "value",
-	}, err.Params())
+	}, err.Params)
 }
 
 func TestWrapWithWrappedErr(t *testing.T) {
-	err := &errorImpl{
-		code:    ErrForbidden,
-		message: "Some message",
-		params: map[string]string{
+	err := &Error{
+		Code:    ErrForbidden,
+		Message: "Some message",
+		Params: map[string]string{
 			"something old": "caesar",
 		},
 	}
@@ -81,8 +81,8 @@ func TestWrapWithWrappedErr(t *testing.T) {
 	})
 
 	assert.Equal(t, wrappedErr, err)
-	assert.Equal(t, ErrForbidden, wrappedErr.Code())
-	assert.Equal(t, wrappedErr.Params(), map[string]string{
+	assert.Equal(t, ErrForbidden, wrappedErr.Code)
+	assert.Equal(t, wrappedErr.Params, map[string]string{
 		"something old": "caesar",
 	})
 
@@ -95,9 +95,9 @@ func TestWrap(t *testing.T) {
 	})
 
 	assert.Equal(t, "Look here, an error", wrappedErr.Error())
-	assert.Equal(t, "Look here, an error", wrappedErr.Message())
-	assert.Equal(t, ErrInternalService, wrappedErr.Code())
-	assert.Equal(t, wrappedErr.Params(), map[string]string{
+	assert.Equal(t, "Look here, an error", wrappedErr.Message)
+	assert.Equal(t, ErrInternalService, wrappedErr.Code)
+	assert.Equal(t, wrappedErr.Params, map[string]string{
 		"blub": "dub",
 	})
 

@@ -7,14 +7,14 @@ import (
 
 func TestBuildStack(t *testing.T) {
 	frame := BuildStack(1)[0]
-	if frame.Filename() != "github.com/mondough/typhon/errors/stack/stack_test.go" {
-		t.Errorf("got: %s", frame.Filename())
+	if frame.Filename != "github.com/mondough/typhon/errors/stack/stack_test.go" {
+		t.Errorf("got: %s", frame.Filename)
 	}
-	if frame.Method() != "stack.TestBuildStack" {
-		t.Errorf("got: %s", frame.Method())
+	if frame.Method != "stack.TestBuildStack" {
+		t.Errorf("got: %s", frame.Method)
 	}
-	if frame.Line() != 9 {
-		t.Errorf("got: %d", frame.Line())
+	if frame.Line != 9 {
+		t.Errorf("got: %d", frame.Line)
 	}
 }
 
@@ -26,20 +26,20 @@ func TestStackFingerprint(t *testing.T) {
 		{
 			"9344290d",
 			Stack{
-				frame{"foo.go", "Oops", 1},
+				&Frame{"foo.go", "Oops", 1},
 			},
 		},
 		{
 			"a4d78b7",
 			Stack{
-				frame{"foo.go", "Oops", 2},
+				&Frame{"foo.go", "Oops", 2},
 			},
 		},
 		{
 			"50e0fcb3",
 			Stack{
-				frame{"foo.go", "Oops", 1},
-				frame{"foo.go", "Oops", 2},
+				&Frame{"foo.go", "Oops", 1},
+				&Frame{"foo.go", "Oops", 2},
 			},
 		},
 	}

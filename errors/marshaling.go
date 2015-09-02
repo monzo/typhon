@@ -6,7 +6,7 @@ import (
 )
 
 // Marshal an error into a protobuf for transmission
-func Marshal(e Error) *pe.Error {
+func Marshal(e *Error) *pe.Error {
 	// Account for nil errors
 	if e == nil {
 		return &pe.Error{
@@ -14,34 +14,41 @@ func Marshal(e Error) *pe.Error {
 			Message: "Unknown error, nil error marshalled",
 		}
 	}
-	return &pe.Error{
-		Code:    e.Code(),
-		Message: e.Message(),
-		Stack:   stackToProto(e.StackFrames()),
-		Params:  e.Params(),
+	err := &pe.Error{
+		Code:    e.Code,
+		Message: e.Message,
+		Stack:   stackToProto(e.StackFrames),
+		Params:  e.Params,
 	}
+	if err.Code == "" {
+		err.Code = ErrUnknown
+	}
+	return err
 }
 
 // Unmarshal a protobuf error into a local error
-func Unmarshal(p *pe.Error) Error {
+func Unmarshal(p *pe.Error) *Error {
 	if p == nil {
-		return &errorImpl{
-			code:    ErrUnknown,
-			message: "Nil error unmarshalled!",
-			params:  map[string]string{},
+		return &Error{
+			Code:    ErrUnknown,
+			Message: "Nil error unmarshalled!",
+			Params:  map[string]string{},
 		}
 	}
+	err := &Error{
+		Code:        p.Code,
+		Message:     p.Message,
+		StackFrames: protoToStack(p.Stack),
+		Params:      p.Params,
+	}
+	if err.Code == "" {
+		err.Code = ErrUnknown
+	}
 	// empty map[string]string come out as nil. thanks proto.
-	params := p.GetParams()
-	if params == nil {
-		params = map[string]string{}
+	if err.Params == nil {
+		err.Params = map[string]string{}
 	}
-	return &errorImpl{
-		code:        p.Code,
-		message:     p.Message,
-		stackFrames: protoToStack(p.Stack),
-		params:      params,
-	}
+	return err
 }
 
 // protoToStack converts a slice of *pe.StackFrame and returns a stack.Stack
@@ -52,7 +59,11 @@ func protoToStack(protoStack []*pe.StackFrame) stack.Stack {
 
 	s := make(stack.Stack, 0, len(protoStack))
 	for _, frame := range protoStack {
-		s = append(s, stack.NewFrame(frame.Filename, frame.Method, int(frame.Line)))
+		s = append(s, &stack.Frame{
+			Filename: frame.Filename,
+			Method:   frame.Method,
+			Line:     int(frame.Line),
+		})
 	}
 	return s
 }
@@ -66,9 +77,9 @@ func stackToProto(s stack.Stack) []*pe.StackFrame {
 	protoStack := make([]*pe.StackFrame, 0, len(s))
 	for _, frame := range s {
 		protoStack = append(protoStack, &pe.StackFrame{
-			Filename: frame.Filename(),
-			Line:     int32(frame.Line()),
-			Method:   frame.Method(),
+			Filename: frame.Filename,
+			Line:     int32(frame.Line),
+			Method:   frame.Method,
 		})
 	}
 	return protoStack
