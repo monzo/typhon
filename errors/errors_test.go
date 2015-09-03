@@ -78,7 +78,7 @@ func TestWrapWithWrappedErr(t *testing.T) {
 
 	wrappedErr := Wrap(err, map[string]string{
 		"something new": "a computer",
-	})
+	}).(*Error)
 
 	assert.Equal(t, wrappedErr, err)
 	assert.Equal(t, ErrForbidden, wrappedErr.Code)
@@ -92,7 +92,7 @@ func TestWrap(t *testing.T) {
 	err := fmt.Errorf("Look here, an error")
 	wrappedErr := Wrap(err, map[string]string{
 		"blub": "dub",
-	})
+	}).(*Error)
 
 	assert.Equal(t, "Look here, an error", wrappedErr.Error())
 	assert.Equal(t, "Look here, an error", wrappedErr.Message)
@@ -101,4 +101,14 @@ func TestWrap(t *testing.T) {
 		"blub": "dub",
 	})
 
+}
+
+func getNilErr() error {
+	return Wrap(nil, nil)
+}
+
+func TestNilError(t *testing.T) {
+	assert.Equal(t, getNilErr(), nil)
+	assert.Nil(t, getNilErr())
+	assert.Nil(t, Wrap(nil, nil))
 }

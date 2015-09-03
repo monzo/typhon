@@ -59,11 +59,11 @@ func New(code string, message string, params map[string]string) *Error {
 // Wrap takes any error interface and wraps it into an Error.
 // This is useful because an Error contains lots of useful goodies, like the stacktrace of the error.
 // NOTE: If `err` is already an `Error` the passed contexts will be ignored
-func Wrap(err error, params map[string]string) *Error {
+func Wrap(err error, params map[string]string) error {
 	return WrapWithCode(err, params, ErrInternalService)
 }
 
-func WrapWithCode(err error, params map[string]string, code string) *Error {
+func WrapWithCode(err error, params map[string]string, code string) error {
 	if err == nil {
 		return nil
 	}
