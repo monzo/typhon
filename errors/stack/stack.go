@@ -19,9 +19,9 @@ var (
 )
 
 type Frame struct {
-	Filename string
-	Method   string
-	Line     int
+	Filename string `json:"filename"`
+	Method   string `json:"method"`
+	Line     int    `json:"lineno"`
 }
 
 type Stack []*Frame
