@@ -2,6 +2,7 @@ package errors
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mondough/typhon/errors/stack"
 )
@@ -78,43 +79,43 @@ func WrapWithCode(err error, params map[string]string, code string) *Error {
 // Only use internal service error if we know very little about the error. Most
 // internal service errors will come from `Wrap`ing a vanilla `error` interface
 func InternalService(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrInternalService, code), message, params)
+	return errorFactory(errCode(ErrInternalService, code), message, params)
 }
 
 // BadRequest creates a new error to represent an error caused by the client sending
 // an invalid request. This is non-retryable unless the request is modified.
 func BadRequest(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrBadRequest, code), message, params)
+	return errorFactory(errCode(ErrBadRequest, code), message, params)
 }
 
 // BadResponse creates a new error representing a failure to response with a valid response
 // Examples of this would be a handler returning an invalid message format
 func BadResponse(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrBadResponse, code), message, params)
+	return errorFactory(errCode(ErrBadResponse, code), message, params)
 }
 
 // Timeout creates a new error representing a timeout from client to server
 func Timeout(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrTimeout, code), message, params)
+	return errorFactory(errCode(ErrTimeout, code), message, params)
 }
 
 // NotFound creates a new error representing a resource that cannot be found. In some
 // cases this is not an error, and would be better represented by a zero length slice of elements
 func NotFound(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrNotFound, code), message, params)
+	return errorFactory(errCode(ErrNotFound, code), message, params)
 }
 
 // Forbidden creates a new error representing a resource that cannot be accessed with
 // the current authorisation credentials. The user may need authorising, or if authorised,
 // may not be permitted to perform this action
 func Forbidden(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrForbidden, code), message, params)
+	return errorFactory(errCode(ErrForbidden, code), message, params)
 }
 
 // Unauthorized creates a new error indicating that authentication is required,
 // but has either failed or not been provided.
 func Unauthorized(code, message string, params map[string]string) *Error {
-	return errorFactory(fmt.Sprintf("%s.%s", ErrUnauthorized, code), message, params)
+	return errorFactory(errCode(ErrUnauthorized, code), message, params)
 }
 
 // errorConstructor returns a `*Error` with the specified code, message and params.
@@ -141,4 +142,14 @@ func errorFactory(code string, message string, params map[string]string) *Error 
 	err.StackFrames = stack.BuildStack(3)
 
 	return err
+}
+
+func errCode(prefix, code string) string {
+	if code == "" {
+		return prefix
+	}
+	if prefix == "" {
+		return code
+	}
+	return strings.Join([]string{prefix, code}, ".")
 }
