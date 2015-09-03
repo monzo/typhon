@@ -17,14 +17,14 @@ type Error struct {
 // Generic error codes. Each of these has their own constructor for convenience.
 // You can use any string as a code, just use the `New` method.
 const (
-	ErrUnknown         = "err_unknown"
-	ErrInternalService = "err_internal_service"
-	ErrBadRequest      = "err_bad_request"
-	ErrBadResponse     = "err_bad_response"
-	ErrForbidden       = "err_forbidden"
-	ErrUnauthorized    = "err_unauthorized"
-	ErrNotFound        = "err_not_found"
-	ErrTimeout         = "err_timeout"
+	ErrUnknown         = "unknown"
+	ErrInternalService = "internal_service"
+	ErrBadRequest      = "bad_request"
+	ErrBadResponse     = "bad_response"
+	ErrForbidden       = "forbidden"
+	ErrUnauthorized    = "unauthorized"
+	ErrNotFound        = "not_found"
+	ErrTimeout         = "timeout"
 )
 
 // Error returns a string message of the error
