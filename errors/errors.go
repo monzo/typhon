@@ -27,13 +27,14 @@ const (
 	ErrTimeout         = "timeout"
 )
 
-// Error returns a string message of the error
+// Error returns a string message of the error. It is a concatenation of Code and Message params
 // This means the Error implements the error interface
 func (p *Error) Error() string {
 	if p == nil {
 		return ""
 	}
-	return p.Code
+
+	return fmt.Sprintf("%s: %s", p.Code, p.Message)
 }
 
 // StackString formats the stack as a beautiful string with newlines
@@ -45,7 +46,7 @@ func (p *Error) StackString() string {
 	return stackStr
 }
 
-// VerboseString returns the error message, stack trace and contexts
+// VerboseString returns the error message, stack trace and params
 func (p *Error) VerboseString() string {
 	return fmt.Sprintf("%s. %s\nParams: %+v\n%s", p.Error(), p.Message, p.Params, p.StackString())
 }
@@ -62,7 +63,7 @@ func New(code string, message string, params map[string]string) *Error {
 
 // Wrap takes any error interface and wraps it into an Error.
 // This is useful because an Error contains lots of useful goodies, like the stacktrace of the error.
-// NOTE: If `err` is already an `Error` the passed contexts will be ignored
+// NOTE: If `err` is already an `Error` the passed params will be ignored
 func Wrap(err error, params map[string]string) error {
 	return WrapWithCode(err, params, ErrInternalService)
 }
@@ -156,4 +157,11 @@ func errCode(prefix, code string) string {
 		return code
 	}
 	return strings.Join([]string{prefix, code}, ".")
+}
+
+// Matches returns whether the string returned from error.Error() contains the given param string. This means you can
+// match the error on different levels e.g. dotted codes `bad_request` or `bad_request.missing_param` or even on the
+// more descriptive message
+func (p *Error) Matches(match string) bool {
+	return strings.Contains(p.Error(), match)
 }

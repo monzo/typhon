@@ -47,7 +47,7 @@ func TestErrorConstructors(t *testing.T) {
 	for _, tc := range testCases {
 		err := tc.constructor(tc.code, tc.message, tc.params)
 		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Code)
-		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Error())
+		assert.Equal(t, fmt.Sprintf("%s: %s", err.Code, tc.message), err.Error())
 		if len(tc.params) > 0 {
 			assert.Equal(t, tc.params, err.Params)
 		}
@@ -94,7 +94,7 @@ func TestWrap(t *testing.T) {
 		"blub": "dub",
 	}).(*Error)
 
-	assert.Equal(t, "internal_service", wrappedErr.Error())
+	assert.Equal(t, "internal_service: Look here, an error", wrappedErr.Error())
 	assert.Equal(t, "Look here, an error", wrappedErr.Message)
 	assert.Equal(t, ErrInternalService, wrappedErr.Code)
 	assert.Equal(t, wrappedErr.Params, map[string]string{
@@ -111,4 +111,17 @@ func TestNilError(t *testing.T) {
 	assert.Equal(t, getNilErr(), nil)
 	assert.Nil(t, getNilErr())
 	assert.Nil(t, Wrap(nil, nil))
+}
+
+func TestMatches(t *testing.T) {
+	err := &Error{
+		Code:    "bad_request.missing_param.foo",
+		Message: "You need to pass a value for foo; try passing foo=bar",
+	}
+	assert.True(t, err.Matches(ErrBadRequest))
+	assert.True(t, err.Matches(ErrBadRequest+".missing_param"))
+	assert.False(t, err.Matches(ErrInternalService))
+	assert.False(t, err.Matches(ErrBadRequest+".missing_param.foo1"))
+	assert.True(t, err.Matches("You need to pass a value for foo"))
+
 }
