@@ -19,22 +19,22 @@ func TestErrorConstructors(t *testing.T) {
 		expectedCode string
 	}{
 		{
-			BadRequest, "service.foo", "please go away and rethink your life", nil, ErrBadRequest,
+			BadRequest, "service.foo", "bad_request.service.foo", nil, ErrBadRequest,
 		},
 		{
-			BadResponse, "service.foo", "server returned something crufty", nil, ErrBadResponse,
+			BadResponse, "service.foo", "bad_response.service.foo", nil, ErrBadResponse,
 		},
 		{
-			Timeout, "service.foo", "client timed out after the heat death of the universe", nil, ErrTimeout,
+			Timeout, "service.foo", "timeout.service.foo", nil, ErrTimeout,
 		},
 		{
-			NotFound, "service.foo", "missing resource, resource doesn't exist", nil, ErrNotFound,
+			NotFound, "service.foo", "not_found.service.foo", nil, ErrNotFound,
 		},
 		{
-			Forbidden, "service.foo", "user doesn't have permission to perform this action", nil, ErrForbidden,
+			Forbidden, "service.foo", "forbidden.service.foo", nil, ErrForbidden,
 		},
 		{
-			Unauthorized, "service.foo", "user needs to authenticate to perform this action", nil, ErrUnauthorized,
+			Unauthorized, "service.foo", "unauthorized.service.foo", nil, ErrUnauthorized,
 		},
 		{
 			Unauthorized, "service.foo", "test params", map[string]string{
@@ -47,7 +47,7 @@ func TestErrorConstructors(t *testing.T) {
 	for _, tc := range testCases {
 		err := tc.constructor(tc.code, tc.message, tc.params)
 		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Code)
-		assert.Equal(t, tc.message, err.Error())
+		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Error())
 		if len(tc.params) > 0 {
 			assert.Equal(t, tc.params, err.Params)
 		}
@@ -94,7 +94,7 @@ func TestWrap(t *testing.T) {
 		"blub": "dub",
 	}).(*Error)
 
-	assert.Equal(t, "Look here, an error", wrappedErr.Error())
+	assert.Equal(t, "internal_service", wrappedErr.Error())
 	assert.Equal(t, "Look here, an error", wrappedErr.Message)
 	assert.Equal(t, ErrInternalService, wrappedErr.Code)
 	assert.Equal(t, wrappedErr.Params, map[string]string{

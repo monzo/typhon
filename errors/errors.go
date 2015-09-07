@@ -33,7 +33,7 @@ func (p *Error) Error() string {
 	if p == nil {
 		return ""
 	}
-	return p.Message
+	return p.Code
 }
 
 // StackString formats the stack as a beautiful string with newlines
@@ -47,7 +47,11 @@ func (p *Error) StackString() string {
 
 // VerboseString returns the error message, stack trace and contexts
 func (p *Error) VerboseString() string {
-	return fmt.Sprintf("%s\nParams: %+v\n%s", p.Error(), p.Params, p.StackString())
+	return fmt.Sprintf("%s. %s\nParams: %+v\n%s", p.Error(), p.Message, p.Params, p.StackString())
+}
+
+func (p *Error) Format(f fmt.State, c rune) {
+	f.Write([]byte(p.Message))
 }
 
 // New creates a new error for you. Use this if you want to pass along a custom error code.
