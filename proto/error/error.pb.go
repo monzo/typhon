@@ -30,29 +30,26 @@ func (m *StackFrame) String() string { return proto.CompactTextString(m) }
 func (*StackFrame) ProtoMessage()    {}
 
 type Error struct {
-	// int32 deprecated_code = 1;
-	Message string `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
-	// map<string, string> public_context = 3;
-	// map<string, string> private_context = 4;
-	Stack  []*StackFrame     `protobuf:"bytes,5,rep,name=stack" json:"stack,omitempty"`
-	Params map[string]string `protobuf:"bytes,6,rep,name=params" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Code   string            `protobuf:"bytes,7,opt,name=code" json:"code,omitempty"`
+	Code    string            `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
+	Message string            `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
+	Params  map[string]string `protobuf:"bytes,3,rep,name=params" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Stack   []*StackFrame     `protobuf:"bytes,4,rep,name=stack" json:"stack,omitempty"`
 }
 
 func (m *Error) Reset()         { *m = Error{} }
 func (m *Error) String() string { return proto.CompactTextString(m) }
 func (*Error) ProtoMessage()    {}
 
-func (m *Error) GetStack() []*StackFrame {
+func (m *Error) GetParams() map[string]string {
 	if m != nil {
-		return m.Stack
+		return m.Params
 	}
 	return nil
 }
 
-func (m *Error) GetParams() map[string]string {
+func (m *Error) GetStack() []*StackFrame {
 	if m != nil {
-		return m.Params
+		return m.Stack
 	}
 	return nil
 }

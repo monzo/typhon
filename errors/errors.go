@@ -33,7 +33,12 @@ func (p *Error) Error() string {
 	if p == nil {
 		return ""
 	}
-
+	if p.Message == "" {
+		return p.Code
+	}
+	if p.Code == "" {
+		return p.Message
+	}
 	return fmt.Sprintf("%s: %s", p.Code, p.Message)
 }
 
@@ -48,7 +53,7 @@ func (p *Error) StackString() string {
 
 // VerboseString returns the error message, stack trace and params
 func (p *Error) VerboseString() string {
-	return fmt.Sprintf("%s. %s\nParams: %+v\n%s", p.Error(), p.Message, p.Params, p.StackString())
+	return fmt.Sprintf("%s\nParams: %+v\n%s", p.Error(), p.Params, p.StackString())
 }
 
 func (p *Error) Format(f fmt.State, c rune) {
