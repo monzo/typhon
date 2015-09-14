@@ -7,105 +7,83 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type newError func(message string, context ...map[string]string) *Error
+type newError func(code, message string, params map[string]string) *Error
 
 func TestErrorConstructors(t *testing.T) {
 
 	testCases := []struct {
-		constructor newError
-		message     string
-		contexts    []map[string]string
-
-		expectedCode int
+		constructor  newError
+		code         string
+		message      string
+		params       map[string]string
+		expectedCode string
 	}{
 		{
-			BadRequest, "please go away and rethink your life", nil, ErrBadRequest,
+			BadRequest, "service.foo", "bad_request.service.foo", nil, ErrBadRequest,
 		},
 		{
-			BadResponse, "server returned something crufty", nil, ErrBadResponse,
+			BadResponse, "service.foo", "bad_response.service.foo", nil, ErrBadResponse,
 		},
 		{
-			Timeout, "client timed out after the heat death of the universe", nil, ErrTimeout,
+			Timeout, "service.foo", "timeout.service.foo", nil, ErrTimeout,
 		},
 		{
-			NotFound, "missing resource, resource doesn't exist", nil, ErrNotFound,
+			NotFound, "service.foo", "not_found.service.foo", nil, ErrNotFound,
 		},
 		{
-			Forbidden, "user doesn't have permission to perform this action", nil, ErrForbidden,
+			Forbidden, "service.foo", "forbidden.service.foo", nil, ErrForbidden,
 		},
 		{
-			Unauthorized, "user needs to authenticate to perform this action", nil, ErrUnauthorized,
+			Unauthorized, "service.foo", "unauthorized.service.foo", nil, ErrUnauthorized,
 		},
 		{
-			Unauthorized, "test public context", []map[string]string{{
+			Unauthorized, "service.foo", "test params", map[string]string{
 				"some key":    "some value",
 				"another key": "another value",
-			}}, ErrUnauthorized,
-		},
-		{
-			Unauthorized, "test public + private context", []map[string]string{{
-				"some key": "some value",
-			}, {
-				"some private key": "woah cool",
-			}}, ErrUnauthorized,
+			}, ErrUnauthorized,
 		},
 	}
 
 	for _, tc := range testCases {
-		err := tc.constructor(tc.message, tc.contexts...)
-		assert.Equal(t, tc.expectedCode, err.Code)
-		assert.Equal(t, tc.message, err.Error())
-		if len(tc.contexts) >= 1 {
-			assert.Equal(t, tc.contexts[0], err.PublicContext)
+		err := tc.constructor(tc.code, tc.message, tc.params)
+		assert.Equal(t, fmt.Sprintf("%s.%s", tc.expectedCode, tc.code), err.Code)
+		assert.Equal(t, fmt.Sprintf("%s: %s", err.Code, tc.message), err.Error())
+		if len(tc.params) > 0 {
+			assert.Equal(t, tc.params, err.Params)
 		}
-		if len(tc.contexts) >= 2 {
-			assert.Equal(t, tc.contexts[1], err.PrivateContext)
-		}
+
 	}
 }
 
 func TestNew(t *testing.T) {
-	err := New(1234, "Some message", map[string]string{
+	err := New("service.foo", "Some message", map[string]string{
 		"public": "value",
-	}, map[string]string{
-		"private": "value",
 	})
 
-	assert.Equal(t, 1234, err.Code)
+	assert.Equal(t, "service.foo", err.Code)
 	assert.Equal(t, "Some message", err.Message)
 	assert.Equal(t, map[string]string{
 		"public": "value",
-	}, err.PublicContext)
-	assert.Equal(t, map[string]string{
-		"private": "value",
-	}, err.PrivateContext)
+	}, err.Params)
 }
 
 func TestWrapWithWrappedErr(t *testing.T) {
 	err := &Error{
 		Code:    ErrForbidden,
 		Message: "Some message",
-		PublicContext: map[string]string{
+		Params: map[string]string{
 			"something old": "caesar",
-		},
-		PrivateContext: map[string]string{
-			"something old and secret": "also caesar",
 		},
 	}
 
 	wrappedErr := Wrap(err, map[string]string{
 		"something new": "a computer",
-	}, map[string]string{
-		"something new and secret": "also a computer",
-	})
+	}).(*Error)
 
 	assert.Equal(t, wrappedErr, err)
 	assert.Equal(t, ErrForbidden, wrappedErr.Code)
-	assert.Equal(t, wrappedErr.PublicContext, map[string]string{
+	assert.Equal(t, wrappedErr.Params, map[string]string{
 		"something old": "caesar",
-	})
-	assert.Equal(t, wrappedErr.PrivateContext, map[string]string{
-		"something old and secret": "also caesar",
 	})
 
 }
@@ -114,18 +92,36 @@ func TestWrap(t *testing.T) {
 	err := fmt.Errorf("Look here, an error")
 	wrappedErr := Wrap(err, map[string]string{
 		"blub": "dub",
-	}, map[string]string{
-		"dib": "dab",
-	})
+	}).(*Error)
 
-	assert.Equal(t, "Look here, an error", wrappedErr.Error())
+	assert.Equal(t, "internal_service: Look here, an error", wrappedErr.Error())
 	assert.Equal(t, "Look here, an error", wrappedErr.Message)
 	assert.Equal(t, ErrInternalService, wrappedErr.Code)
-	assert.Equal(t, wrappedErr.PublicContext, map[string]string{
+	assert.Equal(t, wrappedErr.Params, map[string]string{
 		"blub": "dub",
 	})
-	assert.Equal(t, wrappedErr.PrivateContext, map[string]string{
-		"dib": "dab",
-	})
+
+}
+
+func getNilErr() error {
+	return Wrap(nil, nil)
+}
+
+func TestNilError(t *testing.T) {
+	assert.Equal(t, getNilErr(), nil)
+	assert.Nil(t, getNilErr())
+	assert.Nil(t, Wrap(nil, nil))
+}
+
+func TestMatches(t *testing.T) {
+	err := &Error{
+		Code:    "bad_request.missing_param.foo",
+		Message: "You need to pass a value for foo; try passing foo=bar",
+	}
+	assert.True(t, err.Matches(ErrBadRequest))
+	assert.True(t, err.Matches(ErrBadRequest+".missing_param"))
+	assert.False(t, err.Matches(ErrInternalService))
+	assert.False(t, err.Matches(ErrBadRequest+".missing_param.foo1"))
+	assert.True(t, err.Matches("You need to pass a value for foo"))
 
 }

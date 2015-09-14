@@ -7,7 +7,6 @@ import (
 
 // Marshal an error into a protobuf for transmission
 func Marshal(e *Error) *pe.Error {
-
 	// Account for nil errors
 	if e == nil {
 		return &pe.Error{
@@ -15,41 +14,44 @@ func Marshal(e *Error) *pe.Error {
 			Message: "Unknown error, nil error marshalled",
 		}
 	}
-	return &pe.Error{
-		Code:           int32(e.Code),
-		Message:        e.Message,
-		PublicContext:  e.PublicContext,
-		PrivateContext: e.PrivateContext,
-		Stack:          stackToProto(e.Stack),
+	err := &pe.Error{
+		Code:    e.Code,
+		Message: e.Message,
+		Stack:   stackToProto(e.StackFrames),
+		Params:  e.Params,
 	}
+	if err.Code == "" {
+		err.Code = ErrUnknown
+	}
+	return err
 }
 
 // Unmarshal a protobuf error into a local error
 func Unmarshal(p *pe.Error) *Error {
 	if p == nil {
 		return &Error{
+			Code:    ErrUnknown,
 			Message: "Nil error unmarshalled!",
+			Params:  map[string]string{},
 		}
 	}
+	err := &Error{
+		Code:        p.Code,
+		Message:     p.Message,
+		StackFrames: protoToStack(p.Stack),
+		Params:      p.Params,
+	}
+	if err.Code == "" {
+		err.Code = ErrUnknown
+	}
 	// empty map[string]string come out as nil. thanks proto.
-	publicContext := p.PublicContext
-	if publicContext == nil {
-		publicContext = map[string]string{}
+	if err.Params == nil {
+		err.Params = map[string]string{}
 	}
-	privateContext := p.PrivateContext
-	if privateContext == nil {
-		privateContext = map[string]string{}
-	}
-	return &Error{
-		Code:           int(p.Code),
-		Message:        p.Message,
-		PublicContext:  publicContext,
-		PrivateContext: privateContext,
-		Stack:          protoToStack(p.Stack),
-	}
+	return err
 }
 
-// stackToProto converts a stack.Stack and returns a slice of *pe.StackFrame
+// protoToStack converts a slice of *pe.StackFrame and returns a stack.Stack
 func protoToStack(protoStack []*pe.StackFrame) stack.Stack {
 	if protoStack == nil {
 		return stack.Stack{}
@@ -57,10 +59,10 @@ func protoToStack(protoStack []*pe.StackFrame) stack.Stack {
 
 	s := make(stack.Stack, 0, len(protoStack))
 	for _, frame := range protoStack {
-		s = append(s, stack.Frame{
+		s = append(s, &stack.Frame{
 			Filename: frame.Filename,
-			Line:     int(frame.Line),
 			Method:   frame.Method,
+			Line:     int(frame.Line),
 		})
 	}
 	return s

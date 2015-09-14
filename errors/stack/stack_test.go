@@ -26,20 +26,20 @@ func TestStackFingerprint(t *testing.T) {
 		{
 			"9344290d",
 			Stack{
-				Frame{"foo.go", "Oops", 1},
+				&Frame{"foo.go", "Oops", 1},
 			},
 		},
 		{
 			"a4d78b7",
 			Stack{
-				Frame{"foo.go", "Oops", 2},
+				&Frame{"foo.go", "Oops", 2},
 			},
 		},
 		{
 			"50e0fcb3",
 			Stack{
-				Frame{"foo.go", "Oops", 1},
-				Frame{"foo.go", "Oops", 2},
+				&Frame{"foo.go", "Oops", 1},
+				&Frame{"foo.go", "Oops", 2},
 			},
 		},
 	}

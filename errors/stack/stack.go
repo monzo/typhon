@@ -24,7 +24,7 @@ type Frame struct {
 	Line     int    `json:"lineno"`
 }
 
-type Stack []Frame
+type Stack []*Frame
 
 func BuildStack(skip int) Stack {
 	stack := make(Stack, 0)
@@ -35,7 +35,11 @@ func BuildStack(skip int) Stack {
 			break
 		}
 		file = shortenFilePath(file)
-		stack = append(stack, Frame{file, functionName(pc), line})
+		stack = append(stack, &Frame{
+			Filename: file,
+			Method:   functionName(pc),
+			Line:     line,
+		})
 	}
 
 	return stack

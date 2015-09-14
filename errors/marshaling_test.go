@@ -13,7 +13,7 @@ func TestMarshalNilError(t *testing.T) {
 	protoError := Marshal(input)
 
 	assert.NotNil(t, protoError)
-	assert.Equal(t, ErrUnknown, int(protoError.Code))
+	assert.Equal(t, ErrUnknown, protoError.Code)
 	assert.NotEmpty(t, protoError.Message)
 }
 
@@ -32,11 +32,6 @@ var marshalTestCases = []struct {
 	platErr  *Error
 	protoErr *pe.Error
 }{
-	// test blank error
-	{
-		&Error{},
-		&pe.Error{},
-	},
 	// confirm blank errors (shouldn't be possible) are UNKNOWN
 	{
 		&Error{},
@@ -49,33 +44,19 @@ var marshalTestCases = []struct {
 		&Error{
 			Code:    ErrTimeout,
 			Message: "omg help plz",
-			PublicContext: map[string]string{
+			Params: map[string]string{
 				"something": "hullo",
 			},
-			PrivateContext: map[string]string{
-				"something else": "bye bye",
-			},
-			Stack: []stack.Frame{
-				{
-					Filename: "some file",
-					Line:     123,
-					Method:   "someMethod",
-				},
-				{
-					Filename: "another file",
-					Line:     1,
-					Method:   "someOtherMethod",
-				},
+			StackFrames: []*stack.Frame{
+				&stack.Frame{Filename: "some file", Method: "someMethod", Line: 123},
+				&stack.Frame{Filename: "another file", Method: "someOtherMethod", Line: 1},
 			},
 		},
 		&pe.Error{
 			Code:    ErrTimeout,
 			Message: "omg help plz",
-			PublicContext: map[string]string{
+			Params: map[string]string{
 				"something": "hullo",
-			},
-			PrivateContext: map[string]string{
-				"something else": "bye bye",
 			},
 			Stack: []*pe.StackFrame{
 				{
@@ -108,29 +89,22 @@ func TestMarshal(t *testing.T) {
 		protoError := Marshal(tc.platErr)
 		assert.Equal(t, tc.protoErr.Code, protoError.Code)
 		assert.Equal(t, tc.protoErr.Message, protoError.Message)
-		assert.Equal(t, tc.protoErr.PublicContext, protoError.PublicContext)
-		assert.Equal(t, tc.protoErr.PrivateContext, protoError.PrivateContext)
+		assert.Equal(t, tc.protoErr.Params, protoError.Params)
 	}
 }
 
-// these are separate from above because the marshaling and unmarshaling isn'y symmetric.
+// these are separate from above because the marshaling and unmarshaling isn't symmetric.
 // protobuf turns empty maps[string]string into nil :(
 var unmarshalTestCases = []struct {
 	platErr  *Error
 	protoErr *pe.Error
 }{
 	{
-		&Error{
-			PublicContext:  map[string]string{},
-			PrivateContext: map[string]string{},
-		},
+		New("", "", nil),
 		&pe.Error{},
 	},
 	{
-		&Error{
-			PublicContext:  map[string]string{},
-			PrivateContext: map[string]string{},
-		},
+		New("", "", nil),
 		&pe.Error{
 			Code: ErrUnknown,
 		},
@@ -139,33 +113,19 @@ var unmarshalTestCases = []struct {
 		&Error{
 			Code:    ErrTimeout,
 			Message: "omg help plz",
-			PublicContext: map[string]string{
+			Params: map[string]string{
 				"something": "hullo",
 			},
-			PrivateContext: map[string]string{
-				"something else": "bye bye",
-			},
-			Stack: []stack.Frame{
-				{
-					Filename: "some file",
-					Line:     123,
-					Method:   "someMethod",
-				},
-				{
-					Filename: "another file",
-					Line:     1,
-					Method:   "someOtherMethod",
-				},
+			StackFrames: []*stack.Frame{
+				&stack.Frame{Filename: "some file", Method: "someMethod", Line: 123},
+				&stack.Frame{Filename: "another file", Method: "someOtherMethod", Line: 1},
 			},
 		},
 		&pe.Error{
 			Code:    ErrTimeout,
 			Message: "omg help plz",
-			PublicContext: map[string]string{
+			Params: map[string]string{
 				"something": "hullo",
-			},
-			PrivateContext: map[string]string{
-				"something else": "bye bye",
 			},
 			Stack: []*pe.StackFrame{
 				{
@@ -183,10 +143,9 @@ var unmarshalTestCases = []struct {
 	},
 	{
 		&Error{
-			Code:           ErrForbidden,
-			Message:        "NO. FORBIDDEN",
-			PublicContext:  map[string]string{},
-			PrivateContext: map[string]string{},
+			Code:    ErrForbidden,
+			Message: "NO. FORBIDDEN",
+			Params:  map[string]string{},
 		},
 		&pe.Error{
 			Code:    ErrForbidden,
@@ -200,7 +159,6 @@ func TestUnmarshal(t *testing.T) {
 		platErr := Unmarshal(tc.protoErr)
 		assert.Equal(t, tc.platErr.Code, platErr.Code)
 		assert.Equal(t, tc.platErr.Message, platErr.Message)
-		assert.Equal(t, tc.platErr.PublicContext, platErr.PublicContext)
-		assert.Equal(t, tc.platErr.PrivateContext, platErr.PrivateContext)
+		assert.Equal(t, tc.platErr.Params, platErr.Params)
 	}
 }

@@ -7,9 +7,8 @@ message StackFrame {
 }
 
 message Error {
-	int32 code = 1;
+	string code = 1;
 	string message = 2;
-	map<string, string> public_context = 3;
-	map<string, string> private_context = 4;
-	repeated StackFrame stack = 5;
+	map<string, string> params = 3;
+	repeated StackFrame stack = 4;
 }
