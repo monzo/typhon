@@ -73,6 +73,8 @@ func Wrap(err error, params map[string]string) error {
 	return WrapWithCode(err, params, ErrInternalService)
 }
 
+// WrapWithCode takes any error interface and wraps it into an Error.
+// NOTE: If `err` is already an `Error` the passed params will be ignored
 func WrapWithCode(err error, params map[string]string, code string) error {
 	if err == nil {
 		return nil
@@ -82,6 +84,21 @@ func WrapWithCode(err error, params map[string]string, code string) error {
 		return err
 	default:
 		return errorFactory(code, err.Error(), params)
+	}
+}
+
+// Recover returns a typhon Error from any error interface
+// If `err` is not already a typhon `Error` then it will be wrapped as an
+// Internal Service error
+func Recover(err error) *Error {
+	if err == nil {
+		return nil
+	}
+	switch err := err.(type) {
+	case *Error:
+		return err
+	default:
+		return errorFactory(ErrInternalService, err.Error(), nil)
 	}
 }
 
