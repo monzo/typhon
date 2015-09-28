@@ -73,6 +73,8 @@ func Wrap(err error, params map[string]string) error {
 	return WrapWithCode(err, params, ErrInternalService)
 }
 
+// WrapWithCode takes any error interface and wraps it into an Error.
+// NOTE: If `err` is already an `Error` the passed params will be ignored
 func WrapWithCode(err error, params map[string]string, code string) error {
 	if err == nil {
 		return nil
