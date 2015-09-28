@@ -87,6 +87,21 @@ func WrapWithCode(err error, params map[string]string, code string) error {
 	}
 }
 
+// Recover returns a typhon Error from any error interface
+// If `err` is not already a typhon `Error` then it will be wrapped as an
+// Internal Service error
+func Recover(err error) *Error {
+	if err == nil {
+		return nil
+	}
+	switch err := err.(type) {
+	case *Error:
+		return err
+	default:
+		return errorFactory(ErrInternalService, err.Error(), nil)
+	}
+}
+
 // InternalService creates a new error to represent an internal service error.
 // Only use internal service error if we know very little about the error. Most
 // internal service errors will come from `Wrap`ing a vanilla `error` interface
