@@ -17,6 +17,8 @@ import (
 )
 
 const (
+	DirectReplyQueue = "amq.rabbitmq.reply-to"
+
 	connectTimeout  = 30 * time.Second
 	chanSendTimeout = 10 * time.Second
 	respondTimeout  = 10 * time.Second
@@ -414,12 +416,8 @@ func NewTransport() transport.Transport {
 		connReady:    make(chan struct{}),
 	}
 
-	if uid, err := uuid.NewV4(); err != nil {
-		log.Criticalf("[Typhon:RabbitTransport] Failed to create UUID for reply queue: %v", err)
-		os.Exit(1) // TODO: Is this really necessary?
-	} else {
-		rt.replyQueue = fmt.Sprintf("replyTo-%s", uid.String())
-	}
+	rt.replyQueue = DirectReplyQueue
+
 	rt.run()
 	return rt
 }

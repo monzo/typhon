@@ -40,10 +40,9 @@ func NewRabbitConnection() *RabbitConnection {
 }
 
 type RabbitConnection struct {
-	Connection      *amqp.Connection
-	Channel         *RabbitChannel
-	ExchangeChannel *RabbitChannel
-	notify          chan bool
+	Connection *amqp.Connection
+	Channel    *RabbitChannel
+	notify     chan bool
 
 	connected bool
 
@@ -116,11 +115,6 @@ func (r *RabbitConnection) tryToConnect() error {
 		return err
 	}
 	r.Channel.DeclareExchange(Exchange)
-	r.ExchangeChannel, err = NewRabbitChannel(r.Connection)
-	if err != nil {
-		log.Error("[Rabbit] Failed to create default Channel")
-		return err
-	}
 	log.Info("[Rabbit] Connected to RabbitMQ")
 	return nil
 }
@@ -154,5 +148,5 @@ func (r *RabbitConnection) Consume(serverName string) (<-chan amqp.Delivery, *Ra
 }
 
 func (r *RabbitConnection) Publish(exchange, routingKey string, msg amqp.Publishing) error {
-	return r.ExchangeChannel.Publish(exchange, routingKey, msg)
+	return r.Channel.Publish(exchange, routingKey, msg)
 }
