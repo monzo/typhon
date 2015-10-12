@@ -57,8 +57,6 @@ func (suite *TransportTestSuite) TestSendReceive() {
 
 			rsp := message.NewResponse()
 			rsp.SetId(req.Id())
-			rsp.SetService(req.Service())
-			rsp.SetEndpoint(req.Endpoint())
 			rsp.SetPayload([]byte("pong"))
 			suite.Assert().NoError(trans.Respond(req, rsp))
 
@@ -75,8 +73,6 @@ func (suite *TransportTestSuite) TestSendReceive() {
 	rsp, err := trans.Send(req, time.Second)
 	suite.Assert().NoError(err)
 	suite.Assert().NotNil(rsp)
-	suite.Assert().Equal(req.Service(), rsp.Service())
-	suite.Assert().Equal(req.Endpoint(), rsp.Endpoint())
 	suite.Assert().Equal(req.Id(), rsp.Id())
 	suite.Assert().Equal("pong", string(rsp.Payload()))
 }
@@ -109,8 +105,6 @@ func (suite *TransportTestSuite) TestSendReceiveParallel() {
 			case req := <-inbound:
 				rsp := message.NewResponse()
 				rsp.SetId(req.Id())
-				rsp.SetService(req.Service())
-				rsp.SetEndpoint(req.Endpoint())
 				rsp.SetPayload(req.Payload())
 				suite.Assert().NoError(trans.Respond(req, rsp))
 			}

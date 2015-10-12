@@ -216,8 +216,6 @@ func (t *rabbitTransport) logId(delivery amqp.Delivery) string {
 func (t *rabbitTransport) Respond(req message.Request, rsp message.Response) error {
 	headers := rsp.Headers()
 	headers["Content-Encoding"] = "response"
-	headers["Service"] = rsp.Service()
-	headers["Endpoint"] = rsp.Endpoint()
 
 	timeout := time.NewTimer(respondTimeout)
 	defer timeout.Stop()
@@ -342,13 +340,15 @@ func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.
 	msg.SetHeaders(tableToHeaders(delivery.Headers))
 	msg.SetHeader("X-Rabbit-ReplyTo", delivery.ReplyTo)
 	msg.SetPayload(delivery.Body)
-	switch service := delivery.Headers["Service"].(type) {
-	case string:
-		msg.SetService(service)
-	}
-	switch endpoint := delivery.Headers["Endpoint"].(type) {
-	case string:
-		msg.SetEndpoint(endpoint)
+	if req, ok := msg.(message.Request); ok {
+		switch service := delivery.Headers["Service"].(type) {
+		case string:
+			req.SetService(service)
+		}
+		switch endpoint := delivery.Headers["Endpoint"].(type) {
+		case string:
+			req.SetEndpoint(endpoint)
+		}
 	}
 }
 

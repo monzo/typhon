@@ -9,15 +9,11 @@ import (
 func TestResponseCopying(t *testing.T) {
 	r := NewResponse()
 	r.SetId("id_123")
-	r.SetService("service.foo")
-	r.SetEndpoint("bar")
 	r.SetHeader("X-Foo", "Bar")
 	r.SetPayload([]byte("Mr. and Mrs. Payload lived happily ever after"))
 
 	r2 := r.Copy()
 	assert.Equal(t, "id_123", r2.Id())
-	assert.Equal(t, "service.foo", r2.Service())
-	assert.Equal(t, "bar", r2.Endpoint())
 	assert.Equal(t, "Bar", r2.Headers()["X-Foo"])
 	assert.Equal(t, "Mr. and Mrs. Payload lived happily ever after", string(r2.Payload()))
 

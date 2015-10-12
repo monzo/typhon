@@ -20,10 +20,6 @@ type Message interface {
 	Payload() []byte
 	// Body contains the unmarshalled Payload (and may be nil).
 	Body() interface{}
-	// The destination service.
-	Service() string
-	// The destination endpoint.
-	Endpoint() string
 	// Headers returns a map of header keys and their values. Mutating the map will have no effect on the Request.
 	Headers() map[string]string
 
@@ -33,10 +29,6 @@ type Message interface {
 	SetPayload(payload []byte)
 	// SetBody sets the unmarshalled body; a Marshaler invocation should usually follow.
 	SetBody(body interface{})
-	// SetService sets the destination service.
-	SetService(service string)
-	// SetEndpoint sets the destination endpoint.
-	SetEndpoint(endpoint string)
 	// SetHeader sets the value of a given header key.
 	SetHeader(key, value string)
 	// UnsetHeader removes a given header. Removing a nonexistent header is a no-op.
@@ -51,6 +43,14 @@ type Request interface {
 
 	// Copy returns an identical, shallow copy of the Request.
 	Copy() Request
+	// The destination service.
+	Service() string
+	// The destination endpoint.
+	Endpoint() string
+	// SetService sets the destination service.
+	SetService(service string)
+	// SetEndpoint sets the destination endpoint.
+	SetEndpoint(endpoint string)
 }
 
 // A Response is a correlated reply to a Request (inbound or outbound.)
