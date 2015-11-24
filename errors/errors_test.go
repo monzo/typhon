@@ -122,6 +122,9 @@ func TestMatches(t *testing.T) {
 	assert.True(t, err.Matches(ErrBadRequest+".missing_param"))
 	assert.False(t, err.Matches(ErrInternalService))
 	assert.False(t, err.Matches(ErrBadRequest+".missing_param.foo1"))
-	assert.True(t, err.Matches("You need to pass a value for foo"))
+}
 
+func TestMatches_Prefix(t *testing.T) {
+	err := BadRequest("param_unknown", "Boop", nil)
+	assert.False(t, err.Matches(ErrUnknown))
 }

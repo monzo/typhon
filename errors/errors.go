@@ -164,9 +164,8 @@ func errCode(prefix, code string) string {
 	return strings.Join([]string{prefix, code}, ".")
 }
 
-// Matches returns whether the string returned from error.Error() contains the given param string. This means you can
-// match the error on different levels e.g. dotted codes `bad_request` or `bad_request.missing_param` or even on the
-// more descriptive message
-func (p *Error) Matches(match string) bool {
-	return strings.Contains(p.Error(), match)
+// Matches returns whether the error code matches a given code by doing a prefix
+// match
+func (p *Error) Matches(prefix string) bool {
+	return strings.HasPrefix(p.Code, prefix)
 }
