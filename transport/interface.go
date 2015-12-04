@@ -3,16 +3,16 @@ package transport
 import (
 	"time"
 
-	"github.com/mondough/typhon/errors"
+	"github.com/mondough/terrors"
 	"github.com/mondough/typhon/message"
 	"gopkg.in/tomb.v2"
 )
 
 var (
 	// ErrAlreadyListening indicates a listener channel is already active for a given service
-	ErrAlreadyListening = errors.InternalService("", "Listener already registered for service", nil)
+	ErrAlreadyListening = terrors.InternalService("", "Listener already registered for service", nil)
 	// ErrTimeout indicates a timeout was exceeded
-	ErrTimeout = errors.Timeout("", "Timed out", nil)
+	ErrTimeout = terrors.Timeout("", "Timed out", nil)
 )
 
 // A Transport provides a persistent interface to a transport layer. It is capable of sending and receiving Messages

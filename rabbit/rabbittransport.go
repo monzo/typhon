@@ -11,7 +11,7 @@ import (
 	"github.com/streadway/amqp"
 	"gopkg.in/tomb.v2"
 
-	"github.com/mondough/typhon/errors"
+	"github.com/mondough/terrors"
 	"github.com/mondough/typhon/message"
 	"github.com/mondough/typhon/transport"
 )
@@ -25,9 +25,9 @@ const (
 )
 
 var (
-	ErrCouldntConnect   = errors.InternalService("", "Could not connect to RabbitMQ", nil)
-	ErrDeliveriesClosed = errors.InternalService("", "Delivery channel closed", nil)
-	ErrNoReplyTo        = errors.BadRequest("", "Request does not have appropriate X-Rabbit-ReplyTo header", nil)
+	ErrCouldntConnect   = terrors.InternalService("", "Could not connect to RabbitMQ", nil)
+	ErrDeliveriesClosed = terrors.InternalService("", "Delivery channel closed", nil)
+	ErrNoReplyTo        = terrors.BadRequest("", "Request does not have appropriate X-Rabbit-ReplyTo header", nil)
 )
 
 type rabbitTransport struct {
