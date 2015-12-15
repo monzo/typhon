@@ -44,7 +44,10 @@ func (ju *jsonUnmarshaler) UnmarshalPayload(msg Message) error {
 		err = json.Unmarshal(msg.Payload(), result)
 	} else {
 		// No body (or an inappropriate type); overwrite with a new object
-		if t := ju.T; t.Kind() == reflect.Ptr {
+		if t := ju.T; t == nil { // Nil type = interface{}
+			result = interface{}(nil)
+			err = json.Unmarshal(msg.Payload(), &result)
+		} else if t.Kind() == reflect.Ptr {
 			result = reflect.New(t.Elem()).Interface()
 			err = json.Unmarshal(msg.Payload(), result)
 		} else {

@@ -145,3 +145,26 @@ func TestJSONMarshaling_CustomSlice(t *testing.T) {
 	require.NoError(t, JSONUnmarshaler(jsonSlice{}).UnmarshalPayload(req2), "Error unmarshaling")
 	assert.Equal(t, impl, req2.Body())
 }
+
+func TestJSONMarshaling_Interface(t *testing.T) {
+	cases := []interface{}{
+		[]interface{}{"a", "b", "c"},
+		map[string]interface{}{"a": "b"},
+		"a",
+		float64(123.0)}
+
+	for _, impl := range cases {
+		req := NewRequest()
+		req.SetBody(impl)
+		require.NoError(t, JSONMarshaler().MarshalBody(req), "Error marshaling")
+
+		expectedPayload, err := json.Marshal(impl)
+		require.NoError(t, err, "Error marshaling (direct to JSON)")
+		assert.Equal(t, expectedPayload, req.Payload())
+
+		req2 := req.Copy()
+		req2.SetBody(nil)
+		require.NoError(t, JSONUnmarshaler(interface{}(nil)).UnmarshalPayload(req2), "Error unmarshaling")
+		assert.Equal(t, impl, req2.Body())
+	}
+}
