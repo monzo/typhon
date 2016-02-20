@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/cihub/seelog"
+	log "github.com/mondough/slog"
 	uuid "github.com/nu7hatch/gouuid"
+	"golang.org/x/net/context"
 
 	"github.com/mondough/typhon/message"
 	"github.com/mondough/typhon/transport"
@@ -73,6 +74,7 @@ func (t *mockTransport) StopListening(serviceName string) bool {
 }
 
 func (t *mockTransport) Listen(serviceName string, rc chan<- message.Request) error {
+	ctx := context.Background()
 	l := &mockListener{
 		tomb:    new(tomb.Tomb),
 		reqChan: rc,
@@ -87,7 +89,7 @@ func (t *mockTransport) Listen(serviceName string, rc chan<- message.Request) er
 	}
 
 	stop := func() {
-		log.Debugf("[Typhon:MockTransport] Listener %s stopped", serviceName)
+		log.Debug(ctx, "[Typhon:MockTransport] Listener %s stopped", serviceName)
 		t.Lock()
 		defer t.Unlock()
 		delete(t.listeners, serviceName)
@@ -106,7 +108,7 @@ func (t *mockTransport) Listen(serviceName string, rc chan<- message.Request) er
 		stop()
 		return transport.ErrTimeout
 	case <-t.Ready():
-		log.Debugf("[Typhon:MockTransport] Listener %s started", serviceName)
+		log.Debug(ctx, "[Typhon:MockTransport] Listener %s started", serviceName)
 	}
 
 	tm.Go(func() error {
@@ -118,11 +120,12 @@ func (t *mockTransport) Listen(serviceName string, rc chan<- message.Request) er
 }
 
 func (t *mockTransport) Send(req message.Request, timeout time.Duration) (message.Response, error) {
+	ctx := context.Background()
 	id := req.Id()
 	if id == "" {
 		_uuid, err := uuid.NewV4()
 		if err != nil {
-			log.Errorf("[Typhon:MockTransport] Failed to generate request uuid: %v", err)
+			log.Error(ctx, "[Typhon:MockTransport] Failed to generate request uuid: %v", err)
 			return nil, err
 		}
 		req.SetId(_uuid.String())
@@ -150,8 +153,7 @@ func (t *mockTransport) Send(req message.Request, timeout time.Duration) (messag
 		defer timer.Stop()
 		select {
 		case <-timer.C:
-			log.Debugf("[Typhon:MockTransport] Timed out after %s waiting for delivery of \"%s\"", timeout.String(),
-				req.Id())
+			log.Debug(ctx, "[Typhon:MockTransport] Timed out after %v waiting for delivery of \"%s\"", timeout, req.Id())
 			return nil, transport.ErrTimeout
 		case l.reqChan <- req:
 		}
@@ -160,8 +162,7 @@ func (t *mockTransport) Send(req message.Request, timeout time.Duration) (messag
 		case rsp := <-responseChan:
 			return rsp, nil
 		case <-timer.C:
-			log.Debugf("[Typhon:MockTransport] Timed out after %s waiting for response to \"%s\"", timeout.String(),
-				req.Id())
+			log.Debug(ctx, "[Typhon:MockTransport] Timed out after %v waiting for response to \"%s\"", timeout, req.Id())
 			return nil, transport.ErrTimeout
 		}
 	}

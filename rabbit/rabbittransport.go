@@ -6,9 +6,10 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/cihub/seelog"
+	log "github.com/mondough/slog"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
+	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
 
 	"github.com/mondough/terrors"
@@ -45,6 +46,7 @@ type rabbitTransport struct {
 
 // run starts the asynchronous run-loop connecting to RabbitMQ
 func (t *rabbitTransport) run() {
+	ctx := context.Background()
 	initConn := func() *RabbitConnection {
 		conn := NewRabbitConnection()
 		t.connM.Lock()
@@ -64,18 +66,18 @@ func (t *rabbitTransport) run() {
 		defer func() {
 			t.killListeners()
 			conn.Close()
-			log.Info("[Typhon:RabbitTransport] Dead; connection closed")
+			log.Info(ctx, "[Typhon:RabbitTransport] Dead; connection closed")
 		}()
 
 	runLoop:
 		for {
-			log.Info("[Typhon:RabbitTransport] Run loop connecting…")
+			log.Info(ctx, "[Typhon:RabbitTransport] Run loop connecting…")
 			select {
 			case <-t.tomb.Dying():
 				return nil
 
 			case <-conn.Init():
-				log.Info("[Typhon:RabbitTransport] Run loop connected")
+				log.Info(ctx, "[Typhon:RabbitTransport] Run loop connected")
 				t.listenReplies()
 
 				select {
@@ -89,8 +91,8 @@ func (t *rabbitTransport) run() {
 				}
 
 			case <-time.After(connectTimeout):
-				log.Criticalf("[Typhon:RabbitTransport] Run loop timed out after %s waiting to connect",
-					connectTimeout.String())
+				log.Critical(ctx, "[Typhon:RabbitTransport] Run loop timed out after %v waiting to connect",
+					connectTimeout)
 				return ErrCouldntConnect
 			}
 		}
@@ -148,6 +150,7 @@ func (t *rabbitTransport) StopListening(serviceName string) bool {
 }
 
 func (t *rabbitTransport) Listen(serviceName string, rc chan<- message.Request) error {
+	ctx := context.Background()
 	tm := &tomb.Tomb{}
 	cn := t.deliveryChan(serviceName)
 	t.listenersM.Lock()
@@ -170,7 +173,7 @@ func (t *rabbitTransport) Listen(serviceName string, rc chan<- message.Request) 
 			delete(t.listeners, cn)
 			close(rc)
 			close(errChan)
-			log.Debugf("[Typhon:RabbitTransport] Listener %s stopped", cn)
+			log.Debug(ctx, "[Typhon:RabbitTransport] Listener %s stopped", cn)
 		}()
 
 		select {
@@ -186,13 +189,13 @@ func (t *rabbitTransport) Listen(serviceName string, rc chan<- message.Request) 
 
 		deliveryChan, rabbitChannel, err := t.connection().Consume(cn)
 		if err != nil {
-			log.Warnf("[Typhon:RabbitTransport] Failed to consume from %s: %v", cn, err)
+			log.Warn(ctx, "[Typhon:RabbitTransport] Failed to consume from %s: %v", cn, err)
 			errChan <- err
 			return nil
 		}
 		defer rabbitChannel.Close()
 		errChan <- nil
-		log.Infof("[Typhon:RabbitTransport] Listening on %s…", cn)
+		log.Info(ctx, "[Typhon:RabbitTransport] Listening on %s…", cn)
 
 		for {
 			select {
@@ -204,7 +207,7 @@ func (t *rabbitTransport) Listen(serviceName string, rc chan<- message.Request) 
 
 			case delivery, ok := <-deliveryChan:
 				if !ok {
-					log.Warnf("[Typhon:RabbitTransport] Delivery channel closed; stopping listener %s", cn)
+					log.Warn(ctx, "[Typhon:RabbitTransport] Delivery channel closed; stopping listener %s", cn)
 					return nil
 				}
 				go t.handleReqDelivery(delivery, rc)
@@ -242,11 +245,12 @@ func (t *rabbitTransport) Respond(req message.Request, rsp message.Response) err
 }
 
 func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (message.Response, error) {
+	ctx := context.Background()
 	id := req.Id()
 	if id == "" {
 		_uuid, err := uuid.NewV4()
 		if err != nil {
-			log.Errorf("[Typhon:RabbitTransport] Failed to generate request uuid: %v", err)
+			log.Error(ctx, "[Typhon:RabbitTransport] Failed to generate request uuid: %v", err)
 			return nil, err
 		}
 		req.SetId(_uuid.String())
@@ -274,7 +278,7 @@ func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (mes
 	select {
 	case <-t.Ready():
 	case <-timeout.C:
-		log.Warnf("[Typhon:RabbitTransport] Timed out after %s waiting for ready", _timeout.String())
+		log.Warn(ctx, "[Typhon:RabbitTransport] Timed out after %v waiting for ready", _timeout)
 		return nil, transport.ErrTimeout
 	}
 
@@ -285,7 +289,7 @@ func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (mes
 		ReplyTo:       t.replyQueue,
 		Headers:       headersToTable(headers),
 	}); err != nil {
-		log.Errorf("[Typhon:RabbitTransport] Failed to publish: %v", err)
+		log.Error(ctx, "[Typhon:RabbitTransport] Failed to publish: %v", err)
 		return nil, err
 	}
 
@@ -293,27 +297,27 @@ func (t *rabbitTransport) Send(req message.Request, _timeout time.Duration) (mes
 	case rsp := <-rspChan:
 		return rsp, nil
 	case <-timeout.C:
-		log.Warnf("[Typhon:RabbitTransport] Timed out after %s waiting for response to %s", _timeout.String(),
-			req.Id())
+		log.Warn(ctx, "[Typhon:RabbitTransport] Timed out after %v waiting for response to %s", _timeout, req.Id())
 		return nil, transport.ErrTimeout
 	}
 }
 
 func (t *rabbitTransport) listenReplies() error {
+	ctx := context.Background()
 	if err := t.connection().Channel.DeclareReplyQueue(t.replyQueue); err != nil {
-		log.Criticalf("[Typhon:RabbitTransport] Failed to declare reply queue %s: %v", t.replyQueue, err)
+		log.Critical(ctx, "[Typhon:RabbitTransport] Failed to declare reply queue %s: %v", t.replyQueue, err)
 		os.Exit(1)
 		return err
 	}
 
 	deliveries, err := t.connection().Channel.ConsumeQueue(t.replyQueue)
 	if err != nil {
-		log.Criticalf("[Typhon:RabbitTransport] Failed to consume from reply queue %s: %v", t.replyQueue, err)
+		log.Critical(ctx, "[Typhon:RabbitTransport] Failed to consume from reply queue %s: %v", t.replyQueue, err)
 		os.Exit(1)
 		return err
 	}
 
-	log.Debugf("[Typhon:RabbitTransport] Listening for replies on %s…", t.replyQueue)
+	log.Debug(ctx, "[Typhon:RabbitTransport] Listening for replies on %s…", t.replyQueue)
 	t.connM.RLock()
 	readyC := t.connReady
 	t.connM.RUnlock()
@@ -328,13 +332,13 @@ func (t *rabbitTransport) listenReplies() error {
 		select {
 		case delivery, ok := <-deliveries:
 			if !ok {
-				log.Warnf("[Typhon:RabbitTransport] Delivery channel %s closed", t.replyQueue)
+				log.Warn(ctx, "[Typhon:RabbitTransport] Delivery channel %s closed", t.replyQueue)
 				return ErrDeliveriesClosed
 			}
 			go t.handleRspDelivery(delivery)
 
 		case <-t.tomb.Dying():
-			log.Info("[Typhon:RabbitTransport] Reply listener terminating (tomb death)")
+			log.Info(ctx, "[Typhon:RabbitTransport] Reply listener terminating (tomb death)")
 			return tomb.ErrDying
 		}
 	}
@@ -358,6 +362,7 @@ func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.
 }
 
 func (t *rabbitTransport) handleReqDelivery(delivery amqp.Delivery, reqChan chan<- message.Request) {
+	ctx := context.Background()
 	logId := t.logId(delivery)
 	enc := delivery.Headers["Content-Encoding"].(string)
 	switch enc {
@@ -370,16 +375,17 @@ func (t *rabbitTransport) handleReqDelivery(delivery amqp.Delivery, reqChan chan
 		select {
 		case reqChan <- req:
 		case <-timeout.C:
-			log.Errorf("[Typhon:RabbitTransport] Could not deliver request %s after %s: receiving channel is full",
+			log.Error(ctx, "[Typhon:RabbitTransport] Could not deliver request %s after %s: receiving channel is full",
 				logId, chanSendTimeout.String())
 		}
 
 	default:
-		log.Debugf("[Typhon:RabbitTransport] Cannot handle Content-Encoding \"%s\" as request for %s", enc, logId)
+		log.Debug(ctx, "[Typhon:RabbitTransport] Cannot handle Content-Encoding \"%s\" as request for %s", enc, logId)
 	}
 }
 
 func (t *rabbitTransport) handleRspDelivery(delivery amqp.Delivery) {
+	ctx := context.Background()
 	logId := t.logId(delivery)
 
 	enc := delivery.Headers["Content-Encoding"].(string)
@@ -393,7 +399,7 @@ func (t *rabbitTransport) handleRspDelivery(delivery amqp.Delivery) {
 		delete(t.inflightReqs, rsp.Id())
 		t.inflightReqsM.Unlock()
 		if !ok {
-			log.Warnf("[Typhon:RabbitTransport] Could not match response %s to channel", logId)
+			log.Warn(ctx, "[Typhon:RabbitTransport] Could not match response %s to channel", logId)
 			return
 		}
 
@@ -402,12 +408,12 @@ func (t *rabbitTransport) handleRspDelivery(delivery amqp.Delivery) {
 		select {
 		case rspChan <- rsp:
 		case <-timeout.C:
-			log.Errorf("[Typhon:RabbitTransport] Could not deliver response %s after %s: receiving channel is full",
-				logId, chanSendTimeout.String())
+			log.Error(ctx, "[Typhon:RabbitTransport] Could not deliver response %s after %v: receiving channel is full",
+				logId, chanSendTimeout)
 		}
 
 	default:
-		log.Errorf("[Typhon:RabbitTransport] Cannot handle Content-Encoding \"%s\" as response for %s", enc, logId)
+		log.Error(ctx, "[Typhon:RabbitTransport] Cannot handle Content-Encoding \"%s\" as response for %s", enc, logId)
 	}
 }
 

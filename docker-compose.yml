@@ -1,7 +1,0 @@
-rabbitmq:
-    image: tutum/rabbitmq
-    ports:
-        - '25672:5672'
-        - '35672:15672'
-    environment:
-        RABBITMQ_PASS: 'guest'
