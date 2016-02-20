@@ -40,6 +40,7 @@ type rabbitTransport struct {
 	inflightReqsM sync.Mutex                         // protects inflightReqs
 	listeners     map[string]*tomb.Tomb              // service name: tomb
 	listenersM    sync.RWMutex                       // protects listeners
+	runOnce       sync.Once                          // kicks off the run loop
 }
 
 // run starts the asynchronous run-loop connecting to RabbitMQ
@@ -106,12 +107,14 @@ func (t *rabbitTransport) Tomb() *tomb.Tomb {
 }
 
 func (t *rabbitTransport) connection() *RabbitConnection {
+	t.runOnce.Do(t.run)
 	t.connM.RLock()
 	defer t.connM.RUnlock()
 	return t.conn
 }
 
 func (t *rabbitTransport) Ready() <-chan struct{} {
+	t.runOnce.Do(t.run)
 	t.connM.RLock()
 	defer t.connM.RUnlock()
 	return t.connReady
@@ -409,15 +412,10 @@ func (t *rabbitTransport) handleRspDelivery(delivery amqp.Delivery) {
 }
 
 func NewTransport() transport.Transport {
-	rt := &rabbitTransport{
+	return &rabbitTransport{
 		tomb:         new(tomb.Tomb),
 		inflightReqs: make(map[string]chan<- message.Response),
 		listeners:    make(map[string]*tomb.Tomb),
 		connReady:    make(chan struct{}),
-	}
-
-	rt.replyQueue = DirectReplyQueue
-
-	rt.run()
-	return rt
+		replyQueue:   DirectReplyQueue}
 }
