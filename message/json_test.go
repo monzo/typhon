@@ -29,8 +29,10 @@ func TestJSONMarshaling_Struct(t *testing.T) {
 
 	req2 := req.Copy()
 	req2.SetBody(nil)
-	require.NoError(t, JSONUnmarshaler(jsonStruct{}).UnmarshalPayload(req2), "Error unmarshaling")
+	s := jsonStruct{}
+	require.NoError(t, JSONUnmarshaler(s).UnmarshalPayload(req2), "Error unmarshaling")
 	assert.Equal(t, impl, req2.Body())
+	assert.NotEqual(t, s, req2.Body())
 }
 
 func TestJSONMarshaling_StructPointer(t *testing.T) {

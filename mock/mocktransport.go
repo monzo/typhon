@@ -106,6 +106,7 @@ func (t *mockTransport) Listen(serviceName string, rc chan<- message.Request) er
 		stop()
 		return transport.ErrTimeout
 	case <-t.Ready():
+		log.Debugf("[Typhon:MockTransport] Listener %s started", serviceName)
 	}
 
 	tm.Go(func() error {
