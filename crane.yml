@@ -1,7 +1,0 @@
-containers:
-    typhon_test_rabbitmq:
-        image: tutum/rabbitmq
-        run:
-            detach: true
-            publish: ["25672:5672", "35672:15672"]
-            env: ["RABBITMQ_PASS=guest"]
