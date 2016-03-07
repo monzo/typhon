@@ -5,8 +5,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/cihub/seelog"
+	log "github.com/mondough/slog"
 	"github.com/streadway/amqp"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -20,18 +21,19 @@ func NewRabbitConnection() *RabbitConnection {
 	// @todo Refactor initialization of the connection to allow the "server" abstraction we'll introduce to inject the configuration
 	// @todo once config server has http interface, we should use values from the config
 	// server to connect to rabbit
+	ctx := context.Background()
 	RabbitURL = os.Getenv("RABBIT_URL")
 	if RabbitURL == "" {
 		RabbitURL = "amqp://admin:guest@192.168.59.103:5672"
-		log.Infof("Setting RABBIT_URL to default value %s", RabbitURL)
+		log.Info(ctx, "Setting RABBIT_URL to default value %s", RabbitURL)
 	}
-	log.Infof("Set RABBIT_URL to %s", RabbitURL)
+	log.Info(ctx, "Set RABBIT_URL to %s", RabbitURL)
 	Exchange = os.Getenv("RABBIT_EXCHANGE")
 	if Exchange == "" {
 		Exchange = "b2a"
-		log.Infof("Setting RABBIT_EXCHANGE to default value %s", Exchange)
+		log.Info(ctx, "Setting RABBIT_EXCHANGE to default value %s", Exchange)
 	}
-	log.Infof("Set RABBIT_EXCHANGE to %s", Exchange)
+	log.Info(ctx, "Set RABBIT_EXCHANGE to %s", Exchange)
 
 	return &RabbitConnection{
 		notify:    make(chan bool, 1),
@@ -57,11 +59,12 @@ func (r *RabbitConnection) Init() chan bool {
 }
 
 func (r *RabbitConnection) Connect(connected chan bool) {
+	ctx := context.Background()
 	for {
-		log.Debug("[Rabbit] Attempting to connect…")
+		log.Debug(ctx, "[Rabbit] Attempting to connect…")
 		if err := r.tryToConnect(); err != nil {
 			sleepFor := time.Second
-			log.Debugf("[Rabbit] Failed to connect, sleeping %s…", sleepFor.String())
+			log.Debug(ctx, "[Rabbit] Failed to connect, sleeping %v…", sleepFor)
 			time.Sleep(sleepFor)
 			continue
 		}
@@ -74,14 +77,14 @@ func (r *RabbitConnection) Connect(connected chan bool) {
 		select {
 		case err := <-notifyClose:
 			r.connected = false
-			log.Debugf("[Rabbit] AMQP connection closed (notifyClose): %s", err.Error())
+			log.Debug(ctx, "[Rabbit] AMQP connection closed (notifyClose): %v", err)
 			return
 
 		case <-r.closeChan:
 			// Shut down connection
-			log.Debug("[Rabbit] Closing AMQP connection (closeChan closed)…")
+			log.Debug(ctx, "[Rabbit] Closing AMQP connection (closeChan closed)…")
 			if err := r.Connection.Close(); err != nil {
-				log.Errorf("Failed to close AMQP connection: %v", err)
+				log.Error(ctx, "Failed to close AMQP connection: %v", err)
 			}
 			r.connected = false
 			return
@@ -104,43 +107,45 @@ func (r *RabbitConnection) Close() {
 
 func (r *RabbitConnection) tryToConnect() error {
 	var err error
+	ctx := context.Background()
 	r.Connection, err = amqp.Dial(RabbitURL)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to establish connection with RabbitMQ: %s", RabbitURL)
+		log.Error(ctx, "[Rabbit] Failed to establish connection with RabbitMQ: %s", RabbitURL)
 		return err
 	}
 	r.Channel, err = NewRabbitChannel(r.Connection)
 	if err != nil {
-		log.Error("[Rabbit] Failed to create Bunny Channel")
+		log.Error(ctx, "[Rabbit] Failed to create Bunny Channel")
 		return err
 	}
 	r.Channel.DeclareExchange(Exchange)
-	log.Info("[Rabbit] Connected to RabbitMQ")
+	log.Info(ctx, "[Rabbit] Connected to RabbitMQ")
 	return nil
 }
 
 func (r *RabbitConnection) Consume(serverName string) (<-chan amqp.Delivery, *RabbitChannel, error) {
+	ctx := context.Background()
 	consumerChannel, err := NewRabbitChannel(r.Connection)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to create new channel: %s", err.Error())
+		log.Error(ctx, "[Rabbit] Failed to create new channel: %s", err.Error())
 		return nil, nil, err
 	}
 
 	err = consumerChannel.DeclareQueue(serverName)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to declare queue %s: %s", serverName, err.Error())
+		log.Error(ctx, "[Rabbit] Failed to declare queue %s: %v", serverName, err)
 		return nil, nil, err
 	}
 
 	deliveries, err := consumerChannel.ConsumeQueue(serverName)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to declare queue %s: %s", serverName, err.Error())
+		log.Error(ctx, "[Rabbit] Failed to declare queue %s: %v", serverName, err)
 		return nil, nil, err
 	}
 
 	err = consumerChannel.BindQueue(serverName, Exchange)
 	if err != nil {
-		log.Errorf("[Rabbit] Failed to bind %s to %s exchange: %s", serverName, Exchange, err.Error())
+		log.Error(ctx, "[Rabbit] Failed to bind %s to %s exchange: %v", serverName, Exchange, err)
 		return nil, nil, err
 	}
 
