@@ -364,7 +364,7 @@ func (t *rabbitTransport) deliveryToMessage(delivery amqp.Delivery, msg message.
 func (t *rabbitTransport) handleReqDelivery(delivery amqp.Delivery, reqChan chan<- message.Request) {
 	ctx := context.Background()
 	logId := t.logId(delivery)
-	enc := delivery.Headers["Content-Encoding"].(string)
+	enc, _ := delivery.Headers["Content-Encoding"].(string)
 	switch enc {
 	case "request":
 		req := message.NewRequest()
@@ -388,7 +388,7 @@ func (t *rabbitTransport) handleRspDelivery(delivery amqp.Delivery) {
 	ctx := context.Background()
 	logId := t.logId(delivery)
 
-	enc := delivery.Headers["Content-Encoding"].(string)
+	enc, _ := delivery.Headers["Content-Encoding"].(string)
 	switch enc {
 	case "response":
 		rsp := message.NewResponse()
