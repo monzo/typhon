@@ -19,10 +19,9 @@ import (
 
 const (
 	DirectReplyQueue = "amq.rabbitmq.reply-to"
-
-	connectTimeout  = 30 * time.Second
-	chanSendTimeout = 10 * time.Second
-	respondTimeout  = 10 * time.Second
+	connectTimeout   = 60 * time.Second
+	chanSendTimeout  = 10 * time.Second
+	respondTimeout   = 10 * time.Second
 )
 
 var (
