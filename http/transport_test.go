@@ -32,7 +32,7 @@ func (suite *transportTestSuite) TearDownSuite() {
 func (suite *transportTestSuite) TestStraightforward() {
 	trans := suite.trans
 	svc := Service(func(req Request) Response {
-		return Response{}
+		return NewResponse(http.StatusOK, nil)
 	})
 	trans.Listen("service.test", svc)
 

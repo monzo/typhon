@@ -91,12 +91,14 @@ func old2NewResponse(oldRsp message.Response) httpsvc.Response {
 func new2OldResponse(newRsp httpsvc.Response) (message.Response, error) {
 	rsp := message.NewResponse()
 	rsp.SetHeaders(fromHeader(newRsp.Header))
-	defer newRsp.Body.Close()
-	b, err := ioutil.ReadAll(newRsp.Body)
-	if err != nil {
-		return rsp, err
+	if newRsp.Body != nil {
+		defer newRsp.Body.Close()
+		b, err := ioutil.ReadAll(newRsp.Body)
+		if err != nil {
+			return rsp, err
+		}
+		rsp.SetPayload(b)
 	}
-	rsp.SetPayload(b)
 	rsp.SetId(newRsp.Header.Get(legacyIdHeader))
 	return rsp, newRsp.Error
 }

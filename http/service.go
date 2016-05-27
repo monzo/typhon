@@ -1,6 +1,6 @@
 package httpsvc
 
-// A Service takes is a function that takes a request, and produces a response. Services are used symetrically to
+// A Service is a function that takes a request, and produces a response. Services are used symetrically to
 // represent both clients and servers.
 type Service func(req Request) Response
 
