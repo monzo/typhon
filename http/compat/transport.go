@@ -1,6 +1,7 @@
 package httpcompat
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -90,21 +91,28 @@ func (t *transportUpgrader) Listen(name string, inboundChan chan<- message.Reque
 }
 
 func (t *transportUpgrader) StopListening(name string) bool {
-	return false
+	t.trans.Unlisten(name)
+	t.registeredListenersM.Lock()
+	delete(t.registeredListeners, name)
+	t.registeredListenersM.Unlock()
+	return true
 }
 
 func (t *transportUpgrader) Respond(oldReq message.Request, oldRsp message.Response) error {
 	t.inflightReqsM.RLock()
 	rspChan, ok := t.inflightReqs[oldReq.Id()]
 	t.inflightReqsM.RUnlock()
-	if !ok {
-		panic("no matching channel")
+	if ok {
+		rspChan <- old2NewResponse(oldRsp)
+		return nil
 	}
-	rspChan <- old2NewResponse(oldRsp)
-	return nil
+	return fmt.Errorf("No matching response channel %s", oldReq.Id())
 }
 
 func (t *transportUpgrader) Send(req message.Request, timeout time.Duration) (message.Response, error) {
+	if req.Id() == "" {
+		req.SetId(t.reqId())
+	}
 	svc := httpsvc.
 		Service(t.trans.Send).
 		Filtered(httpsvc.TimeoutFilter(timeout))

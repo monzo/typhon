@@ -2,6 +2,7 @@ package httpsvc
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -25,6 +26,7 @@ func (e errReader) Read(_ []byte) (int, error) {
 type Transport interface {
 	// Accept inbound requests for the service, identified by name.
 	Listen(name string, svc Service) error
+	Unlisten(name string)
 	// Close the transport. If the transport support request draining, then the timeout specified will be the maximum
 	// allowed time draining is allowed to take.
 	Close(timeout time.Duration)
@@ -48,8 +50,18 @@ func NetworkTransport(addr string) Transport {
 		addr:     addr,
 		services: make(map[string]Service, 1),
 		client: &http.Client{
-			Transport: http.DefaultTransport,
-			Timeout:   2 * time.Hour}}
+			Timeout: 2 * time.Hour,
+			Transport: &http.Transport{
+				Proxy:                 http.ProxyFromEnvironment,
+				TLSHandshakeTimeout:   2 * time.Second,
+				ExpectContinueTimeout: time.Second,
+				MaxIdleConnsPerHost:   10,
+				Dial: (&dialer{
+					MaxConnsPerHost: 10,
+					Dialer: net.Dialer{
+						Timeout:   2 * time.Second,
+						KeepAlive: 5 * time.Minute,
+					}}).Dial}}}
 }
 
 func (t *networkTransport) Listen(name string, svc Service) error {
@@ -57,6 +69,10 @@ func (t *networkTransport) Listen(name string, svc Service) error {
 	if err != nil {
 		return err
 	}
+
+	t.servicesM.Lock()
+	t.services[name] = svc
+	t.servicesM.Unlock()
 
 	t.serverM.Lock()
 	if t.server == nil {
@@ -67,11 +83,13 @@ func (t *networkTransport) Listen(name string, svc Service) error {
 		go t.server.Serve(l)
 	}
 	t.serverM.Unlock()
-
-	t.servicesM.Lock()
-	t.services[name] = svc
-	t.servicesM.Unlock()
 	return nil
+}
+
+func (t *networkTransport) Unlisten(name string) {
+	t.servicesM.Lock()
+	delete(t.services, name)
+	t.servicesM.Unlock()
 }
 
 func (t *networkTransport) Close(timeout time.Duration) {
@@ -86,7 +104,6 @@ func (t *networkTransport) Close(timeout time.Duration) {
 }
 
 func (t *networkTransport) Send(req Request) Response {
-	log.Trace(req, "[Typhon:http:networkTransport] Sending to %s@%v", req.Host, req.URL)
 	httpRsp, err := t.client.Do(&(req.Request))
 	ret := Response{
 		Error: err}
@@ -129,15 +146,22 @@ func (t *networkTransport) ServeHTTP(rw http.ResponseWriter, httpReq *http.Reque
 	req := Request{
 		Request: *httpReq,
 		Context: context.Background()} // @TODO: Proper context
-	log.Trace(req, "[Typhon:http:networkTransport] Received for %s", req.Host)
 
 	t.servicesM.RLock()
 	svc, ok := t.services[req.Host]
 	t.servicesM.RUnlock()
 	if ok {
 		rsp := svc(req)
-		rsp.Write(rw)
+		defer rsp.Body.Close()
+		for k, v := range rsp.Header {
+			rw.Header()[k] = v
+		}
+		rw.WriteHeader(rsp.StatusCode)
+		if _, err := io.Copy(rw, rsp.Body); err != nil {
+			log.Error(req, "[Typhon:http:networkTransport] Error copying response body: %v", err)
+		}
 	} else {
-		panic("not handled")
+		rw.WriteHeader(http.StatusGatewayTimeout)
+		fmt.Fprintf(rw, "Unhandled service %s", req.Host)
 	}
 }

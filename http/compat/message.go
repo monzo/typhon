@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -36,6 +37,10 @@ func fromHeader(h http.Header) map[string]string {
 }
 
 func old2NewRequest(oldReq message.Request) httpsvc.Request {
+	ep := oldReq.Endpoint()
+	if !strings.HasPrefix(ep, "/") {
+		ep = "/compat/" + ep
+	}
 	v := httpsvc.Request{
 		Context: context.Background(),
 		Request: http.Request{
@@ -43,7 +48,7 @@ func old2NewRequest(oldReq message.Request) httpsvc.Request {
 			URL: &url.URL{
 				Scheme: "http",
 				Host:   oldReq.Service(),
-				Path:   oldReq.Endpoint()},
+				Path:   ep},
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
@@ -58,7 +63,7 @@ func old2NewRequest(oldReq message.Request) httpsvc.Request {
 func new2OldRequest(newReq httpsvc.Request) message.Request {
 	req := message.NewRequest()
 	req.SetService(newReq.Host)
-	req.SetEndpoint(newReq.URL.Path)
+	req.SetEndpoint(strings.TrimPrefix(newReq.URL.Path, "/compat/"))
 	b, _ := ioutil.ReadAll(newReq.Body)
 	newReq.Body.Close()
 	req.SetPayload(b)
@@ -76,14 +81,13 @@ func old2NewResponse(oldRsp message.Response) httpsvc.Response {
 	v := httpsvc.Response{
 		Error: mRsp.Error(),
 		Response: http.Response{
-			Status:        http.StatusText(status),
-			StatusCode:    status,
-			Proto:         "HTTP/1.1",
-			ProtoMajor:    1,
-			ProtoMinor:    1,
-			Header:        toHeader(mRsp.Headers()),
-			Body:          ioutil.NopCloser(bytes.NewReader(mRsp.Payload())),
-			ContentLength: int64(len(mRsp.Payload()))}}
+			Status:     http.StatusText(status),
+			StatusCode: status,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header:     toHeader(mRsp.Headers()),
+			Body:       ioutil.NopCloser(bytes.NewReader(mRsp.Payload()))}}
 	v.Header.Set(legacyIdHeader, oldRsp.Id())
 	return v
 }

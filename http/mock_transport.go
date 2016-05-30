@@ -22,10 +22,16 @@ func (t *mockTransport) Listen(name string, svc Service) error {
 	return nil
 }
 
+func (t *mockTransport) Unlisten(name string) {
+	t.servicesM.Lock()
+	delete(t.services, name)
+	t.servicesM.Unlock()
+}
+
 func (t *mockTransport) Close(timeout time.Duration) {
 	t.servicesM.Lock()
-	defer t.servicesM.Unlock()
 	t.services = make(map[string]Service, 1)
+	t.servicesM.Unlock()
 }
 
 func (t *mockTransport) Send(req Request) Response {
