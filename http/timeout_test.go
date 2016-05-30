@@ -21,7 +21,7 @@ func TestTimeout(t *testing.T) {
 
 	// One which does should timeout with the default timeout
 	svc = Service(func(req Request) Response {
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		return Response{}
 	})
 	svc = svc.Filtered(TimeoutFilter(10 * time.Millisecond))
@@ -31,7 +31,7 @@ func TestTimeout(t *testing.T) {
 
 	// …or the one in the request if one was specified
 	req := NewRequest(nil, "GET", "/")
-	req.Header.Set("Timeout", "100") // 10 milliseconds
+	req.Header.Set("Timeout", "100") // 100 milliseconds
 	rsp = svc(req)
 	assert.NoError(t, rsp.Error)
 	req.Header.Set("Timeout", "5")
