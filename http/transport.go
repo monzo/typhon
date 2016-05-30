@@ -152,13 +152,15 @@ func (t *networkTransport) ServeHTTP(rw http.ResponseWriter, httpReq *http.Reque
 	t.servicesM.RUnlock()
 	if ok {
 		rsp := svc(req)
-		defer rsp.Body.Close()
 		for k, v := range rsp.Header {
 			rw.Header()[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
-		if _, err := io.Copy(rw, rsp.Body); err != nil {
-			log.Error(req, "[Typhon:http:networkTransport] Error copying response body: %v", err)
+		if rsp.Body != nil {
+			defer rsp.Body.Close()
+			if _, err := io.Copy(rw, rsp.Body); err != nil {
+				log.Error(req, "[Typhon:http:networkTransport] Error copying response body: %v", err)
+			}
 		}
 	} else {
 		rw.WriteHeader(http.StatusGatewayTimeout)
