@@ -1,8 +1,11 @@
 package httpsvc
 
 import (
+	"net"
 	"sync"
 	"time"
+
+	"github.com/mondough/terrors"
 )
 
 type mockTransport struct {
@@ -19,6 +22,10 @@ func (t *mockTransport) Listen(name string, svc Service) error {
 	t.servicesM.Lock()
 	defer t.servicesM.Unlock()
 	t.services[name] = svc
+	return nil
+}
+
+func (t *mockTransport) RemoteAddr() net.Addr {
 	return nil
 }
 
@@ -41,5 +48,6 @@ func (t *mockTransport) Send(req Request) Response {
 	if ok {
 		return svc(req)
 	}
-	panic("not handled")
+	return Response{
+		Error: terrors.Timeout("", "service not found", nil)}
 }

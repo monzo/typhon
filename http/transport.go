@@ -32,6 +32,8 @@ type Transport interface {
 	Close(timeout time.Duration)
 	// Sends a request to a remote server; note that the signature of this method makes it a Service.
 	Send(Request) Response
+	// RemoteAddr returns the address at which this transport can be reached by clients.
+	RemoteAddr() net.Addr
 }
 
 type networkTransport struct {
@@ -86,7 +88,17 @@ func (t *networkTransport) Listen(name string, svc Service) error {
 	return nil
 }
 
+func (t *networkTransport) RemoteAddr() net.Addr {
+	t.listenerM.Lock()
+	defer t.listenerM.Unlock()
+	if t.listener != nil {
+		return t.listener.Addr()
+	}
+	return nil
+}
+
 func (t *networkTransport) Unlisten(name string) {
+	// @TODO: Draining
 	t.servicesM.Lock()
 	delete(t.services, name)
 	t.servicesM.Unlock()
@@ -96,10 +108,19 @@ func (t *networkTransport) Close(timeout time.Duration) {
 	t.listenerM.Lock()
 	defer t.listenerM.Unlock()
 	if t.listener != nil {
-		// @TODO: Draining
+		t.servicesM.RLock()
+		svcNames := make([]string, 0, len(t.services))
+		for k, _ := range t.services {
+			svcNames = append(svcNames, k)
+		}
+		t.servicesM.RUnlock()
+		for _, svc := range svcNames {
+			t.Unlisten(svc)
+		}
+		addr := t.listener.Addr()
 		t.listener.Close()
 		t.listener = nil
-		log.Info(nil, "[Typhon:http:networkTransport] Stopped listening on %v", t.addr)
+		log.Info(nil, "[Typhon:http:networkTransport] Stopped listening on %v", addr)
 	}
 }
 
@@ -136,7 +157,7 @@ func (t *networkTransport) ensureListening() (net.Listener, error) {
 		if err != nil {
 			return nil, terrors.Wrap(err, nil)
 		}
-		log.Info(nil, "[Typhon:http:networkTransport] Listening on %v", t.addr)
+		log.Info(nil, "[Typhon:http:networkTransport] Listening on %v", l.Addr())
 		t.listener = l
 	}
 	return t.listener, nil
