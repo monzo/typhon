@@ -39,7 +39,7 @@ func fromHeader(h http.Header) map[string]string {
 func old2NewRequest(oldReq message.Request) httpsvc.Request {
 	ep := oldReq.Endpoint()
 	if !strings.HasPrefix(ep, "/") {
-		ep = "/compat/" + ep
+		ep = "/" + ep
 	}
 	v := httpsvc.Request{
 		Context: context.Background(),
@@ -63,7 +63,7 @@ func old2NewRequest(oldReq message.Request) httpsvc.Request {
 func new2OldRequest(newReq httpsvc.Request) message.Request {
 	req := message.NewRequest()
 	req.SetService(newReq.Host)
-	req.SetEndpoint(strings.TrimPrefix(newReq.URL.Path, "/compat/"))
+	req.SetEndpoint(newReq.URL.Path)
 	b, _ := ioutil.ReadAll(newReq.Body)
 	newReq.Body.Close()
 	req.SetPayload(b)
