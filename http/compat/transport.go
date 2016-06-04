@@ -115,6 +115,6 @@ func (t *transportUpgrader) Send(req message.Request, timeout time.Duration) (me
 	}
 	svc := httpsvc.
 		Service(t.trans.Send).
-		Filtered(httpsvc.TimeoutFilter(timeout))
+		Filter(httpsvc.TimeoutFilter(timeout))
 	return new2OldResponse(svc(old2NewRequest(req)))
 }

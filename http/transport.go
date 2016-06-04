@@ -7,9 +7,12 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/facebookgo/httpcontrol"
 	log "github.com/mondough/slog"
 	"github.com/mondough/terrors"
 	"golang.org/x/net/context"
@@ -37,33 +40,35 @@ type Transport interface {
 }
 
 type networkTransport struct {
-	addr      string             // immutable; set on creation
-	listenerM sync.Mutex         // protects listener
-	listener  *net.TCPListener   // initialised on first Listen()
-	servicesM sync.RWMutex       // protects services
-	services  map[string]Service // maps service names to services
-	client    *http.Client       // immutable (no mutex needed)
-	serverM   sync.Mutex         // protects server
-	server    *http.Server       // initialised on first Listen()
+	listenerM    sync.RWMutex       // protects listener and listenerDone
+	listener     *net.TCPListener   // initialised on first Listen()
+	listenerDone <-chan struct{}    // closed when the listener terminates
+	servicesM    sync.RWMutex       // protects services
+	services     map[string]Service // maps service names to services
+	client       *http.Client       // immutable (no mutex needed)
+	serverM      sync.Mutex         // protects server
+	server       *http.Server       // initialised on first Listen()
 }
 
-func NetworkTransport(addr string) Transport {
-	return &networkTransport{
-		addr:     addr,
-		services: make(map[string]Service, 1),
-		client: &http.Client{
-			Timeout: 2 * time.Hour,
-			Transport: &http.Transport{
-				Proxy:                 http.ProxyFromEnvironment,
-				TLSHandshakeTimeout:   2 * time.Second,
-				ExpectContinueTimeout: time.Second,
-				MaxIdleConnsPerHost:   10,
-				Dial: (&dialer{
-					MaxConnsPerHost: 10,
-					Dialer: net.Dialer{
-						Timeout:   2 * time.Second,
-						KeepAlive: 5 * time.Minute,
-					}}).Dial}}}
+// A single transport is shared
+var sharedTransport = &networkTransport{
+	services: make(map[string]Service, 1),
+	client: &http.Client{
+		Timeout: time.Hour,
+		Transport: &httpcontrol.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			DisableKeepAlives:     false,
+			DisableCompression:    false,
+			MaxIdleConnsPerHost:   10,
+			DialTimeout:           10 * time.Second,
+			DialKeepAlive:         10 * time.Minute,
+			ResponseHeaderTimeout: time.Minute,
+			RequestTimeout:        time.Hour,
+			RetryAfterTimeout:     false,
+			MaxTries:              3}}}
+
+func NetworkTransport() Transport {
+	return sharedTransport
 }
 
 func (t *networkTransport) Listen(name string, svc Service) error {
@@ -79,18 +84,20 @@ func (t *networkTransport) Listen(name string, svc Service) error {
 	t.serverM.Lock()
 	if t.server == nil {
 		t.server = &http.Server{
-			Addr:           t.addr,
 			Handler:        t,
 			MaxHeaderBytes: http.DefaultMaxHeaderBytes}
-		go t.server.Serve(l)
+		go func() {
+			err := t.server.Serve(l)
+			log.Info(nil, "[Typhon:http:networkTransport] Server exited with %v", err)
+		}()
 	}
 	t.serverM.Unlock()
 	return nil
 }
 
 func (t *networkTransport) RemoteAddr() net.Addr {
-	t.listenerM.Lock()
-	defer t.listenerM.Unlock()
+	t.listenerM.RLock()
+	defer t.listenerM.RUnlock()
 	if t.listener != nil {
 		return t.listener.Addr()
 	}
@@ -130,8 +137,9 @@ func (t *networkTransport) Send(req Request) Response {
 		Error: err}
 	if httpRsp != nil {
 		defer httpRsp.Body.Close()
-		ret.Response = *httpRsp
+		ret.Response = httpRsp
 		// Read the entire response body here so we can make sure the request is Close()d
+		// @TODO: Provide a hook to allow the client to get a streaming body?
 		payload := new(bytes.Buffer)
 		_, err := io.Copy(payload, httpRsp.Body)
 		if err != nil {
@@ -144,16 +152,27 @@ func (t *networkTransport) Send(req Request) Response {
 }
 
 func (t *networkTransport) ensureListening() (net.Listener, error) {
+	// Determine on which address to listen, choosing in order one of:
+	// 1. LISTEN_ADDR environment variable
+	// 2. PORT variable (listening on all interfaces)
+	// 3. Random, available port
+	addr := ":0"
+	if addr_ := os.Getenv("LISTEN_ADDR"); addr_ != "" {
+		addr = addr_
+	} else if port, err := strconv.Atoi(os.Getenv("PORT")); err == nil && port >= 0 {
+		addr = fmt.Sprintf(":%d", port)
+	}
+
 	t.listenerM.Lock()
 	defer t.listenerM.Unlock()
 	if t.listener == nil {
-		addr, err := net.ResolveTCPAddr("tcp", t.addr)
+		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
 			return nil, terrors.Wrap(err, nil)
 		}
 
 		// @TODO: Keep alives
-		l, err := net.ListenTCP("tcp", addr)
+		l, err := net.ListenTCP("tcp", tcpAddr)
 		if err != nil {
 			return nil, terrors.Wrap(err, nil)
 		}
@@ -167,24 +186,15 @@ func (t *networkTransport) ServeHTTP(rw http.ResponseWriter, httpReq *http.Reque
 	req := Request{
 		Request: *httpReq,
 		Context: context.Background()} // @TODO: Proper context
+	rsp := Response{}
 
 	t.servicesM.RLock()
 	svc, ok := t.services[req.Host]
 	t.servicesM.RUnlock()
 	if ok {
-		rsp := svc(req)
-		for k, v := range rsp.Header {
-			rw.Header()[k] = v
-		}
-		rw.WriteHeader(rsp.StatusCode)
-		if rsp.Body != nil {
-			defer rsp.Body.Close()
-			if _, err := io.Copy(rw, rsp.Body); err != nil {
-				log.Error(req, "[Typhon:http:networkTransport] Error copying response body: %v", err)
-			}
-		}
+		rsp = svc(req)
 	} else {
-		rw.WriteHeader(http.StatusGatewayTimeout)
-		fmt.Fprintf(rw, "Unhandled service %s", req.Host)
+		rsp.Error = terrors.InternalService("unhandled_service", fmt.Sprintf("Unhandled service %s", req.Host), nil)
 	}
+	rsp.WriteTo(req, rw)
 }

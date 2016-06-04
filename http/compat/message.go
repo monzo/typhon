@@ -80,7 +80,7 @@ func old2NewResponse(oldRsp message.Response) httpsvc.Response {
 	}
 	v := httpsvc.Response{
 		Error: mRsp.Error(),
-		Response: http.Response{
+		Response: &http.Response{
 			Status:     http.StatusText(status),
 			StatusCode: status,
 			Proto:      "HTTP/1.1",

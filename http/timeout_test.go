@@ -15,7 +15,7 @@ func TestTimeout(t *testing.T) {
 	svc := Service(func(req Request) Response {
 		return Response{}
 	})
-	svc = svc.Filtered(TimeoutFilter(10 * time.Second))
+	svc = svc.Filter(TimeoutFilter(10 * time.Second))
 	rsp := svc(NewRequest(nil, "GET", "/"))
 	assert.NoError(t, rsp.Error)
 
@@ -24,7 +24,7 @@ func TestTimeout(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 		return Response{}
 	})
-	svc = svc.Filtered(TimeoutFilter(10 * time.Millisecond))
+	svc = svc.Filter(TimeoutFilter(10 * time.Millisecond))
 	rsp = svc(NewRequest(nil, "GET", "/"))
 	require.Error(t, rsp.Error)
 	assert.True(t, terrors.Wrap(rsp.Error, nil).(*terrors.Error).Matches(terrors.ErrTimeout))

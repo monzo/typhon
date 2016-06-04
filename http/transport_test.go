@@ -2,6 +2,7 @@ package httpsvc
 
 import (
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -16,7 +17,8 @@ func TransportTester(trans Transport) func(t *testing.T) {
 }
 
 func TestNetworkTransport(t *testing.T) {
-	trans := NetworkTransport("127.0.0.1:30001")
+	os.Setenv("LISTEN_ADDR", "127.0.0.1:30001")
+	trans := NetworkTransport()
 	TransportTester(trans)(t)
 }
 
@@ -32,7 +34,7 @@ func (suite *transportTestSuite) TearDownSuite() {
 func (suite *transportTestSuite) TestStraightforward() {
 	trans := suite.trans
 	svc := Service(func(req Request) Response {
-		return NewResponse(http.StatusOK, nil)
+		return NewResponse(req)
 	})
 	trans.Listen("service.test", svc)
 
