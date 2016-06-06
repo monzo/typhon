@@ -13,7 +13,7 @@ func TestRouter(t *testing.T) {
 	router := NewRouter()
 	router.GET("/foo", func(req Request) Response {
 		rsp := NewResponse(req)
-		rsp.SetBody([]byte("abcdef"))
+		rsp.Write([]byte("abcdef"))
 		return rsp
 	})
 
@@ -21,7 +21,8 @@ func TestRouter(t *testing.T) {
 	req := NewRequest(nil, "GET", "/foo")
 	rsp := router.Serve()(req)
 	assert.NoError(t, rsp.Error)
-	assert.Equal(t, "abcdef", string(rsp.BodyBytes()))
+	b, _ := rsp.BodyBytes(true)
+	assert.Equal(t, "abcdef", string(b))
 
 	// Wrong method should result in not found
 	// @TODO: This should really be HTTP Method Not Found
@@ -44,13 +45,14 @@ func TestRouter_CatchallPath(t *testing.T) {
 	router := NewRouter()
 	router.GET("/*residual", func(req Request) Response {
 		rsp := NewResponse(req)
-		rsp.SetBody([]byte("catchall"))
+		rsp.Write([]byte("catchall"))
 		return rsp
 	})
 	req := NewRequest(nil, "GET", "/bar/baz/doodad/123/abc")
 	rsp := router.Serve()(req)
 	assert.NoError(t, rsp.Error)
-	assert.Equal(t, "catchall", string(rsp.BodyBytes()))
+	b, _ := rsp.BodyBytes(true)
+	assert.Equal(t, "catchall", string(b))
 	// …but not on another method
 	req = NewRequest(nil, "POST", "/foo")
 	rsp = router.Serve()(req)

@@ -1,55 +1,73 @@
 package httpsvc
 
 import (
-	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
 
 	log "github.com/mondough/slog"
+	"github.com/mondough/terrors"
 	"golang.org/x/net/context"
 )
 
 type Response struct {
 	*http.Response
-	Error   error
-	Context context.Context
+	Error error
+	ctx   context.Context
 }
 
-// SetBody is a convenience for setting the entire body content at once.
-func (r Response) SetBody(b []byte) {
-	r.Body = ioutil.NopCloser(bytes.NewReader(b))
+// Encode serialises the passed object as JSON into the body (and sets appropriate headers).
+func (r *Response) Encode(v interface{}) {
+	if err := json.NewEncoder(r).Encode(v); err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		log.Warn(r.ctx, "Failed to encode response body: %v", err)
+		return
+	}
+	r.Header.Set("Content-Type", "application/json")
 }
 
-// BodyBytes consumes all of the Respnse body and returns it as a byte slice
-func (r Response) BodyBytes() []byte {
-	if r.Body == nil {
-		return nil
-	}
-	b, err := ioutil.ReadAll(r.Body)
-	if err == nil {
-		err = r.Body.Close()
-	}
+// Decode de-serialises the JSON body into the passed object.
+func (r Response) Decode(v interface{}) error {
+	err := json.NewDecoder(r.Body).Decode(v)
 	if err != nil {
-		log.Error(r.Context, "Could not read response body: %v", err)
-		return nil
+		log.Warn(r.ctx, "Failed to decode response body: %v", err)
 	}
-	return b
+	return err
 }
 
-// WriteTo writes the response out to the given http.ResponseWriter.
-// Streaming bodies are supported.
-func (r Response) WriteTo(ctx context.Context, rw http.ResponseWriter) {
-	h := rw.Header()
-	for k, v := range r.Header {
-		h[k] = v
-	}
-	rw.WriteHeader(r.StatusCode)
-	if r.Body != nil {
-		defer r.Body.Close()
-		if _, err := io.Copy(rw, r.Body); err != nil {
-			log.Error(ctx, "[Typhon:http:networkTransport] Error copying response body: %v", err)
+func (r *Response) Write(b []byte) (int, error) {
+	switch rc := r.Body.(type) {
+	// In the "regular" case, the response body will be a bufCloser; we can write
+	case io.Writer:
+		return rc.Write(b)
+	// If a caller manually sets Response.Body, then we may not be able to write to it. In that case, we need to be
+	// cleverer.
+	default:
+		buf := &bufCloser{}
+		if _, err := io.Copy(buf, rc); err != nil {
+			// This can be quite bad; we have consumed (and possibly lost) some of the original body
+			return 0, err
 		}
+		r.Body = buf
+		return buf.Write(b)
+	}
+}
+
+func (r *Response) BodyBytes(consume bool) ([]byte, error) {
+	if consume {
+		return ioutil.ReadAll(r.Body)
+	}
+
+	switch rc := r.Body.(type) {
+	case *bufCloser:
+		return rc.Bytes(), nil
+	default:
+		rdr := io.Reader(rc)
+		buf := &bufCloser{}
+		r.Body = buf
+		rdr = io.TeeReader(rdr, buf)
+		return ioutil.ReadAll(rdr)
 	}
 }
 
@@ -59,16 +77,20 @@ func (r *Response) Writer() ResponseWriter {
 		r: r}
 }
 
+func newHttpResponse(req Request) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusOK, // Seems like a reasonable default
+		Proto:      req.Proto,
+		ProtoMajor: req.ProtoMajor,
+		ProtoMinor: req.ProtoMinor,
+		Header:     make(http.Header, 5),
+		Body:       &bufCloser{}}
+}
+
 // NewResponse constructs a Response
 func NewResponse(req Request) Response {
 	return Response{
-		Context: req,
-		Error:   nil,
-		Response: &http.Response{
-			StatusCode: http.StatusOK, // Seems like a reasonable default
-			Proto:      req.Proto,
-			ProtoMajor: req.ProtoMajor,
-			ProtoMinor: req.ProtoMinor,
-			Header:     make(http.Header, 5),
-			Body:       &bufCloser{}}}
+		ctx:      req.Context,
+		Error:    nil,
+		Response: newHttpResponse(req)}
 }

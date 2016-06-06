@@ -17,14 +17,16 @@ func TestResponseWriter(t *testing.T) {
 	// Using NewResponse, vanilla
 	r := NewResponse(req)
 	r.Body = ioutil.NopCloser(strings.NewReader("boop"))
-	assert.Equal(t, []byte("boop"), r.BodyBytes())
+	b, _ := r.BodyBytes(true)
+	assert.Equal(t, []byte("boop"), b)
 
 	// Using NewResponse, via ResponseWriter
 	r = NewResponse(req)
 	r.Writer().Header().Set("abc", "def")
 	r.Writer().WriteHeader(http.StatusForbidden) // Test some other fun stuff while we're here
 	r.Writer().Write([]byte("boop"))
-	assert.Equal(t, []byte("boop"), r.BodyBytes())
+	b, _ = r.BodyBytes(true)
+	assert.Equal(t, []byte("boop"), b)
 	assert.Equal(t, http.StatusForbidden, r.StatusCode)
 	assert.Equal(t, "def", r.Header.Get("abc"))
 
@@ -32,7 +34,8 @@ func TestResponseWriter(t *testing.T) {
 	r = NewResponse(req)
 	r.Body = ioutil.NopCloser(strings.NewReader("boop"))
 	r.Writer().Write([]byte("woop"))
-	assert.Equal(t, []byte("boopwoop"), r.BodyBytes())
+	b, _ = r.BodyBytes(true)
+	assert.Equal(t, []byte("boopwoop"), b)
 }
 
 func TestResponseWriter_Error(t *testing.T) {
