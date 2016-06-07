@@ -14,6 +14,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+var DefaultListenAddr = ":0"
+
 type Listener interface {
 	httpdown.Server
 	Addr() net.Addr
@@ -43,7 +45,7 @@ func Listen(svc Service) Listener {
 	// 1. LISTEN_ADDR environment variable
 	// 2. PORT variable (listening on all interfaces)
 	// 3. Random, available port
-	addr := ":0"
+	addr := DefaultListenAddr
 	if addr_ := os.Getenv("LISTEN_ADDR"); addr_ != "" {
 		addr = addr_
 	} else if port, err := strconv.Atoi(os.Getenv("PORT")); err == nil && port >= 0 {
