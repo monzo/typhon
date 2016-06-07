@@ -28,10 +28,19 @@ func (r *Response) Encode(v interface{}) {
 }
 
 // Decode de-serialises the JSON body into the passed object.
-func (r Response) Decode(v interface{}) error {
-	err := json.NewDecoder(r.Body).Decode(v)
-	if err != nil {
-		log.Warn(r.ctx, "Failed to decode response body: %v", err)
+func (r *Response) Decode(v interface{}) error {
+	err := error(nil)
+	if r.Response == nil {
+		err = terrors.InternalService("", "Response has no body", nil)
+	} else {
+		err := json.NewDecoder(r.Body).Decode(v)
+		if err != nil {
+			log.Warn(r.ctx, "Failed to decode response body: %v", err)
+		}
+		err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
+	}
+	if r.Error == nil {
+		r.Error = err
 	}
 	return err
 }

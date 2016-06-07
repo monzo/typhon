@@ -2,6 +2,7 @@ package httpsvc
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -33,7 +34,7 @@ func (r Request) Decode(v interface{}) error {
 	if err != nil {
 		log.Warn(r, "Failed to decode response body: %v", err)
 	}
-	return err
+	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }
 
 func (r *Request) Write(b []byte) (int, error) {
@@ -77,6 +78,19 @@ func (r Request) Send() *ResponseFuture {
 
 func (r Request) SendVia(svc Service) *ResponseFuture {
 	return SendVia(r, svc)
+}
+
+func (r Request) Response(body interface{}) Response {
+	rsp := NewResponse(r)
+	rsp.Encode(body)
+	return rsp
+}
+
+func (r Request) String() string {
+	if r.URL == nil {
+		return "Request(Unknown)"
+	}
+	return fmt.Sprintf("Request(%s %s)", r.Method, r.URL.Path)
 }
 
 func NewRequest(ctx context.Context, method, url string, body interface{}) Request {
