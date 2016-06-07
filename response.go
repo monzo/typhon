@@ -54,9 +54,11 @@ func (r *Response) Write(b []byte) (int, error) {
 	// cleverer.
 	default:
 		buf := &bufCloser{}
-		if _, err := io.Copy(buf, rc); err != nil {
-			// This can be quite bad; we have consumed (and possibly lost) some of the original body
-			return 0, err
+		if rc != nil {
+			if _, err := io.Copy(buf, rc); err != nil {
+				// This can be quite bad; we have consumed (and possibly lost) some of the original body
+				return 0, err
+			}
 		}
 		r.Body = buf
 		return buf.Write(b)
