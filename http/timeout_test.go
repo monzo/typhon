@@ -16,7 +16,7 @@ func TestTimeout(t *testing.T) {
 		return Response{}
 	})
 	svc = svc.Filter(TimeoutFilter(10 * time.Second))
-	rsp := svc(NewRequest(nil, "GET", "/"))
+	rsp := svc(NewRequest(nil, "GET", "/", nil))
 	assert.NoError(t, rsp.Error)
 
 	// One which does should timeout with the default timeout
@@ -25,17 +25,17 @@ func TestTimeout(t *testing.T) {
 		return Response{}
 	})
 	svc = svc.Filter(TimeoutFilter(10 * time.Millisecond))
-	rsp = svc(NewRequest(nil, "GET", "/"))
+	rsp = svc(NewRequest(nil, "GET", "/", nil))
 	require.Error(t, rsp.Error)
 	assert.True(t, terrors.Wrap(rsp.Error, nil).(*terrors.Error).Matches(terrors.ErrTimeout))
 
 	// …or the one in the request if one was specified
-	req := NewRequest(nil, "GET", "/")
+	req := NewRequest(nil, "GET", "/", nil)
 	req.Header.Set("Timeout", "100") // 100 milliseconds
 	rsp = svc(req)
 	assert.NoError(t, rsp.Error)
 	req.Header.Set("Timeout", "5")
-	rsp = svc(NewRequest(nil, "GET", "/"))
+	rsp = svc(NewRequest(nil, "GET", "/", nil))
 	require.Error(t, rsp.Error)
 	assert.True(t, terrors.Wrap(rsp.Error, nil).(*terrors.Error).Matches(terrors.ErrTimeout))
 }

@@ -25,7 +25,7 @@ func (suite *e2eSuite) TestStraightforward() {
 	})
 	defer l.Stop()
 
-	req := NewRequest(nil, "GET", "http://localhost:30001")
+	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
 	rsp := req.Send().Response()
 	suite.Assert().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
@@ -39,7 +39,7 @@ func (suite *e2eSuite) TestError() {
 	})
 	defer l.Stop()
 
-	req := NewRequest(nil, "GET", "http://localhost:30001")
+	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
 	rsp := req.Send().Response()
 	suite.Assert().Equal(http.StatusUnauthorized, rsp.StatusCode)
 	suite.Assert().Error(rsp.Error)

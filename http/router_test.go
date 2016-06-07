@@ -18,7 +18,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	// Matching path
-	req := NewRequest(nil, "GET", "/foo")
+	req := NewRequest(nil, "GET", "/foo", nil)
 	rsp := router.Serve()(req)
 	assert.NoError(t, rsp.Error)
 	b, _ := rsp.BodyBytes(true)
@@ -26,14 +26,14 @@ func TestRouter(t *testing.T) {
 
 	// Wrong method should result in not found
 	// @TODO: This should really be HTTP Method Not Found
-	req = NewRequest(nil, "POST", "/foo")
+	req = NewRequest(nil, "POST", "/foo", nil)
 	rsp = router.Serve()(req)
 	assert.Error(t, rsp.Error)
 	err := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	assert.True(t, err.Matches(terrors.ErrNotFound))
 
 	// Wrong path should result in not found
-	req = NewRequest(nil, "GET", "/")
+	req = NewRequest(nil, "GET", "/", nil)
 	rsp = router.Serve()(req)
 	assert.Error(t, rsp.Error)
 	err = terrors.Wrap(rsp.Error, nil).(*terrors.Error)
@@ -48,13 +48,13 @@ func TestRouter_CatchallPath(t *testing.T) {
 		rsp.Write([]byte("catchall"))
 		return rsp
 	})
-	req := NewRequest(nil, "GET", "/bar/baz/doodad/123/abc")
+	req := NewRequest(nil, "GET", "/bar/baz/doodad/123/abc", nil)
 	rsp := router.Serve()(req)
 	assert.NoError(t, rsp.Error)
 	b, _ := rsp.BodyBytes(true)
 	assert.Equal(t, "catchall", string(b))
 	// …but not on another method
-	req = NewRequest(nil, "POST", "/foo")
+	req = NewRequest(nil, "POST", "/foo", nil)
 	rsp = router.Serve()(req)
 	assert.Error(t, rsp.Error)
 	err := terrors.Wrap(rsp.Error, nil).(*terrors.Error)

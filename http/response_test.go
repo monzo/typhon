@@ -2,9 +2,7 @@ package httpsvc
 
 import (
 	"errors"
-	"io/ioutil"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,11 +10,11 @@ import (
 
 func TestResponseWriter(t *testing.T) {
 	t.Parallel()
-	req := NewRequest(nil, "GET", "/abc")
+	req := NewRequest(nil, "GET", "/abc", nil)
 
 	// Using NewResponse, vanilla
 	r := NewResponse(req)
-	r.Body = ioutil.NopCloser(strings.NewReader("boop"))
+	r.Write([]byte("boop"))
 	b, _ := r.BodyBytes(true)
 	assert.Equal(t, []byte("boop"), b)
 
@@ -32,7 +30,7 @@ func TestResponseWriter(t *testing.T) {
 
 	// Using NewResponse, vanilla and then ResponseWriter
 	r = NewResponse(req)
-	r.Body = ioutil.NopCloser(strings.NewReader("boop"))
+	r.Write([]byte("boop"))
 	r.Writer().Write([]byte("woop"))
 	b, _ = r.BodyBytes(true)
 	assert.Equal(t, []byte("boopwoop"), b)
@@ -40,7 +38,7 @@ func TestResponseWriter(t *testing.T) {
 
 func TestResponseWriter_Error(t *testing.T) {
 	t.Parallel()
-	req := NewRequest(nil, "GET", "/")
+	req := NewRequest(nil, "GET", "/", nil)
 	rsp := NewResponse(req)
 	rsp.Writer().WriteError(errors.New("abc"))
 	assert.Error(t, rsp.Error)
