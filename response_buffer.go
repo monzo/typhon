@@ -1,4 +1,4 @@
-package httpsvc
+package typhon
 
 import (
 	"bytes"

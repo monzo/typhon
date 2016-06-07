@@ -1,4 +1,4 @@
-package httpsvc
+package typhon
 
 // A Service is a function that takes a request, and produces a response. Services are used symetrically in
 // both clients and servers.
