@@ -90,7 +90,7 @@ func (r Request) String() string {
 	if r.URL == nil {
 		return "Request(Unknown)"
 	}
-	return fmt.Sprintf("Request(%s %s)", r.Method, r.URL.Path)
+	return fmt.Sprintf("Request(%s %s://%s/%s)", r.Method, r.URL.Scheme, r.Host, r.URL.Path)
 }
 
 func NewRequest(ctx context.Context, method, url string, body interface{}) Request {
