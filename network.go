@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	log "github.com/mondough/slog"
 	"github.com/mondough/terrors"
 	"github.com/mondough/terrors/proto"
 )
@@ -24,20 +25,18 @@ func networkFilter(req Request, svc Service) Response {
 		rsp.Encode(terrors.Marshal(terr))
 		rsp.StatusCode = terr2StatusCode(terr.Code)
 		rsp.Header.Set("Terror", "1")
-	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
-		// Deserialise the response error
-		b, err := rsp.BodyBytes(false)
-		if err == nil {
-			if rsp.Header.Get("Terror") == "1" {
-				tp := &terrorsproto.Error{}
-				if err := json.Unmarshal(b, tp); err == nil {
-					rsp.Error = terrors.Unmarshal(tp)
-				}
-			}
-			if rsp.Error == nil {
-				rsp.Error = errors.New(string(b))
-			}
+	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 && rsp.Header.Get("Terror") == "1" {
+		b, _ := rsp.BodyBytes(false)
+		tp := &terrorsproto.Error{}
+		if err := json.Unmarshal(b, tp); err != nil {
+			log.Warn(req, "Failed to unmarshal terror: %v", err)
+			rsp.Error = errors.New(string(b))
+		} else {
+			rsp.Error = terrors.Unmarshal(tp)
 		}
+	} else if rsp.StatusCode >= 500 && rsp.StatusCode <= 599 {
+		b, _ := rsp.BodyBytes(false)
+		rsp.Error = errors.New(string(b))
 	}
 
 	return rsp
