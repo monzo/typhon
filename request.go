@@ -82,7 +82,9 @@ func (r Request) SendVia(svc Service) *ResponseFuture {
 
 func (r Request) Response(body interface{}) Response {
 	rsp := NewResponse(r)
-	rsp.Encode(body)
+	if body != nil {
+		rsp.Encode(body)
+	}
 	return rsp
 }
 
