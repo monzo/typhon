@@ -26,8 +26,9 @@ func init() {
 	}
 }
 
-// terr2StatusCode converts terrors' codes to a roughly equivalent HTTP status code
-func terr2StatusCode(code string) int {
+// ErrorStatusCode returns an HTTP status code for the error
+func ErrorStatusCode(err error) int {
+	code := terrors.Wrap(err, nil).(*terrors.Error).Code
 	if c, ok := mapTerr2Status[strings.SplitN(code, ".", 2)[0]]; ok {
 		return c
 	}

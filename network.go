@@ -23,7 +23,7 @@ func networkFilter(req Request, svc Service) Response {
 		// Serialise the error into the response
 		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 		rsp.Encode(terrors.Marshal(terr))
-		rsp.StatusCode = terr2StatusCode(terr.Code)
+		rsp.StatusCode = ErrorStatusCode(terr)
 		rsp.Header.Set("Terror", "1")
 	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 && rsp.Header.Get("Terror") == "1" {
 		b, _ := rsp.BodyBytes(false)
