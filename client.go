@@ -50,12 +50,10 @@ func (f *ResponseFuture) Cancel() {
 }
 
 func BareClient(req Request) Response {
-	return networkFilter(req, func(req Request) Response {
-		httpRsp, err := httpClient.Do(&req.Request)
-		return Response{
-			Response: httpRsp,
-			Error:    terrors.Wrap(err, nil)}
-	})
+	httpRsp, err := httpClient.Do(&req.Request)
+	return Response{
+		Response: httpRsp,
+		Error:    terrors.Wrap(err, nil)}
 }
 
 func SendVia(req Request, svc Service) *ResponseFuture {

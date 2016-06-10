@@ -61,7 +61,6 @@ func Listen(svc Service) Listener {
 		panic(err)
 	}
 
-	svc = svc.Filter(networkFilter)
 	downer := &httpdown.HTTP{
 		StopTimeout: 20 * time.Second,
 		KillTimeout: 25 * time.Second}

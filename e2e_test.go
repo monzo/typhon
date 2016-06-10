@@ -19,10 +19,20 @@ type e2eSuite struct {
 	suite.Suite
 }
 
+func (suite *e2eSuite) SetupTest() {
+	Client = Service(BareClient).Filter(ErrorFilter)
+}
+
+func (suite *e2eSuite) TearDownTest() {
+	Client = BareClient
+}
+
 func (suite *e2eSuite) TestStraightforward() {
-	l := Listen(func(req Request) Response {
+	svc := Service(func(req Request) Response {
 		return NewResponse(req)
 	})
+	svc = svc.Filter(ErrorFilter)
+	l := Listen(svc)
 	defer l.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
@@ -32,11 +42,13 @@ func (suite *e2eSuite) TestStraightforward() {
 }
 
 func (suite *e2eSuite) TestError() {
-	l := Listen(func(req Request) Response {
+	svc := Service(func(req Request) Response {
 		return Response{
 			Error: terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
 				"param": "value"})}
 	})
+	svc = svc.Filter(ErrorFilter)
+	l := Listen(svc)
 	defer l.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
