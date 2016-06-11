@@ -75,6 +75,10 @@ func Listen(svc Service) Listener {
 
 func httpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
+		if httpReq.Body != nil {
+			defer httpReq.Body.Close()
+		}
+
 		req := Request{
 			Request: *httpReq,
 			Context: context.Background()} // @TODO: Proper context

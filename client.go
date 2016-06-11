@@ -1,6 +1,8 @@
 package typhon
 
 import (
+	"io"
+	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
@@ -51,6 +53,17 @@ func (f *ResponseFuture) Cancel() {
 
 func BareClient(req Request) Response {
 	httpRsp, err := httpClient.Do(&req.Request)
+
+	// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
+	// call Close() but does not allow streaming responses.
+	// @TODO: Streaming client?
+	if httpRsp != nil && httpRsp.Body != nil {
+		buf := &bufCloser{}
+		io.Copy(buf, httpRsp.Body)
+		httpRsp.Body.Close()
+		httpRsp.Body = ioutil.NopCloser(buf)
+	}
+
 	return Response{
 		Response: httpRsp,
 		Error:    terrors.Wrap(err, nil)}
