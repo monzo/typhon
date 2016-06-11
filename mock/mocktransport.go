@@ -167,6 +167,7 @@ func (t *mockTransport) Send(req message.Request, timeout time.Duration) (messag
 		}
 	}
 
+	log.Warn(ctx, "[Typhon:MockTransport] Failing request to missing %s as timeout", req.Service())
 	return nil, transport.ErrTimeout // Don't bother waiting artificially
 }
 
