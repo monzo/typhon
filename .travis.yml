@@ -2,14 +2,7 @@ language: go
 
 go:
   - 1.6
-  - 1.6.1
   - 1.6.2
-
-services:
-  - rabbitmq
-
-env:
-  - RABBIT_URL=amqp://guest:guest@localhost:5672
 
 install:
   - export PATH=${PATH}:${HOME}/gopath/bin
