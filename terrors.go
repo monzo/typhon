@@ -50,8 +50,12 @@ func status2TerrCode(code int) string {
 // ErrorFilter serialises and de-serialises response errors
 func ErrorFilter(req Request, svc Service) Response {
 	rsp := svc(req)
+
 	if rsp.Response == nil {
 		rsp.Response = newHttpResponse(req)
+	}
+	if rsp.ctx == nil {
+		rsp.ctx = req
 	}
 
 	if rsp.Error != nil {
@@ -60,12 +64,12 @@ func ErrorFilter(req Request, svc Service) Response {
 		rsp.Encode(terrors.Marshal(terr))
 		rsp.StatusCode = ErrorStatusCode(terr)
 		rsp.Header.Set("Terror", "1")
-	} else if rsp.Error == nil {
+	} else {
 		if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 && rsp.Header.Get("Terror") == "1" {
 			b, _ := rsp.BodyBytes(false)
 			tp := &terrorsproto.Error{}
 			if err := json.Unmarshal(b, tp); err != nil {
-				log.Warn(req, "Failed to unmarshal terror: %v", err)
+				log.Warn(rsp.ctx, "Failed to unmarshal terror: %v", err)
 				rsp.Error = errors.New(string(b))
 			} else {
 				rsp.Error = terrors.Unmarshal(tp)
@@ -74,10 +78,6 @@ func ErrorFilter(req Request, svc Service) Response {
 			b, _ := rsp.BodyBytes(false)
 			rsp.Error = errors.New(string(b))
 		}
-	}
-
-	if rsp.ctx == nil {
-		rsp.ctx = req
 	}
 
 	return rsp
