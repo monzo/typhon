@@ -75,14 +75,31 @@ func Listen(svc Service) Listener {
 
 func httpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+
+		// If the ResponseWriter is a CloseNotifier, propagate the cancellation downward via the context
+		if cn, ok := rw.(http.CloseNotifier); ok {
+			closed := cn.CloseNotify()
+			go func() {
+				select {
+				case <-done:
+				case <-ctx.Done():
+				case <-closed:
+					cancel()
+				}
+			}()
+		}
+
 		if httpReq.Body != nil {
 			defer httpReq.Body.Close()
 		}
 
 		req := Request{
-			Request: *httpReq,
-			Context: context.Background()} // @TODO: Proper context
+			Context: ctx,
+			Request: *httpReq}
 		rsp := svc(req)
+		close(done)
 
 		// Write the response out to the wire
 		for k, v := range rsp.Header {

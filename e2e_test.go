@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/mondough/terrors"
 	"github.com/stretchr/testify/suite"
@@ -60,4 +61,32 @@ func (suite *e2eSuite) TestError() {
 	suite.Assert().Equal(terrExpect.Message, terr.Message)
 	suite.Assert().Equal(terrExpect.Code, terr.Code)
 	suite.Assert().Equal("value", terr.Params["param"])
+}
+
+func (suite *e2eSuite) TestCancellation() {
+	cancelled := make(chan struct{})
+	svc := Service(func(req Request) Response {
+		select {
+		case <-req.Context.Done():
+			close(cancelled)
+			return req.Response("ok")
+		case <-time.After(3 * time.Second):
+			rsp := req.Response("timed out")
+			rsp.StatusCode = http.StatusRequestTimeout
+			return rsp
+		}
+	})
+	svc = svc.Filter(ErrorFilter)
+	l := Listen(svc)
+	defer l.Stop()
+
+	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
+	f := req.Send()
+	time.Sleep(50 * time.Millisecond)
+	f.Cancel()
+	select {
+	case <-cancelled:
+	case <-time.After(100 * time.Millisecond):
+		suite.Assert().Fail("Did not cancel")
+	}
 }

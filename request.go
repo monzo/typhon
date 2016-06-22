@@ -12,7 +12,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// @TODO: Propagate context cancellation
 type Request struct {
 	http.Request
 	context.Context
