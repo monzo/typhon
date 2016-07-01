@@ -82,6 +82,9 @@ func ErrorFilter(req Request, svc Service) Response {
 			}
 		}
 	}
+	if rsp.Error != nil && rsp.Error.Error() == "" {
+		rsp.Error = errors.New("Response error (empty body)")
+	}
 
 	return rsp
 }
