@@ -2,7 +2,6 @@ package typhon
 
 import (
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -11,8 +10,6 @@ import (
 )
 
 func TestE2E(t *testing.T) {
-	os.Setenv("LISTEN_ADDR", "localhost:30001")
-	defer os.Unsetenv("LISTEN_ADDR")
 	suite.Run(t, &e2eSuite{})
 }
 
@@ -33,7 +30,8 @@ func (suite *e2eSuite) TestStraightforward() {
 		return NewResponse(req)
 	})
 	svc = svc.Filter(ErrorFilter)
-	l := Listen(svc)
+	l, err := Listen(svc, "localhost:30001")
+	suite.Require().NoError(err)
 	defer l.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
@@ -49,7 +47,8 @@ func (suite *e2eSuite) TestError() {
 				"param": "value"})}
 	})
 	svc = svc.Filter(ErrorFilter)
-	l := Listen(svc)
+	l, err := Listen(svc, "localhost:30001")
+	suite.Require().NoError(err)
 	defer l.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
@@ -77,7 +76,8 @@ func (suite *e2eSuite) TestCancellation() {
 		}
 	})
 	svc = svc.Filter(ErrorFilter)
-	l := Listen(svc)
+	l, err := Listen(svc, "localhost:30001")
+	suite.Require().NoError(err)
 	defer l.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)

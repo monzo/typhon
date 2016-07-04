@@ -14,7 +14,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var DefaultListenAddr = ":0"
+const DefaultListenAddr = "127.0.0.1:0"
 
 type Listener interface {
 	httpdown.Server
@@ -40,25 +40,28 @@ func (l listener) WaitC() <-chan struct{} {
 	return c
 }
 
-func Listen(svc Service) Listener {
+func Listen(svc Service, addr string) (Listener, error) {
 	// Determine on which address to listen, choosing in order one of:
-	// 1. LISTEN_ADDR environment variable
+	// 1. The passed addr
 	// 2. PORT variable (listening on all interfaces)
-	// 3. Random, available port
-	addr := DefaultListenAddr
-	if addr_ := os.Getenv("LISTEN_ADDR"); addr_ != "" {
-		addr = addr_
-	} else if port, err := strconv.Atoi(os.Getenv("PORT")); err == nil && port >= 0 {
-		addr = fmt.Sprintf(":%d", port)
+	// 3. Random, available port, on the loopback interface only
+	if addr == "" {
+		if addr_ := os.Getenv("LISTEN_ADDR"); addr_ != "" {
+			addr = addr_
+		} else if port, err := strconv.Atoi(os.Getenv("PORT")); err == nil && port >= 0 {
+			addr = fmt.Sprintf(":%d", port)
+		} else {
+			addr = ":0"
+		}
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	l, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	downer := &httpdown.HTTP{
@@ -70,7 +73,7 @@ func Listen(svc Service) Listener {
 	log.Info(nil, "Listening on %v", l.Addr())
 	return listener{
 		Server: server,
-		addr:   l.Addr()}
+		addr:   l.Addr()}, nil
 }
 
 func httpHandler(svc Service) http.Handler {
