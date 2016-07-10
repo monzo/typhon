@@ -46,6 +46,9 @@ func (r *Response) Decode(v interface{}) error {
 }
 
 func (r *Response) Write(b []byte) (int, error) {
+	if r.Response == nil {
+		r.Response = newHttpResponse(Request{})
+	}
 	switch rc := r.Body.(type) {
 	// In the "regular" case, the response body will be a bufCloser; we can write
 	case io.Writer:

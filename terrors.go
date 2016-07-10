@@ -59,6 +59,13 @@ func ErrorFilter(req Request, svc Service) Response {
 	}
 
 	if rsp.Error != nil {
+		switch body := rsp.Body.(type) {
+		case *bufCloser:
+			body.Reset()
+		default:
+			rsp.Body = &bufCloser{}
+		}
+
 		// Serialise the error into the response
 		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 		rsp.Encode(terrors.Marshal(terr))

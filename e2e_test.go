@@ -41,10 +41,13 @@ func (suite *e2eSuite) TestStraightforward() {
 }
 
 func (suite *e2eSuite) TestError() {
+	expectedErr := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
+		"param": "value"})
 	svc := Service(func(req Request) Response {
-		return Response{
-			Error: terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
-				"param": "value"})}
+		rsp := Response{
+			Error: expectedErr}
+		rsp.Write([]byte("throwaway")) // should be removed
+		return rsp
 	})
 	svc = svc.Filter(ErrorFilter)
 	l, err := Listen(svc, "localhost:30001")
@@ -54,6 +57,10 @@ func (suite *e2eSuite) TestError() {
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
 	rsp := req.Send().Response()
 	suite.Assert().Equal(http.StatusUnauthorized, rsp.StatusCode)
+
+	b, _ := rsp.BodyBytes(false)
+	suite.Assert().NotContains(string(b), "throwaway")
+
 	suite.Assert().Error(rsp.Error)
 	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	terrExpect := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", nil)
