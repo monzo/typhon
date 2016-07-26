@@ -49,6 +49,11 @@ func status2TerrCode(code int) string {
 
 // ErrorFilter serialises and de-serialises response errors
 func ErrorFilter(req Request, svc Service) Response {
+	// If the request contains an error, short-circuit and return that directly
+	if req.err != nil {
+		return Response{
+			Error: req.err}
+	}
 	rsp := svc(req)
 
 	if rsp.Response == nil {

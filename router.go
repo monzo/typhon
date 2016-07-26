@@ -9,19 +9,19 @@ import (
 )
 
 type Router interface {
-	// OPTIONS is a shortcut for Register("PUT", svc).
+	// OPTIONS is a shortcut for Register("OPTIONS", svc).
 	OPTIONS(path string, svc Service)
 	// GET is a shortcut for Register("GET", svc).
 	GET(path string, svc Service)
 	// HEAD is a shortcut for Register("HEAD", svc).
 	HEAD(path string, svc Service)
-	// POST is a shortcut for Register("Delete", svc).
+	// POST is a shortcut for Register("POST", svc).
 	POST(path string, svc Service)
-	// PUT is a shortcut for Register("Delete", svc).
+	// PUT is a shortcut for Register("PUT", svc).
 	PUT(path string, svc Service)
-	// DELETE is a shortcut for Register("Delete", svc).
+	// DELETE is a shortcut for Register("DELETE", svc).
 	DELETE(path string, svc Service)
-	// TRACE is a shortcut for Register("Delete", svc).
+	// TRACE is a shortcut for Register("TRACE", svc).
 	TRACE(path string, svc Service)
 	// Register associates a Service with a method and path.
 	Register(method, path string, svc Service)

@@ -15,6 +15,7 @@ import (
 type Request struct {
 	http.Request
 	context.Context
+	err error // Any error from request construction; read by Client
 }
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
@@ -22,6 +23,7 @@ func (r *Request) Encode(v interface{}) {
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		terr := terrors.Wrap(err, nil)
 		log.Warn(r, "Failed to encode request body: %v", terr)
+		r.err = terr
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
