@@ -77,7 +77,7 @@ func ErrorFilter(req Request, svc Service) Response {
 		rsp.Encode(terrors.Marshal(terr))
 		rsp.StatusCode = ErrorStatusCode(terr)
 		rsp.Header.Set("Terror", "1")
-	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
+	} else if rsp.Response != nil && rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
 		b, _ := rsp.BodyBytes(false)
 		switch rsp.Header.Get("Terror") {
 		case "1":
