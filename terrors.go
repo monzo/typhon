@@ -50,11 +50,13 @@ func status2TerrCode(code int) string {
 // ErrorFilter serialises and de-serialises response errors
 func ErrorFilter(req Request, svc Service) Response {
 	// If the request contains an error, short-circuit and return that directly
+	var rsp Response
 	if req.err != nil {
-		return Response{
-			Error: req.err}
+		rsp = NewResponse(req)
+		rsp.Error = req.err
+	} else {
+		rsp = svc(req)
 	}
-	rsp := svc(req)
 
 	if rsp.Response == nil {
 		rsp.Response = newHttpResponse(req)
@@ -64,12 +66,14 @@ func ErrorFilter(req Request, svc Service) Response {
 	}
 
 	if rsp.Error != nil {
-		// We got an error, but there is no error in the underlying response; marshal
-		rsp.resetBody()
-		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
-		rsp.Encode(terrors.Marshal(terr))
-		rsp.StatusCode = ErrorStatusCode(terr)
-		rsp.Header.Set("Terror", "1")
+		if rsp.StatusCode == http.StatusOK {
+			// We got an error, but there is no error in the underlying response; marshal
+			rsp.Body = &bufCloser{}
+			terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
+			rsp.Encode(terrors.Marshal(terr))
+			rsp.StatusCode = ErrorStatusCode(terr)
+			rsp.Header.Set("Terror", "1")
+		}
 	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
 		// There is an error in the underlying response; unmarshal
 		b, _ := rsp.BodyBytes(false)
