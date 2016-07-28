@@ -63,21 +63,15 @@ func ErrorFilter(req Request, svc Service) Response {
 		rsp.ctx = req
 	}
 
-	if rsp.Error != nil && (rsp.Response == nil ||
-		(rsp.StatusCode >= 200 && rsp.StatusCode <= 299)) {
-		switch body := rsp.Body.(type) {
-		case *bufCloser:
-			body.Reset()
-		default:
-			rsp.Body = &bufCloser{}
-		}
-
-		// Serialise the error into the response
+	if rsp.Error != nil {
+		// We got an error, but there is no error in the underlying response; marshal
+		rsp.resetBody()
 		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 		rsp.Encode(terrors.Marshal(terr))
 		rsp.StatusCode = ErrorStatusCode(terr)
 		rsp.Header.Set("Terror", "1")
-	} else if rsp.Response != nil && rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
+	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
+		// There is an error in the underlying response; unmarshal
 		b, _ := rsp.BodyBytes(false)
 		switch rsp.Header.Get("Terror") {
 		case "1":
@@ -88,13 +82,13 @@ func ErrorFilter(req Request, svc Service) Response {
 			} else {
 				rsp.Error = terrors.Unmarshal(tp)
 			}
-
 		default:
 			rsp.Error = errors.New(string(b))
 		}
 	}
+
 	if rsp.Error != nil && rsp.Error.Error() == "" {
-		rsp.Error = errors.New("Response error (empty body)")
+		rsp.Error = errors.New("Response error")
 	}
 
 	return rsp

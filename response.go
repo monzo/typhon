@@ -86,6 +86,10 @@ func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	}
 }
 
+func (r *Response) resetBody() {
+	r.Body = &bufCloser{}
+}
+
 // Writer returns a ResponseWriter proxy.
 func (r *Response) Writer() ResponseWriter {
 	return responseWriterWrapper{
