@@ -63,7 +63,8 @@ func ErrorFilter(req Request, svc Service) Response {
 		rsp.ctx = req
 	}
 
-	if rsp.Error != nil {
+	if rsp.Error != nil && (rsp.Response == nil ||
+		(rsp.StatusCode >= 200 && rsp.StatusCode <= 299)) {
 		switch body := rsp.Body.(type) {
 		case *bufCloser:
 			body.Reset()
@@ -76,22 +77,20 @@ func ErrorFilter(req Request, svc Service) Response {
 		rsp.Encode(terrors.Marshal(terr))
 		rsp.StatusCode = ErrorStatusCode(terr)
 		rsp.Header.Set("Terror", "1")
-	} else {
-		if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
-			b, _ := rsp.BodyBytes(false)
-			switch rsp.Header.Get("Terror") {
-			case "1":
-				tp := &terrorsproto.Error{}
-				if err := json.Unmarshal(b, tp); err != nil {
-					log.Warn(rsp.ctx, "Failed to unmarshal terror: %v", err)
-					rsp.Error = errors.New(string(b))
-				} else {
-					rsp.Error = terrors.Unmarshal(tp)
-				}
-
-			default:
+	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
+		b, _ := rsp.BodyBytes(false)
+		switch rsp.Header.Get("Terror") {
+		case "1":
+			tp := &terrorsproto.Error{}
+			if err := json.Unmarshal(b, tp); err != nil {
+				log.Warn(rsp.ctx, "Failed to unmarshal terror: %v", err)
 				rsp.Error = errors.New(string(b))
+			} else {
+				rsp.Error = terrors.Unmarshal(tp)
 			}
+
+		default:
+			rsp.Error = errors.New(string(b))
 		}
 	}
 	if rsp.Error != nil && rsp.Error.Error() == "" {
