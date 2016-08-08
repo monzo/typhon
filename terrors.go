@@ -3,6 +3,7 @@ package typhon
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -92,7 +93,11 @@ func ErrorFilter(req Request, svc Service) Response {
 	}
 
 	if rsp.Error != nil && rsp.Error.Error() == "" {
-		rsp.Error = errors.New("Response error")
+		if rsp.Response != nil {
+			rsp.Error = fmt.Errorf("Response error (%d)", rsp.StatusCode)
+		} else {
+			rsp.Error = fmt.Errorf("Response error")
+		}
 	}
 
 	return rsp
