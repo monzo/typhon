@@ -2,6 +2,7 @@ package typhon
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -90,6 +91,16 @@ func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 func (r *Response) Writer() ResponseWriter {
 	return responseWriterWrapper{
 		r: r}
+}
+
+func (r *Response) String() string {
+	if r != nil {
+		if r.Response != nil {
+			return fmt.Sprintf("Response(%d, error: %v)", r.StatusCode, r.Error)
+		}
+		return fmt.Sprintf("Response(???, error: %v)", r.StatusCode, r.Error)
+	}
+	return "Response(Unknown)"
 }
 
 func newHttpResponse(req Request) *http.Response {
