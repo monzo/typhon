@@ -79,6 +79,7 @@ func Listen(svc Service, addr string) (Listener, error) {
 func httpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel() // if already cancelled on escape, this is a no-op
 		done := make(chan struct{})
 
 		// If the ResponseWriter is a CloseNotifier, propagate the cancellation downward via the context

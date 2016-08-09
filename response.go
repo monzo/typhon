@@ -98,7 +98,7 @@ func (r *Response) String() string {
 		if r.Response != nil {
 			return fmt.Sprintf("Response(%d, error: %v)", r.StatusCode, r.Error)
 		}
-		return fmt.Sprintf("Response(???, error: %v)", r.StatusCode, r.Error)
+		return fmt.Sprintf("Response(???, error: %v)", r.Error)
 	}
 	return "Response(Unknown)"
 }
