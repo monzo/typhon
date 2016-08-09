@@ -102,6 +102,7 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 		cancel: cancel,
 		done:   done}
 	go func() {
+		defer cancel() // if already cancelled on escape, this is a no-op
 		defer close(done)
 		rsp := svc(req)
 		f.mtx.RLock()
