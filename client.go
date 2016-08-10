@@ -16,8 +16,8 @@ import (
 var (
 	// Client is used to send all requests by default. It can be overridden globally but MUST only be done before use
 	// takes place; access is not synchronised.
-	Client              = BareClient
-	httpClientTransport = &httpcontrol.Transport{
+	Client              Service = BareClient
+	httpClientTransport         = &httpcontrol.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DisableKeepAlives:     false,
 		DisableCompression:    false,
