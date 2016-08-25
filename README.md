@@ -4,7 +4,3 @@
 [![GoDoc](https://godoc.org/github.com/mondough/typhon?status.svg)](https://godoc.org/github.com/mondough/typhon)
 
 A transport layer for micro-service communication.
-
-## Requirements
-- Golang
-- RabbitMQ

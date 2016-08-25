@@ -41,6 +41,7 @@ func (ju *jsonUnmarshaler) UnmarshalPayload(msg Message) error {
 	var err error
 	if bodyT := reflect.TypeOf(_body); bodyT != nil && bodyT.AssignableTo(ju.T) {
 		// The message already has an appropriate body; unmarshal into it
+		result = _body
 		err = json.Unmarshal(msg.Payload(), result)
 	} else {
 		// No body (or an inappropriate type); overwrite with a new object
