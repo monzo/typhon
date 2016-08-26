@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	log "github.com/mondough/slog"
-	"github.com/mondough/terrors"
-	"github.com/mondough/terrors/proto"
+	log "github.com/monzo/slog"
+	"github.com/monzo/terrors"
+	"github.com/monzo/terrors/proto"
 )
 
 var (

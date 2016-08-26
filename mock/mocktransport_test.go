@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/mondough/typhon/transport"
+	"github.com/monzo/typhon/transport"
 )
 
 func TestMockTransportSuite(t *testing.T) {

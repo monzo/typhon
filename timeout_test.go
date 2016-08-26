@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mondough/terrors"
+	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

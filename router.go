@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/mondough/terrors"
+	"github.com/monzo/terrors"
 )
 
 type Router interface {

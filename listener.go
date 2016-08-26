@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/facebookgo/httpdown"
-	log "github.com/mondough/slog"
+	log "github.com/monzo/slog"
 	"golang.org/x/net/context"
 )
 

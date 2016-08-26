@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mondough/terrors"
+	"github.com/monzo/terrors"
 	"golang.org/x/net/context"
 )
 
