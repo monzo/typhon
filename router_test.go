@@ -3,7 +3,7 @@ package typhon
 import (
 	"testing"
 
-	"github.com/mondough/terrors"
+	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
 )
 

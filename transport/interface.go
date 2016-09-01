@@ -3,8 +3,8 @@ package transport
 import (
 	"time"
 
-	"github.com/mondough/terrors"
-	"github.com/mondough/typhon/message"
+	"github.com/monzo/terrors"
+	"github.com/monzo/typhon/message"
 	"gopkg.in/tomb.v2"
 )
 

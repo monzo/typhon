@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/facebookgo/httpcontrol"
-	log "github.com/mondough/slog"
-	"github.com/mondough/terrors"
+	log "github.com/monzo/slog"
+	"github.com/monzo/terrors"
 	"golang.org/x/net/context"
 )
 
