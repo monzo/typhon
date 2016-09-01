@@ -12,8 +12,14 @@ func (r *response) Copy() Response {
 	r.RLock()
 	defer r.RUnlock()
 	return &response{
-		message: *(r.message.copy()),
-	}
+		message: message{
+			id:       r.id,
+			payload:  r.payload,
+			body:     r.body,
+			service:  r.service,
+			endpoint: r.endpoint,
+			headers:  r.headersCopy(),
+		}}
 }
 
 func (r *response) String() string {
