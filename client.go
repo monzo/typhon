@@ -89,12 +89,14 @@ func BareClient(req Request) Response {
 		// call Close() but does not allow streaming responses.
 		// @TODO: Streaming client?
 		if httpRsp != nil && httpRsp.Body != nil {
-			buf, err := ioutil.ReadAll(httpRsp.Body)
+			var buf []byte
+			buf, err = ioutil.ReadAll(httpRsp.Body)
 			httpRsp.Body.Close()
 			if err != nil {
 				log.Warn(req, "Error reading response body: %v", err)
+			} else {
+				httpRsp.Body = ioutil.NopCloser(bytes.NewReader(buf))
 			}
-			httpRsp.Body = ioutil.NopCloser(bytes.NewReader(buf))
 		}
 
 		return Response{
@@ -106,15 +108,17 @@ func BareClient(req Request) Response {
 func SendVia(req Request, svc Service) *ResponseFuture {
 	ctx, cancel := context.WithCancel(req.Context)
 	req.Context = ctx
+	done := make(chan struct{}, 0)
 	f := &ResponseFuture{
-		done:   ctx.Done(),
+		done:   done,
 		cancel: cancel}
 	go func() {
+		defer close(done)
 		defer cancel() // if already cancelled on escape, this is a no-op
 		rsp := svc(req)
-		f.mtx.RLock()
+		f.mtx.Lock()
 		f.r = rsp
-		f.mtx.RUnlock()
+		f.mtx.Unlock()
 	}()
 	return f
 }
