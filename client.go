@@ -108,15 +108,17 @@ func BareClient(req Request) Response {
 func SendVia(req Request, svc Service) *ResponseFuture {
 	ctx, cancel := context.WithCancel(req.Context)
 	req.Context = ctx
+	done := make(chan struct{}, 0)
 	f := &ResponseFuture{
-		done:   ctx.Done(),
+		done:   done,
 		cancel: cancel}
 	go func() {
+		defer close(done)
 		defer cancel() // if already cancelled on escape, this is a no-op
 		rsp := svc(req)
-		f.mtx.RLock()
+		f.mtx.Lock()
 		f.r = rsp
-		f.mtx.RUnlock()
+		f.mtx.Unlock()
 	}()
 	return f
 }
