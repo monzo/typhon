@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/facebookgo/httpcontrol"
@@ -34,10 +33,9 @@ var (
 )
 
 type ResponseFuture struct {
-	r      Response
 	cancel context.CancelFunc
-	mtx    sync.RWMutex
-	done   <-chan struct{}
+	done   <-chan struct{} // guards access to r
+	r      Response
 }
 
 func (f *ResponseFuture) WaitC() <-chan struct{} {
@@ -46,8 +44,6 @@ func (f *ResponseFuture) WaitC() <-chan struct{} {
 
 func (f *ResponseFuture) Response() Response {
 	<-f.WaitC()
-	f.mtx.RLock()
-	defer f.mtx.RUnlock()
 	return f.r
 }
 
@@ -115,10 +111,7 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 	go func() {
 		defer close(done)
 		defer cancel() // if already cancelled on escape, this is a no-op
-		rsp := svc(req)
-		f.mtx.Lock()
-		f.r = rsp
-		f.mtx.Unlock()
+		f.r = svc(req)
 	}()
 	return f
 }
