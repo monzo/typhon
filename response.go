@@ -37,7 +37,7 @@ func (r *Response) Decode(v interface{}) error {
 		err = terrors.InternalService("", "Response has no body", nil)
 		log.Warn(r.ctx, "Cannot decode response with no Body (Response is nil)", nil)
 	} else {
-		err := json.NewDecoder(r.Body).Decode(v)
+		err = json.NewDecoder(r.Body).Decode(v)
 		if err != nil {
 			log.Warn(r.ctx, "Failed to decode response body: %v", err)
 		}
