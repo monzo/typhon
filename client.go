@@ -89,12 +89,14 @@ func BareClient(req Request) Response {
 		// call Close() but does not allow streaming responses.
 		// @TODO: Streaming client?
 		if httpRsp != nil && httpRsp.Body != nil {
-			buf, err := ioutil.ReadAll(httpRsp.Body)
+			var buf []byte
+			buf, err = ioutil.ReadAll(httpRsp.Body)
 			httpRsp.Body.Close()
 			if err != nil {
 				log.Warn(req, "Error reading response body: %v", err)
+			} else {
+				httpRsp.Body = ioutil.NopCloser(bytes.NewReader(buf))
 			}
-			httpRsp.Body = ioutil.NopCloser(bytes.NewReader(buf))
 		}
 
 		return Response{
