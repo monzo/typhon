@@ -8,6 +8,7 @@ import (
 
 	log "github.com/monzo/slog"
 	uuid "github.com/nu7hatch/gouuid"
+	"gopkg.in/tomb.v2"
 
 	"github.com/monzo/typhon/message"
 	"github.com/monzo/typhon/transport"
