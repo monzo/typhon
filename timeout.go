@@ -8,6 +8,7 @@ import (
 	"github.com/monzo/terrors"
 )
 
+// TimeoutFilter returns a Filter which will cancel a Request after the given timeout
 func TimeoutFilter(defaultTimeout time.Duration) Filter {
 	return func(req Request, svc Service) Response {
 		timeout := defaultTimeout
@@ -15,7 +16,9 @@ func TimeoutFilter(defaultTimeout time.Duration) Filter {
 			timeout = time.Duration(t) * time.Millisecond
 		}
 
-		req.Context, _ = context.WithTimeout(req.Context, timeout)
+		ctx, cancel := context.WithTimeout(req.Context, timeout)
+		req.Context = ctx
+		defer cancel()
 		rspChan := make(chan Response, 1)
 		go func() {
 			rspChan <- svc(req)
