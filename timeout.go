@@ -1,11 +1,11 @@
 package typhon
 
 import (
+	"context"
 	"strconv"
 	"time"
 
 	"github.com/monzo/terrors"
-	"golang.org/x/net/context"
 )
 
 func TimeoutFilter(defaultTimeout time.Duration) Filter {

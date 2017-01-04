@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/facebookgo/httpdown"
 	log "github.com/monzo/slog"
-	"golang.org/x/net/context"
 )
 
 const DefaultListenAddr = "127.0.0.1:0"
@@ -81,7 +81,7 @@ func Listen(svc Service, addr string) (Server, error) {
 
 func httpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(httpReq.Context())
 		defer cancel() // if already cancelled on escape, this is a no-op
 		done := make(chan struct{})
 

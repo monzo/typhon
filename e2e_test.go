@@ -64,7 +64,7 @@ func (suite *e2eSuite) TestDomainSocket() {
 			return net.DialUnix("unix", nil, addr)
 		}}
 	req := NewRequest(nil, "GET", "http://localhost/foo", nil)
-	rsp := req.SendVia(NewHttpClient(&http.Client{
+	rsp := req.SendVia(HttpService(&http.Client{
 		Transport: sockTransport})).Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)

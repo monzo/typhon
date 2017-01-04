@@ -2,6 +2,7 @@ package typhon
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/facebookgo/httpcontrol"
 	log "github.com/monzo/slog"
 	"github.com/monzo/terrors"
-	"golang.org/x/net/context"
 )
 
 var (
@@ -51,37 +51,11 @@ func (f *ResponseFuture) Cancel() {
 	f.cancel()
 }
 
-// httpCancellationFilter ties together the context cancellation and the cancel channel of net/http.Request. It is
-// incorporated into BareClient by default.
-// @TODO: Go 1.7's http library has native context support, so this can go away
-func httpCancellationFilter(req Request, svc Service) Response {
-	ctx, ctxCancel := context.WithCancel(req.Context)
-	defer ctxCancel()
-
-	// When the context is cancelled, propagate this to net/http
-	// If the caller set the net/http Cancel channel, allow this to be used too
-	httpCancel := make(chan struct{})
-	httpSuperCancel := req.Request.Cancel
-	req.Request.Cancel = httpCancel
-	go func() {
-		select {
-		case <-ctx.Done():
-			close(httpCancel)
-		case <-httpSuperCancel:
-			close(httpCancel)
-		case <-httpCancel:
-		}
-	}()
-
-	req.Context = ctx
-	return svc(req)
-}
-
-// NewHttpClient returns a Service which sends requests via the given net/http client.
-// You should not need to use this very often at all.
-func NewHttpClient(c *http.Client) Service {
+// HttpService returns a Service which sends requests via the given net/http client.
+// Only use this if you need to do something custom at the transport level.
+func HttpService(c *http.Client) Service {
 	return Service(func(req Request) Response {
-		httpRsp, err := c.Do(&req.Request)
+		httpRsp, err := c.Do(req.Request.WithContext(req.Context))
 		// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
 		// call Close() but does not allow streaming responses.
 		// @TODO: Streaming client?
@@ -99,11 +73,11 @@ func NewHttpClient(c *http.Client) Service {
 		return Response{
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
-	}).Filter(httpCancellationFilter)
+	})
 }
 
 func BareClient(req Request) Response {
-	return NewHttpClient(httpClient)(req)
+	return HttpService(httpClient)(req)
 }
 
 func SendVia(req Request, svc Service) *ResponseFuture {

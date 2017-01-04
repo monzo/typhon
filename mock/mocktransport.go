@@ -1,14 +1,13 @@
 package mock
 
 import (
+	"context"
 	"fmt"
-	"gopkg.in/tomb.v2"
 	"sync"
 	"time"
 
 	log "github.com/monzo/slog"
 	uuid "github.com/nu7hatch/gouuid"
-	"golang.org/x/net/context"
 
 	"github.com/monzo/typhon/message"
 	"github.com/monzo/typhon/transport"
