@@ -27,7 +27,7 @@ var (
 		RequestTimeout:        time.Hour,
 		RetryAfterTimeout:     false,
 		MaxTries:              6}
-	httpClient = &http.Client{ // shared for all outbound requests
+	httpClient = &http.Client{
 		Timeout:   time.Hour,
 		Transport: httpClientTransport}
 )
@@ -77,10 +77,11 @@ func httpCancellationFilter(req Request, svc Service) Response {
 	return svc(req)
 }
 
-func BareClient(req Request) Response {
-	return httpCancellationFilter(req, func(req Request) Response {
-		httpRsp, err := httpClient.Do(&req.Request)
-
+// NewHttpClient returns a Service which sends requests via the given net/http client.
+// You should not need to use this very often at all.
+func NewHttpClient(c *http.Client) Service {
+	return Service(func(req Request) Response {
+		httpRsp, err := c.Do(&req.Request)
 		// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
 		// call Close() but does not allow streaming responses.
 		// @TODO: Streaming client?
@@ -98,7 +99,11 @@ func BareClient(req Request) Response {
 		return Response{
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
-	})
+	}).Filter(httpCancellationFilter)
+}
+
+func BareClient(req Request) Response {
+	return NewHttpClient(httpClient)(req)
 }
 
 func SendVia(req Request, svc Service) *ResponseFuture {
