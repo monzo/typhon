@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 
 	log "github.com/monzo/slog"
 	"github.com/monzo/terrors"
-	"golang.org/x/net/context"
 )
 
 type Request struct {

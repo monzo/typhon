@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,43 +12,55 @@ import (
 
 	"github.com/facebookgo/httpdown"
 	log "github.com/monzo/slog"
-	"golang.org/x/net/context"
 )
 
 const DefaultListenAddr = "127.0.0.1:0"
 
-type Listener interface {
+type Server interface {
 	httpdown.Server
-	Addr() net.Addr
+	Listener() net.Listener
 	WaitC() <-chan struct{}
 }
 
-type listener struct {
+type server struct {
 	httpdown.Server
-	addr net.Addr
+	l net.Listener
 }
 
-func (l listener) Addr() net.Addr {
-	return l.addr
+func (s server) Listener() net.Listener {
+	return s.l
 }
 
-func (l listener) WaitC() <-chan struct{} {
+func (s server) WaitC() <-chan struct{} {
 	c := make(chan struct{}, 0)
 	go func() {
-		l.Wait()
+		s.Server.Wait()
 		close(c)
 	}()
 	return c
 }
 
-func Listen(svc Service, addr string) (Listener, error) {
+func Serve(svc Service, l net.Listener) (Server, error) {
+	downer := &httpdown.HTTP{
+		StopTimeout: 20 * time.Second,
+		KillTimeout: 25 * time.Second}
+	downerServer := downer.Serve(&http.Server{
+		Handler:        httpHandler(svc),
+		MaxHeaderBytes: http.DefaultMaxHeaderBytes}, l)
+	log.Info(nil, "Listening on %v", l.Addr())
+	return server{
+		Server: downerServer,
+		l:      l}, nil
+}
+
+func Listen(svc Service, addr string) (Server, error) {
 	// Determine on which address to listen, choosing in order one of:
 	// 1. The passed addr
 	// 2. PORT variable (listening on all interfaces)
 	// 3. Random, available port, on the loopback interface only
 	if addr == "" {
-		if addr_ := os.Getenv("LISTEN_ADDR"); addr_ != "" {
-			addr = addr_
+		if _addr := os.Getenv("LISTEN_ADDR"); _addr != "" {
+			addr = _addr
 		} else if port, err := strconv.Atoi(os.Getenv("PORT")); err == nil && port >= 0 {
 			addr = fmt.Sprintf(":%d", port)
 		} else {
@@ -63,22 +76,12 @@ func Listen(svc Service, addr string) (Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	downer := &httpdown.HTTP{
-		StopTimeout: 20 * time.Second,
-		KillTimeout: 25 * time.Second}
-	server := downer.Serve(&http.Server{
-		Handler:        httpHandler(svc),
-		MaxHeaderBytes: http.DefaultMaxHeaderBytes}, l)
-	log.Info(nil, "Listening on %v", l.Addr())
-	return listener{
-		Server: server,
-		addr:   l.Addr()}, nil
+	return Serve(svc, l)
 }
 
 func httpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(httpReq.Context())
 		defer cancel() // if already cancelled on escape, this is a no-op
 		done := make(chan struct{})
 

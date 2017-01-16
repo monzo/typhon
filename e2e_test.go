@@ -1,10 +1,13 @@
 package typhon
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/facebookgo/httpcontrol"
 	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,13 +33,41 @@ func (suite *e2eSuite) TestStraightforward() {
 		return NewResponse(req)
 	})
 	svc = svc.Filter(ErrorFilter)
-	l, err := Listen(svc, "localhost:30001")
+	s, err := Listen(svc, "localhost:30001")
 	suite.Require().NoError(err)
-	defer l.Stop()
+	defer s.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
 	rsp := req.Send().Response()
-	suite.Assert().NoError(rsp.Error)
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+}
+
+func (suite *e2eSuite) TestDomainSocket() {
+	svc := Service(func(req Request) Response {
+		return NewResponse(req)
+	})
+	svc = svc.Filter(ErrorFilter)
+
+	addr := &net.UnixAddr{
+		Net:  "unix",
+		Name: "/tmp/typhon-test.sock"}
+	l, err := net.ListenUnix("unix", addr)
+	suite.Require().NoError(err)
+	defer l.Close()
+
+	s, err := Serve(svc, l)
+	suite.Require().NoError(err)
+	defer s.Stop()
+
+	sockTransport := &httpcontrol.Transport{
+		Dial: func(network, address string) (net.Conn, error) {
+			return net.DialUnix("unix", nil, addr)
+		}}
+	req := NewRequest(nil, "GET", "http://localhost/foo", nil)
+	rsp := req.SendVia(HttpService(&http.Client{
+		Transport: sockTransport})).Response()
+	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
 }
 
@@ -50,9 +81,9 @@ func (suite *e2eSuite) TestError() {
 		return rsp
 	})
 	svc = svc.Filter(ErrorFilter)
-	l, err := Listen(svc, "localhost:30001")
+	s, err := Listen(svc, "localhost:30001")
 	suite.Require().NoError(err)
-	defer l.Stop()
+	defer s.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
 	rsp := req.Send().Response()
@@ -61,7 +92,7 @@ func (suite *e2eSuite) TestError() {
 	b, _ := rsp.BodyBytes(false)
 	suite.Assert().NotContains(string(b), "throwaway")
 
-	suite.Assert().Error(rsp.Error)
+	suite.Require().Error(rsp.Error)
 	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	terrExpect := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", nil)
 	suite.Assert().Equal(terrExpect.Message, terr.Message)
@@ -83,9 +114,9 @@ func (suite *e2eSuite) TestCancellation() {
 		}
 	})
 	svc = svc.Filter(ErrorFilter)
-	l, err := Listen(svc, "localhost:30001")
+	s, err := Listen(svc, "localhost:30001")
 	suite.Require().NoError(err)
-	defer l.Stop()
+	defer s.Stop()
 
 	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
 	f := req.Send()
@@ -96,4 +127,17 @@ func (suite *e2eSuite) TestCancellation() {
 	case <-time.After(100 * time.Millisecond):
 		suite.Assert().Fail("Did not cancel")
 	}
+}
+
+func (suite *e2eSuite) TestPreCancellation() {
+	ctx, ccl := context.WithCancel(context.Background())
+	ccl()
+	req := NewRequest(ctx, "GET", "http://localhost", nil)
+	rsp := req.Send().Response()
+
+	suite.Require().Error(rsp.Error)
+	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
+	terrExpect := terrors.Timeout("cancelled", "Request already cancelled", nil)
+	suite.Assert().Equal(terrExpect.Message, terr.Message)
+	suite.Assert().Equal(terrExpect.Code, terr.Code)
 }

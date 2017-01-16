@@ -2,6 +2,7 @@ package typhon
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/facebookgo/httpcontrol"
 	log "github.com/monzo/slog"
 	"github.com/monzo/terrors"
-	"golang.org/x/net/context"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 		RequestTimeout:        time.Hour,
 		RetryAfterTimeout:     false,
 		MaxTries:              6}
-	httpClient = &http.Client{ // shared for all outbound requests
+	httpClient = &http.Client{
 		Timeout:   time.Hour,
 		Transport: httpClientTransport}
 )
@@ -51,36 +51,20 @@ func (f *ResponseFuture) Cancel() {
 	f.cancel()
 }
 
-// httpCancellationFilter ties together the context cancellation and the cancel channel of net/http.Request. It is
-// incorporated into BareClient by default.
-// @TODO: Go 1.7's http library has native context support, so this can go away
-func httpCancellationFilter(req Request, svc Service) Response {
-	ctx, ctxCancel := context.WithCancel(req.Context)
-	defer ctxCancel()
-
-	// When the context is cancelled, propagate this to net/http
-	// If the caller set the net/http Cancel channel, allow this to be used too
-	httpCancel := make(chan struct{})
-	httpSuperCancel := req.Request.Cancel
-	req.Request.Cancel = httpCancel
-	go func() {
+// HttpService returns a Service which sends requests via the given net/http client.
+// Only use this if you need to do something custom at the transport level.
+func HttpService(c *http.Client) Service {
+	return Service(func(req Request) Response {
+		// Check if the context is already cancelled. If it is, there's no point
+		// making the client request.
 		select {
-		case <-ctx.Done():
-			close(httpCancel)
-		case <-httpSuperCancel:
-			close(httpCancel)
-		case <-httpCancel:
+		case <-req.Context.Done():
+			return Response{
+				Error: terrors.Timeout("cancelled", "Request already cancelled", nil)}
+		default:
 		}
-	}()
 
-	req.Context = ctx
-	return svc(req)
-}
-
-func BareClient(req Request) Response {
-	return httpCancellationFilter(req, func(req Request) Response {
-		httpRsp, err := httpClient.Do(&req.Request)
-
+		httpRsp, err := c.Do(req.Request.WithContext(req.Context))
 		// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
 		// call Close() but does not allow streaming responses.
 		// @TODO: Streaming client?
@@ -99,6 +83,10 @@ func BareClient(req Request) Response {
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
 	})
+}
+
+func BareClient(req Request) Response {
+	return HttpService(httpClient)(req)
 }
 
 func SendVia(req Request, svc Service) *ResponseFuture {
