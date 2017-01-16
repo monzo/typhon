@@ -1,11 +1,8 @@
 package typhon
 
 import (
-	"context"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -44,9 +41,7 @@ func Serve(svc Service, l net.Listener) (Server, error) {
 	downer := &httpdown.HTTP{
 		StopTimeout: 20 * time.Second,
 		KillTimeout: 25 * time.Second}
-	downerServer := downer.Serve(&http.Server{
-		Handler:        httpHandler(svc),
-		MaxHeaderBytes: http.DefaultMaxHeaderBytes}, l)
+	downerServer := downer.Serve(HttpServer(svc), l)
 	log.Info(nil, "Listening on %v", l.Addr())
 	return server{
 		Server: downerServer,
@@ -77,50 +72,4 @@ func Listen(svc Service, addr string) (Server, error) {
 		return nil, err
 	}
 	return Serve(svc, l)
-}
-
-func httpHandler(svc Service) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
-		ctx, cancel := context.WithCancel(httpReq.Context())
-		defer cancel() // if already cancelled on escape, this is a no-op
-		done := make(chan struct{})
-
-		// If the ResponseWriter is a CloseNotifier, propagate the cancellation downward via the context
-		if cn, ok := rw.(http.CloseNotifier); ok {
-			closed := cn.CloseNotify()
-			go func() {
-				select {
-				case <-done:
-				case <-ctx.Done():
-				case <-closed:
-					cancel()
-				}
-			}()
-		}
-
-		if httpReq.Body != nil {
-			defer httpReq.Body.Close()
-		}
-
-		req := Request{
-			Context: ctx,
-			Request: *httpReq}
-		rsp := svc(req)
-		close(done)
-
-		// Write the response out to the wire
-		for k, v := range rsp.Header {
-			if k == "Content-Length" {
-				continue
-			}
-			rw.Header()[k] = v
-		}
-		rw.WriteHeader(rsp.StatusCode)
-		if rsp.Body != nil {
-			defer rsp.Body.Close()
-			if _, err := io.Copy(rw, rsp.Body); err != nil {
-				log.Error(req, "[Typhon:http:networkTransport] Error copying response body: %v", err)
-			}
-		}
-	})
 }

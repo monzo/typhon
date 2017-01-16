@@ -41,6 +41,8 @@ func TestRouter(t *testing.T) {
 }
 
 func TestRouter_CatchallPath(t *testing.T) {
+	t.Parallel()
+
 	// Registering a global handler should apply to all paths
 	router := NewRouter()
 	router.GET("/*residual", func(req Request) Response {

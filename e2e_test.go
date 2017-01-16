@@ -1,7 +1,7 @@
 package typhon
 
 import (
-	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -13,6 +13,7 @@ import (
 )
 
 func TestE2E(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, &e2eSuite{})
 }
 
@@ -33,11 +34,11 @@ func (suite *e2eSuite) TestStraightforward() {
 		return NewResponse(req)
 	})
 	svc = svc.Filter(ErrorFilter)
-	s, err := Listen(svc, "localhost:30001")
+	s, err := Listen(svc, "localhost:0")
 	suite.Require().NoError(err)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
+	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
@@ -81,11 +82,11 @@ func (suite *e2eSuite) TestError() {
 		return rsp
 	})
 	svc = svc.Filter(ErrorFilter)
-	s, err := Listen(svc, "localhost:30001")
+	s, err := Listen(svc, "localhost:0")
 	suite.Require().NoError(err)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
+	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
 	suite.Assert().Equal(http.StatusUnauthorized, rsp.StatusCode)
 
@@ -103,41 +104,26 @@ func (suite *e2eSuite) TestError() {
 func (suite *e2eSuite) TestCancellation() {
 	cancelled := make(chan struct{})
 	svc := Service(func(req Request) Response {
-		select {
-		case <-req.Context.Done():
-			close(cancelled)
-			return req.Response("ok")
-		case <-time.After(3 * time.Second):
-			rsp := req.Response("timed out")
-			rsp.StatusCode = http.StatusRequestTimeout
-			return rsp
-		}
+		<-req.Done()
+		close(cancelled)
+		return req.Response("cancelled ok")
 	})
 	svc = svc.Filter(ErrorFilter)
-	s, err := Listen(svc, "localhost:30001")
+	s, err := Listen(svc, "localhost:0")
 	suite.Require().NoError(err)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", "http://localhost:30001", nil)
+	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 	f := req.Send()
-	time.Sleep(50 * time.Millisecond)
+	select {
+	case <-cancelled:
+		suite.Assert().Fail("cancellation propagated prematurely")
+	case <-time.After(30 * time.Millisecond):
+	}
 	f.Cancel()
 	select {
 	case <-cancelled:
-	case <-time.After(100 * time.Millisecond):
-		suite.Assert().Fail("Did not cancel")
+	case <-time.After(30 * time.Millisecond):
+		suite.Assert().Fail("cancellation not propagated")
 	}
-}
-
-func (suite *e2eSuite) TestPreCancellation() {
-	ctx, ccl := context.WithCancel(context.Background())
-	ccl()
-	req := NewRequest(ctx, "GET", "http://localhost", nil)
-	rsp := req.Send().Response()
-
-	suite.Require().Error(rsp.Error)
-	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
-	terrExpect := terrors.Timeout("cancelled", "Request already cancelled", nil)
-	suite.Assert().Equal(terrExpect.Message, terr.Message)
-	suite.Assert().Equal(terrExpect.Code, terr.Code)
 }
