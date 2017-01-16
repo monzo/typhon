@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"testing"
@@ -91,7 +92,7 @@ func (suite *e2eSuite) TestError() {
 	b, _ := rsp.BodyBytes(false)
 	suite.Assert().NotContains(string(b), "throwaway")
 
-	suite.Assert().Error(rsp.Error)
+	suite.Require().Error(rsp.Error)
 	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	terrExpect := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", nil)
 	suite.Assert().Equal(terrExpect.Message, terr.Message)
@@ -126,4 +127,17 @@ func (suite *e2eSuite) TestCancellation() {
 	case <-time.After(100 * time.Millisecond):
 		suite.Assert().Fail("Did not cancel")
 	}
+}
+
+func (suite *e2eSuite) TestPreCancellation() {
+	ctx, ccl := context.WithCancel(context.Background())
+	ccl()
+	req := NewRequest(ctx, "GET", "http://localhost", nil)
+	rsp := req.Send().Response()
+
+	suite.Require().Error(rsp.Error)
+	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
+	terrExpect := terrors.Timeout("cancelled", "Request already cancelled", nil)
+	suite.Assert().Equal(terrExpect.Message, terr.Message)
+	suite.Assert().Equal(terrExpect.Code, terr.Code)
 }
