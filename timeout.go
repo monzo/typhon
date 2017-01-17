@@ -2,20 +2,14 @@ package typhon
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/monzo/terrors"
 )
 
 // TimeoutFilter returns a Filter which will cancel a Request after the given timeout
-func TimeoutFilter(defaultTimeout time.Duration) Filter {
+func TimeoutFilter(timeout time.Duration) Filter {
 	return func(req Request, svc Service) Response {
-		timeout := defaultTimeout
-		if t, err := strconv.Atoi(req.Header.Get("Timeout")); err == nil {
-			timeout = time.Duration(t) * time.Millisecond
-		}
-
 		ctx, cancel := context.WithTimeout(req.Context, timeout)
 		req.Context = ctx
 		defer cancel()
@@ -31,5 +25,16 @@ func TimeoutFilter(defaultTimeout time.Duration) Filter {
 			return Response{
 				Error: terrors.Timeout("", "Request timed out", nil)}
 		}
+	}
+}
+
+// ExpirationFilter provides admission control; it rejects requests which are cancelled
+func ExpirationFilter(req Request, svc Service) Response {
+	select {
+	case <-req.Context.Done():
+		return Response{
+			Error: terrors.BadRequest("expired", "Request has expired", nil)}
+	default:
+		return svc(req)
 	}
 }

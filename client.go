@@ -55,15 +55,6 @@ func (f *ResponseFuture) Cancel() {
 // Only use this if you need to do something custom at the transport level.
 func HttpService(c *http.Client) Service {
 	return Service(func(req Request) Response {
-		// Check if the context is already cancelled. If it is, there's no point
-		// making the client request.
-		select {
-		case <-req.Context.Done():
-			return Response{
-				Error: terrors.Timeout("cancelled", "Request already cancelled", nil)}
-		default:
-		}
-
 		httpRsp, err := c.Do(req.Request.WithContext(req.Context))
 		// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
 		// call Close() but does not allow streaming responses.
