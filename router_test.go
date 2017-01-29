@@ -65,6 +65,8 @@ func TestRouter_CatchallPath(t *testing.T) {
 
 // Validate that partial matches are resolved correctly
 func TestRouterPartials(t *testing.T) {
+	t.Parallel()
+
 	router := NewRouter()
 	router.GET("/foo/", func(req Request) Response {
 		return req.Response("/foo/")
