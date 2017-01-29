@@ -85,20 +85,6 @@ func (r *router) Lookup(method, path string) (Service, map[string]string, bool) 
 		params[name] = c.Param(name)
 	}
 	return svc, params, true
-
-	// hf, params_, _ := r.impl.Lookup(method, path)
-	// if hf == nil {
-	// 	return nil, nil, false
-	// }
-	//
-	// params := make(map[string]string, len(params_))
-	// for _, p := range params_ {
-	// 	params[p.Key] = p.Value
-	// }
-	//
-	// rw := routerRw{}
-	// hf(&rw, nil, nil)
-	// return rw.svc, params, true
 }
 
 func (r *router) Serve() Service {
