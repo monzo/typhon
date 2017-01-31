@@ -2,9 +2,9 @@ package typhon
 
 import (
 	"fmt"
-	"net/http"
+	"sync"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/labstack/echo"
 	"github.com/monzo/terrors"
 )
 
@@ -34,36 +34,57 @@ type Router interface {
 }
 
 type router struct {
-	impl *httprouter.Router
+	e    *echo.Echo
+	r    *echo.Router
+	svcs map[string]Service
+	m    sync.RWMutex
 }
 
+// NewRouter vends a new implementation of Router
 func NewRouter() Router {
+	e := echo.New()
 	return &router{
-		impl: httprouter.New()}
+		e:    e,
+		r:    echo.NewRouter(e),
+		svcs: make(map[string]Service, 10)}
+}
+
+func (r *router) identityHandler(c echo.Context) error {
+	return nil
 }
 
 func (r *router) Register(method, path string, svc Service) {
-	// Forgive me.
-	r.impl.Handle(method, path, func(rw_ http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-		rw := rw_.(*routerRw)
-		rw.svc = svc
-	})
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.r.Add(method, path, r.identityHandler)
+	r.svcs[method+path] = svc
 }
 
 func (r *router) Lookup(method, path string) (Service, map[string]string, bool) {
-	hf, params_, _ := r.impl.Lookup(method, path)
-	if hf == nil {
+	c := r.e.AcquireContext()
+	defer r.e.ReleaseContext(c)
+	c.Reset(nil, nil)
+	c.SetPath("") // Annoyingly, this isn't done as part of Reset()
+
+	r.m.RLock()
+	r.r.Find(method, path, c)
+	if c.Path() == "" {
+		r.m.RUnlock()
+		return nil, nil, false
+	}
+	svc := r.svcs[method+c.Path()]
+	r.m.RUnlock()
+
+	if svc == nil {
 		return nil, nil, false
 	}
 
-	params := make(map[string]string, len(params_))
-	for _, p := range params_ {
-		params[p.Key] = p.Value
+	names := c.ParamNames()
+	params := make(map[string]string, len(names))
+	for _, name := range names {
+		params[name] = c.Param(name)
 	}
-
-	rw := routerRw{}
-	hf(&rw, nil, nil)
-	return rw.svc, params, true
+	return svc, params, true
 }
 
 func (r *router) Serve() Service {
@@ -92,17 +113,3 @@ func (r *router) POST(path string, svc Service)    { r.Register("POST", path, sv
 func (r *router) PUT(path string, svc Service)     { r.Register("PUT", path, svc) }
 func (r *router) DELETE(path string, svc Service)  { r.Register("DELETE", path, svc) }
 func (r *router) TRACE(path string, svc Service)   { r.Register("TRACE", path, svc) }
-
-// I'm sorry, dear reader, I really am. To do this properly is more work than I have the appetite for right now.
-//
-// Future me will remove this horrific cruft and provide a URL router that acts on Services directly, without needing
-// the kabuki of a fake Handler and ResponseWriter.
-//
-// As it is, here's the fake ResponseWriter.
-type routerRw struct {
-	svc Service
-}
-
-func (r *routerRw) Header() http.Header         { return nil }
-func (r *routerRw) WriteHeader(_ int)           {}
-func (r *routerRw) Write(_ []byte) (int, error) { return 0, nil }

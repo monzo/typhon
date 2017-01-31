@@ -62,3 +62,27 @@ func TestRouter_CatchallPath(t *testing.T) {
 	err := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	assert.True(t, err.Matches(terrors.ErrNotFound))
 }
+
+// Validate that partial matches are resolved correctly
+func TestRouterPartials(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	router.GET("/foo/", func(req Request) Response {
+		return req.Response("/foo/")
+	})
+	router.GET("/:param/bar", func(req Request) Response {
+		return req.Response("/:param/bar")
+	})
+
+	req := NewRequest(nil, "GET", "/foo/", nil)
+	rsp := router.Serve()(req)
+	s := ""
+	rsp.Decode(&s)
+	assert.Equal(t, "/foo/", s)
+
+	req = NewRequest(nil, "GET", "/abc/bar", nil)
+	rsp = router.Serve()(req)
+	rsp.Decode(&s)
+	assert.Equal(t, "/:param/bar", s)
+}
