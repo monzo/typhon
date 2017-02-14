@@ -66,8 +66,7 @@ func (suite *e2eSuite) TestDomainSocket() {
 			return net.DialUnix("unix", nil, addr)
 		}}
 	req := NewRequest(nil, "GET", "http://localhost/foo", nil)
-	rsp := req.SendVia(HttpService(&http.Client{
-		Transport: sockTransport})).Response()
+	rsp := req.SendVia(HttpService(sockTransport)).Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
 }
@@ -126,4 +125,25 @@ func (suite *e2eSuite) TestCancellation() {
 	case <-time.After(30 * time.Millisecond):
 		suite.Assert().Fail("cancellation not propagated")
 	}
+}
+
+func (suite *e2eSuite) TestNoFollowRedirect() {
+	svc := Service(func(req Request) Response {
+		if req.URL.Path == "/redirected" {
+			return req.Response("😱")
+		}
+
+		rsp := req.Response(nil)
+		dst := fmt.Sprintf("http://%s/redirected", req.Host)
+		http.Redirect(rsp.Writer(), &req.Request, dst, http.StatusFound)
+		return rsp
+	})
+	s, err := Listen(svc, "localhost:0")
+	suite.Require().NoError(err)
+	defer s.Stop()
+
+	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+	rsp := req.Send().Response()
+	suite.Assert().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusFound, rsp.StatusCode)
 }
