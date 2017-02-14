@@ -27,9 +27,6 @@ var (
 		RequestTimeout:        time.Hour,
 		RetryAfterTimeout:     false,
 		MaxTries:              6}
-	httpClient = &http.Client{
-		Timeout:   time.Hour,
-		Transport: httpClientTransport}
 )
 
 type ResponseFuture struct {
@@ -51,11 +48,11 @@ func (f *ResponseFuture) Cancel() {
 	f.cancel()
 }
 
-// HttpService returns a Service which sends requests via the given net/http client.
+// HttpService returns a Service which sends requests via the given net/http RoundTripper.
 // Only use this if you need to do something custom at the transport level.
-func HttpService(c *http.Client) Service {
+func HttpService(rt http.RoundTripper) Service {
 	return Service(func(req Request) Response {
-		httpRsp, err := c.Do(req.Request.WithContext(req.Context))
+		httpRsp, err := rt.RoundTrip(req.Request.WithContext(req.Context))
 		// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
 		// call Close() but does not allow streaming responses.
 		// @TODO: Streaming client?
@@ -77,7 +74,7 @@ func HttpService(c *http.Client) Service {
 }
 
 func BareClient(req Request) Response {
-	return HttpService(httpClient)(req)
+	return HttpService(httpClientTransport)(req)
 }
 
 func SendVia(req Request, svc Service) *ResponseFuture {
