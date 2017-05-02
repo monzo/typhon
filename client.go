@@ -17,16 +17,12 @@ var (
 	// takes place; access is not synchronised.
 	Client              Service = BareClient
 	httpClientTransport         = &httpcontrol.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DisableKeepAlives:     false,
-		DisableCompression:    false,
-		MaxIdleConnsPerHost:   10,
-		DialTimeout:           10 * time.Second,
-		DialKeepAlive:         10 * time.Minute,
-		ResponseHeaderTimeout: time.Minute,
-		RequestTimeout:        time.Hour,
-		RetryAfterTimeout:     false,
-		MaxTries:              6}
+		Proxy:               http.ProxyFromEnvironment,
+		DisableKeepAlives:   false,
+		DisableCompression:  false,
+		MaxIdleConnsPerHost: 10,
+		DialKeepAlive:       10 * time.Minute,
+		MaxTries:            6}
 )
 
 type ResponseFuture struct {
