@@ -10,25 +10,27 @@ import (
 
 type Router interface {
 	// OPTIONS is a shortcut for Register("OPTIONS", path, svc).
-	OPTIONS(path string, svc Service)
+	OPTIONS(pattern string, svc Service)
 	// GET is a shortcut for Register("GET", path, svc).
-	GET(path string, svc Service)
+	GET(pattern string, svc Service)
 	// HEAD is a shortcut for Register("HEAD", path, svc).
-	HEAD(path string, svc Service)
+	HEAD(pattern string, svc Service)
 	// POST is a shortcut for Register("POST", path, svc).
-	POST(path string, svc Service)
+	POST(pattern string, svc Service)
 	// PUT is a shortcut for Register("PUT", path, svc).
-	PUT(path string, svc Service)
+	PUT(pattern string, svc Service)
 	// DELETE is a shortcut for Register("DELETE", path, svc).
-	DELETE(path string, svc Service)
+	DELETE(pattern string, svc Service)
 	// TRACE is a shortcut for Register("TRACE", path, svc).
-	TRACE(path string, svc Service)
+	TRACE(pattern string, svc Service)
 	// Register associates a Service with a method and path.
-	Register(method, path string, svc Service)
-	// Lookup returns the Service and extracted path parameters for the HTTP method and path.
-	Lookup(method, path string) (svc Service, params map[string]string, ok bool)
+	Register(method, pattern string, svc Service)
+	// Lookup returns the Service, pattern, and extracted path parameters for the HTTP method and path.
+	Lookup(method, path string) (svc Service, pattern string, params map[string]string, ok bool)
 	// Serve returns a Service which will route inbound requests to the enclosed routes.
 	Serve() Service
+	// Pattern returns the registered pattern which matches the given request.
+	Pattern(req Request) string
 	// Params returns extracted URL parameters, assuming the request has been routed and has captured parameters.
 	Params(req Request) map[string]string
 }
@@ -49,18 +51,14 @@ func NewRouter() Router {
 		svcs: make(map[string]Service, 10)}
 }
 
-func (r *router) identityHandler(c echo.Context) error {
-	return nil
-}
-
-func (r *router) Register(method, path string, svc Service) {
+func (r *router) Register(method, pattern string, svc Service) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.r.Add(method, path, r.identityHandler)
-	r.svcs[method+path] = svc
+	r.r.Add(method, pattern, func(c echo.Context) error { return nil })
+	r.svcs[method+pattern] = svc
 }
 
-func (r *router) Lookup(method, path string) (Service, map[string]string, bool) {
+func (r *router) Lookup(method, path string) (Service, string, map[string]string, bool) {
 	c := r.e.AcquireContext()
 	defer r.e.ReleaseContext(c)
 	c.Reset(nil, nil)
@@ -68,15 +66,16 @@ func (r *router) Lookup(method, path string) (Service, map[string]string, bool) 
 
 	r.m.RLock()
 	r.r.Find(method, path, c)
-	if c.Path() == "" {
+	pattern := c.Path()
+	if pattern == "" {
 		r.m.RUnlock()
-		return nil, nil, false
+		return nil, "", nil, false
 	}
-	svc := r.svcs[method+c.Path()]
+	svc := r.svcs[method+pattern]
 	r.m.RUnlock()
 
 	if svc == nil {
-		return nil, nil, false
+		return nil, "", nil, false
 	}
 
 	names := c.ParamNames()
@@ -84,12 +83,12 @@ func (r *router) Lookup(method, path string) (Service, map[string]string, bool) 
 	for _, name := range names {
 		params[name] = c.Param(name)
 	}
-	return svc, params, true
+	return svc, pattern, params, true
 }
 
 func (r *router) Serve() Service {
 	return func(req Request) Response {
-		svc, _, ok := r.Lookup(req.Method, req.URL.Path)
+		svc, _, _, ok := r.Lookup(req.Method, req.URL.Path)
 		if !ok {
 			txt := fmt.Sprintf("No handler for %s %s", req.Method, req.URL.Path)
 			rsp := NewResponse(req)
@@ -100,16 +99,21 @@ func (r *router) Serve() Service {
 	}
 }
 
+func (r *router) Pattern(req Request) string {
+	_, pattern, _, _ := r.Lookup(req.Method, req.URL.Path)
+	return pattern
+}
+
 func (r *router) Params(req Request) map[string]string {
-	_, params, _ := r.Lookup(req.Method, req.URL.Path)
+	_, _, params, _ := r.Lookup(req.Method, req.URL.Path)
 	return params
 }
 
 // Sugar
-func (r *router) OPTIONS(path string, svc Service) { r.Register("OPTIONS", path, svc) }
-func (r *router) GET(path string, svc Service)     { r.Register("GET", path, svc) }
-func (r *router) HEAD(path string, svc Service)    { r.Register("HEAD", path, svc) }
-func (r *router) POST(path string, svc Service)    { r.Register("POST", path, svc) }
-func (r *router) PUT(path string, svc Service)     { r.Register("PUT", path, svc) }
-func (r *router) DELETE(path string, svc Service)  { r.Register("DELETE", path, svc) }
-func (r *router) TRACE(path string, svc Service)   { r.Register("TRACE", path, svc) }
+func (r *router) OPTIONS(pattern string, svc Service) { r.Register("OPTIONS", pattern, svc) }
+func (r *router) GET(pattern string, svc Service)     { r.Register("GET", pattern, svc) }
+func (r *router) HEAD(pattern string, svc Service)    { r.Register("HEAD", pattern, svc) }
+func (r *router) POST(pattern string, svc Service)    { r.Register("POST", pattern, svc) }
+func (r *router) PUT(pattern string, svc Service)     { r.Register("PUT", pattern, svc) }
+func (r *router) DELETE(pattern string, svc Service)  { r.Register("DELETE", pattern, svc) }
+func (r *router) TRACE(pattern string, svc Service)   { r.Register("TRACE", pattern, svc) }
