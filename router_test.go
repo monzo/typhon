@@ -10,12 +10,14 @@ import (
 func TestRouter(t *testing.T) {
 	t.Parallel()
 
-	router := NewRouter()
-	router.GET("/foo", func(req Request) Response {
+	svc := func(req Request) Response {
 		rsp := NewResponse(req)
 		rsp.Write([]byte("abcdef"))
 		return rsp
-	})
+	}
+	router := NewRouter()
+	router.GET("/foo", svc)
+	router.GET("/bar/:param/baz", svc)
 
 	// Matching path
 	req := NewRequest(nil, "GET", "/foo", nil)
@@ -38,6 +40,12 @@ func TestRouter(t *testing.T) {
 	assert.Error(t, rsp.Error)
 	err = terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	assert.True(t, err.Matches(terrors.ErrNotFound))
+
+	// Pattern/param extraction
+	req = NewRequest(nil, "GET", "/bar/param", nil)
+	rsp = router.Serve()(req)
+	assert.NoError(t, rsp.Error)
+	assert.Equal(t, "/bar/:param/baz", router.Pattern(req))
 }
 
 func TestRouter_CatchallPath(t *testing.T) {
