@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	log "github.com/monzo/slog"
 	"github.com/monzo/terrors"
 )
 
@@ -22,7 +21,6 @@ type Request struct {
 func (r *Request) Encode(v interface{}) {
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		terr := terrors.Wrap(err, nil)
-		log.Warn(r, "Failed to encode request body: %v", terr)
 		r.err = terr
 		return
 	}
@@ -32,9 +30,6 @@ func (r *Request) Encode(v interface{}) {
 // Decode de-serialises the JSON body into the passed object.
 func (r Request) Decode(v interface{}) error {
 	err := json.NewDecoder(r.Body).Decode(v)
-	if err != nil {
-		log.Warn(r, "Failed to decode response body: %v", err)
-	}
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }
 
