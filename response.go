@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	log "github.com/monzo/slog"
 	"github.com/monzo/terrors"
 )
 
@@ -22,7 +21,6 @@ type Response struct {
 func (r *Response) Encode(v interface{}) {
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.Error = terrors.Wrap(err, nil)
-		log.Warn(r.ctx, "Failed to encode response body: %v", err)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
@@ -35,12 +33,8 @@ func (r *Response) Decode(v interface{}) error {
 		return r.Error
 	} else if r.Response == nil {
 		err = terrors.InternalService("", "Response has no body", nil)
-		log.Warn(r.ctx, "Cannot decode response with no Body (Response is nil)", nil)
 	} else {
 		err = json.NewDecoder(r.Body).Decode(v)
-		if err != nil {
-			log.Warn(r.ctx, "Failed to decode response body: %v", err)
-		}
 		err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
 	}
 	if r.Error == nil {
