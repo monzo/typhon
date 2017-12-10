@@ -24,9 +24,7 @@ func copyChunked(dst io.Writer, src io.Reader) (written int64, err error) {
 				err = ew
 				break
 			}
-			if flusherOk {
-				flusher.Flush()
-			}
+			flusher.Flush()
 			if nr != nw {
 				err = io.ErrShortWrite
 				break
