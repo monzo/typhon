@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	log "github.com/monzo/slog"
+	"github.com/monzo/slog"
 )
 
 func HttpHandler(svc Service) http.Handler {
@@ -34,6 +34,31 @@ func HttpHandler(svc Service) http.Handler {
 			Request: *httpReq}
 		rsp := svc(req)
 
+		// Work out if the response should be streaming
+		stream := false
+		// Most straightforward: service may have set rsp.Body to a streamer
+		if s, ok := rsp.Body.(*streamer); ok && s != nil {
+			stream = true
+		}
+		// In a proxy situation, the upstream would have set Transfer-Encoding
+		if !stream {
+			for _, v := range rsp.Header["Transfer-Encoding"] {
+				if v == "chunked" {
+					stream = true
+					break
+				}
+			}
+		}
+		// Annoyingly, this can be removed from headers by net/http and promoted to its own field
+		if !stream {
+			for _, v := range rsp.TransferEncoding {
+				if v == "chunked" {
+					stream = true
+					break
+				}
+			}
+		}
+
 		// Write the response out to the wire
 		for k, v := range rsp.Header {
 			if k == "Content-Length" {
@@ -44,8 +69,15 @@ func HttpHandler(svc Service) http.Handler {
 		rw.WriteHeader(rsp.StatusCode)
 		if rsp.Body != nil {
 			defer rsp.Body.Close()
-			if _, err := io.Copy(rw, rsp.Body); err != nil {
-				log.Error(req, "Error copying response body: %v", err)
+			if stream {
+				// Streaming responses use copyChunked(), which takes care of flushing transparently
+				if _, err := copyChunked(rw, rsp.Body); err != nil {
+					slog.Error(req, "Error copying streaming response body: %v", err)
+				}
+			} else {
+				if _, err := io.Copy(rw, rsp.Body); err != nil {
+					slog.Error(req, "Error copying response body: %v", err)
+				}
 			}
 		}
 	})

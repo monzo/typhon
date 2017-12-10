@@ -35,7 +35,7 @@ func (r Request) Decode(v interface{}) error {
 
 func (r *Request) Write(b []byte) (int, error) {
 	switch rc := r.Body.(type) {
-	// In the "regular" case, the response body will be a bufCloser; we can write
+	// In the "normal" case, the response body will be a buffer, to which we can write
 	case io.Writer:
 		return rc.Write(b)
 	// If a caller manually sets Response.Body, then we may not be able to write to it. In that case, we need to be

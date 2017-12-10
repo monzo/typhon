@@ -1,14 +1,11 @@
 package typhon
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/facebookgo/httpcontrol"
-	log "github.com/monzo/slog"
 	"github.com/monzo/terrors"
 )
 
@@ -49,20 +46,15 @@ func (f *ResponseFuture) Cancel() {
 func HttpService(rt http.RoundTripper) Service {
 	return Service(func(req Request) Response {
 		httpRsp, err := rt.RoundTrip(req.Request.WithContext(req.Context))
-		// Read the response in its entirety and close the Response body here; this protects us from callers that forget to
-		// call Close() but does not allow streaming responses.
-		// @TODO: Streaming client?
+		// When the calling context is cancelled, close the response body
+		// This protects callers that forget to call Close(), or those which proxy responses upstream
 		if httpRsp != nil && httpRsp.Body != nil {
-			var buf []byte
-			buf, err = ioutil.ReadAll(httpRsp.Body)
-			httpRsp.Body.Close()
-			if err != nil {
-				log.Warn(req, "Error reading response body: %v", err)
-			} else {
-				httpRsp.Body = ioutil.NopCloser(bytes.NewReader(buf))
-			}
+			body := httpRsp.Body
+			go func() {
+				<-req.Done()
+				body.Close()
+			}()
 		}
-
 		return Response{
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
@@ -82,7 +74,6 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 		cancel: cancel}
 	go func() {
 		defer close(done)
-		defer cancel() // if already cancelled on escape, this is a no-op
 		f.r = svc(req)
 	}()
 	return f

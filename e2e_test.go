@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -146,4 +147,49 @@ func (suite *e2eSuite) TestNoFollowRedirect() {
 	rsp := req.Send().Response()
 	suite.Assert().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusFound, rsp.StatusCode)
+}
+
+func (suite *e2eSuite) TestProxiedStreamer() {
+	chunks := make(chan bool, 2)
+	chunks <- true
+	downstream := Service(func(req Request) Response {
+		rsp := req.Response(nil)
+		rsp.Body = Streamer()
+		go func() {
+			defer rsp.Body.Close()
+			n := 0
+			for range chunks {
+				rsp.Encode(map[string]int{
+					"chunk": n})
+				n++
+			}
+		}()
+		return rsp
+	})
+	s, err := Listen(downstream, "localhost:0")
+	suite.Require().NoError(err)
+	defer s.Stop()
+
+	proxy := Service(func(req Request) Response {
+		proxyReq := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+		return proxyReq.Send().Response()
+	})
+	ps, err := Listen(proxy, "localhost:0")
+	suite.Require().NoError(err)
+	defer ps.Stop()
+
+	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
+	rsp := req.Send().Response()
+	suite.Assert().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	for i := 0; i < 1000; i++ {
+		b := make([]byte, 500)
+		n, err := rsp.Body.Read(b)
+		suite.Require().NoError(err)
+		v := map[string]int{}
+		suite.Require().NoError(json.Unmarshal(b[:n], &v))
+		suite.Require().Equal(i, v["chunk"])
+		chunks <- true
+	}
+	close(chunks)
 }
