@@ -12,8 +12,9 @@ import (
 var (
 	// Client is used to send all requests by default. It can be overridden globally but MUST only be done before use
 	// takes place; access is not synchronised.
-	Client              Service = BareClient
-	httpClientTransport         = &httpcontrol.Transport{
+	Client Service = BareClient
+	// RoundTripper is used by default in Typhon clients
+	RoundTripper http.RoundTripper = &httpcontrol.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		DisableKeepAlives:   false,
 		DisableCompression:  false,
@@ -62,7 +63,7 @@ func HttpService(rt http.RoundTripper) Service {
 }
 
 func BareClient(req Request) Response {
-	return HttpService(httpClientTransport)(req)
+	return HttpService(RoundTripper)(req)
 }
 
 func SendVia(req Request, svc Service) *ResponseFuture {
