@@ -30,6 +30,12 @@ func (suite *e2eSuite) TearDownTest() {
 	Client = BareClient
 }
 
+func (suite *e2eSuite) serve(svc Service) Server {
+	s, err := Listen(svc, "localhost:0")
+	suite.Require().NoError(err)
+	return s
+}
+
 func (suite *e2eSuite) TestStraightforward() {
 	svc := Service(func(req Request) Response {
 		// Simple requests like this shouldn't be chunked
@@ -39,8 +45,7 @@ func (suite *e2eSuite) TestStraightforward() {
 			"b": "a"})
 	})
 	svc = svc.Filter(ErrorFilter)
-	s, err := Listen(svc, "localhost:0")
-	suite.Require().NoError(err)
+	s := suite.serve(svc)
 	defer s.Stop()
 
 	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
@@ -90,8 +95,7 @@ func (suite *e2eSuite) TestError() {
 		return rsp
 	})
 	svc = svc.Filter(ErrorFilter)
-	s, err := Listen(svc, "localhost:0")
-	suite.Require().NoError(err)
+	s := suite.serve(svc)
 	defer s.Stop()
 
 	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
@@ -117,8 +121,7 @@ func (suite *e2eSuite) TestCancellation() {
 		return req.Response("cancelled ok")
 	})
 	svc = svc.Filter(ErrorFilter)
-	s, err := Listen(svc, "localhost:0")
-	suite.Require().NoError(err)
+	s := suite.serve(svc)
 	defer s.Stop()
 
 	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
@@ -147,10 +150,8 @@ func (suite *e2eSuite) TestNoFollowRedirect() {
 		http.Redirect(rsp.Writer(), &req.Request, dst, http.StatusFound)
 		return rsp
 	})
-	s, err := Listen(svc, "localhost:0")
-	suite.Require().NoError(err)
+	s := suite.serve(svc)
 	defer s.Stop()
-
 	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
 	suite.Assert().NoError(rsp.Error)
@@ -174,16 +175,14 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 		}()
 		return rsp
 	})
-	s, err := Listen(downstream, "localhost:0")
-	suite.Require().NoError(err)
+	s := suite.serve(downstream)
 	defer s.Stop()
 
 	proxy := Service(func(req Request) Response {
 		proxyReq := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 		return proxyReq.Send().Response()
 	})
-	ps, err := Listen(proxy, "localhost:0")
-	suite.Require().NoError(err)
+	ps := suite.serve(proxy)
 	defer ps.Stop()
 
 	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
