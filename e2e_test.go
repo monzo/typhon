@@ -32,17 +32,25 @@ func (suite *e2eSuite) TearDownTest() {
 
 func (suite *e2eSuite) TestStraightforward() {
 	svc := Service(func(req Request) Response {
-		return NewResponse(req)
+		// Simple requests like this shouldn't be chunked
+		suite.Assert().NotContains(req.TransferEncoding, "chunked")
+		suite.Assert().True(req.ContentLength > 0)
+		return req.Response(map[string]string{
+			"b": "a"})
 	})
 	svc = svc.Filter(ErrorFilter)
 	s, err := Listen(svc, "localhost:0")
 	suite.Require().NoError(err)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+		"a": "b"})
 	rsp := req.Send().Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	// The response is simple too; shouldn't be chunked
+	suite.Assert().NotContains(rsp.TransferEncoding, "chunked")
+	suite.Assert().True(rsp.ContentLength > 0)
 }
 
 func (suite *e2eSuite) TestDomainSocket() {
@@ -182,6 +190,9 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 	rsp := req.Send().Response()
 	suite.Assert().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	// The response is streaming; should be chunked
+	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
+	suite.Assert().True(rsp.ContentLength < 0)
 	for i := 0; i < 1000; i++ {
 		b := make([]byte, 500)
 		n, err := rsp.Body.Read(b)

@@ -19,12 +19,17 @@ type Request struct {
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Request) Encode(v interface{}) {
-	if err := json.NewEncoder(r).Encode(v); err != nil {
+	cw := &countingWriter{
+		Writer: r}
+	if err := json.NewEncoder(cw).Encode(v); err != nil {
 		terr := terrors.Wrap(err, nil)
 		r.err = terr
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
+	if r.ContentLength < 0 {
+		r.ContentLength = int64(cw.n)
+	}
 }
 
 // Decode de-serialises the JSON body into the passed object.
@@ -96,6 +101,7 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		ctx = context.Background()
 	}
 	httpReq, _ := http.NewRequest(method, url, nil) // @TODO: Don't swallow this error
+	httpReq.ContentLength = -1
 	httpReq.Body = &bufCloser{}
 	req := Request{
 		Request: *httpReq,
