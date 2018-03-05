@@ -19,11 +19,16 @@ type Response struct {
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Response) Encode(v interface{}) {
-	if err := json.NewEncoder(r).Encode(v); err != nil {
+	cw := &countingWriter{
+		Writer: r}
+	if err := json.NewEncoder(cw).Encode(v); err != nil {
 		r.Error = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
+	if r.ContentLength < 0 {
+		r.ContentLength = int64(cw.n)
+	}
 }
 
 // Decode de-serialises the JSON body into the passed object.
@@ -101,12 +106,13 @@ func (r *Response) String() string {
 
 func newHttpResponse(req Request) *http.Response {
 	return &http.Response{
-		StatusCode: http.StatusOK, // Seems like a reasonable default
-		Proto:      req.Proto,
-		ProtoMajor: req.ProtoMajor,
-		ProtoMinor: req.ProtoMinor,
-		Header:     make(http.Header, 5),
-		Body:       &bufCloser{}}
+		StatusCode:    http.StatusOK, // Seems like a reasonable default
+		Proto:         req.Proto,
+		ProtoMajor:    req.ProtoMajor,
+		ProtoMinor:    req.ProtoMinor,
+		ContentLength: -1,
+		Header:        make(http.Header, 5),
+		Body:          &bufCloser{}}
 }
 
 // NewResponse constructs a Response

@@ -38,3 +38,16 @@ func (s *streamer) Write(p []byte) (int, error) {
 func (s *streamer) Close() error {
 	return s.pipeW.Close()
 }
+
+// countingWriter is a writer which proxies writes to an underlying io.Writer, keeping track of how many bytes have
+// been written in total
+type countingWriter struct {
+	n int
+	io.Writer
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.Writer.Write(p)
+	c.n += n
+	return n, err
+}
