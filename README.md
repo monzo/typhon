@@ -3,11 +3,21 @@
 [![Build Status](https://travis-ci.org/monzo/typhon.svg?branch=master)](https://travis-ci.org/monzo/typhon)
 [![GoDoc](https://godoc.org/github.com/monzo/typhon?status.svg)](https://godoc.org/github.com/monzo/typhon)
 
-Typhon is a thin wrapper around `net/http` that we use at Monzo to build RPC servers and clients in our
-microservices platform.
+Typhon is a wrapper around Go's [`net/http`] library that we use at Monzo to build RPC servers and clients in [our microservices platform].
 
-It provides a number of conveniences for doing things like injecting middleware "filters", encoding and decoding
-responses, response streaming, propagating cancellation, passing errors. Its API is deliberately constrained but
-intended to promote safety: for example, clients are freed from the worry of leaking resources if they fail call
-`body.Close()`. By modelling servers, clients, and filters as straightforward functions, they are decoupled from the
-underlying HTTP mechanisms, thus simplifying testing and promoting composition.
+It provides a number of conveniences and tries to promote safety wherever possible. Here's a short list of interesting features in Typhon:
+
+* **No need to close `body.Close()` in clients**
+  Forgetting to `body.Close()` in a client when the body has been dealt with is a common source of resource leaks in Go programs in our experience. Typhon ensures that – unless you're doing something really weird with the body – it will be closed automatically.
+
+* **Middleware "filters"**
+  Filters are decorators around `Service`s; in Typhon servers and clients share common functionality by composing it functionally.
+
+* **Body encoding/decoding**
+  Marshalling and unmarshalling request bodies to structs is such a common operation that our `Request` and `Response` objects support them directly. If the operations fail, the errors are propagated automatically since that's nearly always what a server will want.
+
+* **Propagation of cancellation**
+  When a server has done handling a request, the request's context is automatically cancelled, and these cancellations are propagated through the distributed call stack. This lets downstream servers conserve work producing responses that are no longer needed.
+
+* **Error propagation**
+  Responses have an inbuilt `Error` attribute, and serialisation/deserialisation of these errors into HTTP errors is taken care of automatically. We recommend using this in conjunction with [`monzo/terrors`].
