@@ -50,9 +50,13 @@ func HttpService(rt http.RoundTripper) Service {
 		// When the calling context is cancelled, close the response body
 		// This protects callers that forget to call Close(), or those which proxy responses upstream
 		if httpRsp != nil && httpRsp.Body != nil {
-			body := httpRsp.Body
+			body := newDoneReader(httpRsp.Body)
+			httpRsp.Body = body
 			go func() {
-				<-req.Done()
+				select {
+				case <-body.done:
+				case <-req.Done():
+				}
 				body.Close()
 			}()
 		}

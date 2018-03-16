@@ -1,14 +1,17 @@
 package typhon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/facebookgo/httpcontrol"
+	"github.com/fortytw2/leaktest"
 	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/suite"
 )
@@ -37,6 +40,10 @@ func (suite *e2eSuite) serve(svc Service) Server {
 }
 
 func (suite *e2eSuite) TestStraightforward() {
+	defer leaktest.Check(suite.T())()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	svc := Service(func(req Request) Response {
 		// Simple requests like this shouldn't be chunked
 		suite.Assert().NotContains(req.TransferEncoding, "chunked")
@@ -48,7 +55,7 @@ func (suite *e2eSuite) TestStraightforward() {
 	s := suite.serve(svc)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
 		"a": "b"})
 	rsp := req.Send().Response()
 	suite.Require().NoError(rsp.Error)
@@ -59,6 +66,10 @@ func (suite *e2eSuite) TestStraightforward() {
 }
 
 func (suite *e2eSuite) TestDomainSocket() {
+	defer leaktest.Check(suite.T())()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	svc := Service(func(req Request) Response {
 		return NewResponse(req)
 	})
@@ -79,13 +90,17 @@ func (suite *e2eSuite) TestDomainSocket() {
 		Dial: func(network, address string) (net.Conn, error) {
 			return net.DialUnix("unix", nil, addr)
 		}}
-	req := NewRequest(nil, "GET", "http://localhost/foo", nil)
+	req := NewRequest(ctx, "GET", "http://localhost/foo", nil)
 	rsp := req.SendVia(HttpService(sockTransport)).Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
 }
 
 func (suite *e2eSuite) TestError() {
+	defer leaktest.Check(suite.T())()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	expectedErr := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
 		"param": "value"})
 	svc := Service(func(req Request) Response {
@@ -98,7 +113,7 @@ func (suite *e2eSuite) TestError() {
 	s := suite.serve(svc)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
 	suite.Assert().Equal(http.StatusUnauthorized, rsp.StatusCode)
 
@@ -114,6 +129,10 @@ func (suite *e2eSuite) TestError() {
 }
 
 func (suite *e2eSuite) TestCancellation() {
+	defer leaktest.Check(suite.T())()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	cancelled := make(chan struct{})
 	svc := Service(func(req Request) Response {
 		<-req.Done()
@@ -124,7 +143,7 @@ func (suite *e2eSuite) TestCancellation() {
 	s := suite.serve(svc)
 	defer s.Stop()
 
-	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 	f := req.Send()
 	select {
 	case <-cancelled:
@@ -140,6 +159,10 @@ func (suite *e2eSuite) TestCancellation() {
 }
 
 func (suite *e2eSuite) TestNoFollowRedirect() {
+	defer leaktest.Check(suite.T())()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	svc := Service(func(req Request) Response {
 		if req.URL.Path == "/redirected" {
 			return req.Response("😱")
@@ -152,13 +175,17 @@ func (suite *e2eSuite) TestNoFollowRedirect() {
 	})
 	s := suite.serve(svc)
 	defer s.Stop()
-	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
 	suite.Assert().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusFound, rsp.StatusCode)
 }
 
 func (suite *e2eSuite) TestProxiedStreamer() {
+	defer leaktest.Check(suite.T())()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	chunks := make(chan bool, 2)
 	chunks <- true
 	downstream := Service(func(req Request) Response {
@@ -179,13 +206,13 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 	defer s.Stop()
 
 	proxy := Service(func(req Request) Response {
-		proxyReq := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+		proxyReq := NewRequest(req, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 		return proxyReq.Send().Response()
 	})
 	ps := suite.serve(proxy)
 	defer ps.Stop()
 
-	req := NewRequest(nil, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
 	rsp := req.Send().Response()
 	suite.Assert().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
@@ -202,4 +229,27 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 		chunks <- true
 	}
 	close(chunks)
+}
+
+// TestInfiniteContext verifies that Typhon does not leak Goroutines if an infinite context (one that's never cancelled)
+// is used to make a request.
+func (suite *e2eSuite) TestInfiniteContext() {
+	defer leaktest.Check(suite.T())()
+	ctx := context.Background()
+
+	svc := Service(func(req Request) Response {
+		return req.Response(map[string]string{
+			"b": "a"})
+	})
+	svc = svc.Filter(ErrorFilter)
+	s := suite.serve(svc)
+	defer s.Stop()
+
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+		"a": "b"})
+	rsp := req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+
+	ioutil.ReadAll(rsp.Body) // Consume the body (after which the request should be auto-closed)
 }
