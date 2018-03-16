@@ -231,7 +231,7 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 	close(chunks)
 }
 
-// TestInfiniteContext verifies that Typhon does not leak Goroutines if an infinite context (one that's never calcelled)
+// TestInfiniteContext verifies that Typhon does not leak Goroutines if an infinite context (one that's never cancelled)
 // is used to make a request.
 func (suite *e2eSuite) TestInfiniteContext() {
 	defer leaktest.Check(suite.T())()
