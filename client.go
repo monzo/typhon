@@ -1,7 +1,6 @@
 package typhon
 
 import (
-	"context"
 	"net/http"
 	"time"
 
@@ -25,9 +24,8 @@ var (
 
 // A ResponseFuture is a container for a Response which will materialise at some point.
 type ResponseFuture struct {
-	cancel context.CancelFunc
-	done   <-chan struct{} // guards access to r
-	r      Response
+	done <-chan struct{} // guards access to r
+	r    Response
 }
 
 // WaitC returns a channel which can be waited upon until the response is available
@@ -39,10 +37,6 @@ func (f *ResponseFuture) WaitC() <-chan struct{} {
 func (f *ResponseFuture) Response() Response {
 	<-f.WaitC()
 	return f.r
-}
-
-func (f *ResponseFuture) Cancel() {
-	f.cancel()
 }
 
 // HttpService returns a Service which sends requests via the given net/http RoundTripper.
@@ -76,12 +70,9 @@ func BareClient(req Request) Response {
 
 // SendVia sends the given request via the given service, returning a future representing the operation
 func SendVia(req Request, svc Service) *ResponseFuture {
-	ctx, cancel := context.WithCancel(req.Context)
-	req.Context = ctx
 	done := make(chan struct{}, 0)
 	f := &ResponseFuture{
-		done:   done,
-		cancel: cancel}
+		done: done}
 	go func() {
 		defer close(done)
 		f.r = svc(req)
