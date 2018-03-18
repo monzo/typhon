@@ -17,6 +17,22 @@ type Request struct {
 	err error // Any error from request construction; read by Client
 }
 
+// unwrappedContext returns the most "unwrapped" Context possible for that in the request.
+// This is useful as it's very often the case that Typhon users will use a parent request
+// as a parent for a child request. The context library knows how to unwrap its own
+// types to most efficiently perform certain operations (eg. cancellation chaining), but
+// it can't do that with Typhon-wrapped contexts.
+func (r *Request) unwrappedContext() context.Context {
+	switch c := r.Context.(type) {
+	case Request:
+		return c.unwrappedContext()
+	case *Request:
+		return c.unwrappedContext()
+	default:
+		return c
+	}
+}
+
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Request) Encode(v interface{}) {
 	cw := &countingWriter{

@@ -43,7 +43,8 @@ func (f *ResponseFuture) Response() Response {
 // Only use this if you need to do something custom at the transport level.
 func HttpService(rt http.RoundTripper) Service {
 	return Service(func(req Request) Response {
-		httpRsp, err := rt.RoundTrip(req.Request.WithContext(req.Context))
+		ctx := req.unwrappedContext()
+		httpRsp, err := rt.RoundTrip(req.Request.WithContext(ctx))
 		// When the calling context is cancelled, close the response body
 		// This protects callers that forget to call Close(), or those which proxy responses upstream
 		if httpRsp != nil && httpRsp.Body != nil {
