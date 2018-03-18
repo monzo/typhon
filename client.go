@@ -42,7 +42,7 @@ func (f *ResponseFuture) Response() Response {
 // HttpService returns a Service which sends requests via the given net/http RoundTripper.
 // Only use this if you need to do something custom at the transport level.
 func HttpService(rt http.RoundTripper) Service {
-	return Service(func(req Request) Response {
+	return func(req Request) Response {
 		ctx := req.unwrappedContext()
 		httpRsp, err := rt.RoundTrip(req.Request.WithContext(ctx))
 		// When the calling context is cancelled, close the response body
@@ -61,7 +61,7 @@ func HttpService(rt http.RoundTripper) Service {
 		return Response{
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
-	})
+	}
 }
 
 // BareClient is the most basic way to send a request, using the default http RoundTripper
