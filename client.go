@@ -23,16 +23,19 @@ var (
 		MaxTries:            6}
 )
 
+// A ResponseFuture is a container for a Response which will materialise at some point.
 type ResponseFuture struct {
 	cancel context.CancelFunc
 	done   <-chan struct{} // guards access to r
 	r      Response
 }
 
+// WaitC returns a channel which can be waited upon until the response is available
 func (f *ResponseFuture) WaitC() <-chan struct{} {
 	return f.done
 }
 
+// Response provides access to the response object, blocking until it is available
 func (f *ResponseFuture) Response() Response {
 	<-f.WaitC()
 	return f.r
@@ -66,10 +69,12 @@ func HttpService(rt http.RoundTripper) Service {
 	})
 }
 
+// BareClient is the most basic way to send a request, using the default http RoundTripper
 func BareClient(req Request) Response {
 	return HttpService(RoundTripper)(req)
 }
 
+// SendVia sends the given request via the given service, returning a future representing the operation
 func SendVia(req Request, svc Service) *ResponseFuture {
 	ctx, cancel := context.WithCancel(req.Context)
 	req.Context = ctx
@@ -84,6 +89,7 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 	return f
 }
 
+// Send is equivalent to SendVia(req, Client)
 func Send(req Request) *ResponseFuture {
 	return SendVia(req, Client)
 }
