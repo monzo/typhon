@@ -54,7 +54,7 @@ func HttpHandler(svc Service) http.Handler {
 			Request: *httpReq}
 		rsp := svc(req)
 
-		// Write the response out to the wire
+		// Write the response out
 		for k, v := range rsp.Header {
 			if k == "Content-Length" {
 				continue

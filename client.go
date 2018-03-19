@@ -1,7 +1,6 @@
 package typhon
 
 import (
-	"context"
 	"net/http"
 	"time"
 
@@ -23,67 +22,69 @@ var (
 		MaxTries:            6}
 )
 
+// A ResponseFuture is a container for a Response which will materialise at some point.
 type ResponseFuture struct {
-	cancel context.CancelFunc
-	done   <-chan struct{} // guards access to r
-	r      Response
+	done <-chan struct{} // guards access to r
+	r    Response
 }
 
+// WaitC returns a channel which can be waited upon until the response is available
 func (f *ResponseFuture) WaitC() <-chan struct{} {
 	return f.done
 }
 
+// Response provides access to the response object, blocking until it is available
 func (f *ResponseFuture) Response() Response {
 	<-f.WaitC()
 	return f.r
 }
 
-func (f *ResponseFuture) Cancel() {
-	f.cancel()
-}
-
 // HttpService returns a Service which sends requests via the given net/http RoundTripper.
 // Only use this if you need to do something custom at the transport level.
 func HttpService(rt http.RoundTripper) Service {
-	return Service(func(req Request) Response {
-		httpRsp, err := rt.RoundTrip(req.Request.WithContext(req.Context))
+	return func(req Request) Response {
+		ctx := req.unwrappedContext()
+		httpRsp, err := rt.RoundTrip(req.Request.WithContext(ctx))
 		// When the calling context is cancelled, close the response body
 		// This protects callers that forget to call Close(), or those which proxy responses upstream
-		if httpRsp != nil && httpRsp.Body != nil {
+		//
+		// If the calling context is infinite (ie. returns nil for Done()), it can never signal cancellation
+		// so we bypass this as a performance optimisation
+		if httpRsp != nil && httpRsp.Body != nil && ctx.Done() != nil {
 			body := newDoneReader(httpRsp.Body)
 			httpRsp.Body = body
 			go func() {
 				select {
-				case <-body.done:
-				case <-req.Done():
+				case <-body.closed:
+				case <-ctx.Done():
+					body.Close()
 				}
-				body.Close()
 			}()
 		}
 		return Response{
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
-	})
+	}
 }
 
+// BareClient is the most basic way to send a request, using the default http RoundTripper
 func BareClient(req Request) Response {
 	return HttpService(RoundTripper)(req)
 }
 
+// SendVia sends the given request via the given service, returning a future representing the operation
 func SendVia(req Request, svc Service) *ResponseFuture {
-	ctx, cancel := context.WithCancel(req.Context)
-	req.Context = ctx
 	done := make(chan struct{}, 0)
 	f := &ResponseFuture{
-		done:   done,
-		cancel: cancel}
+		done: done}
 	go func() {
-		defer close(done)
+		defer close(done) // makes the response available to waiters
 		f.r = svc(req)
 	}()
 	return f
 }
 
+// Send is equivalent to SendVia(req, Client)
 func Send(req Request) *ResponseFuture {
 	return SendVia(req, Client)
 }
