@@ -130,8 +130,6 @@ func (suite *e2eSuite) TestError() {
 
 func (suite *e2eSuite) TestCancellation() {
 	defer leaktest.Check(suite.T())()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	cancelled := make(chan struct{})
 	svc := Service(func(req Request) Response {
@@ -143,14 +141,15 @@ func (suite *e2eSuite) TestCancellation() {
 	s := suite.serve(svc)
 	defer s.Stop()
 
+	ctx, cancel := context.WithCancel(context.Background())
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
-	f := req.Send()
+	req.Send()
 	select {
 	case <-cancelled:
 		suite.Assert().Fail("cancellation propagated prematurely")
 	case <-time.After(30 * time.Millisecond):
 	}
-	f.Cancel()
+	cancel()
 	select {
 	case <-cancelled:
 	case <-time.After(30 * time.Millisecond):
@@ -237,7 +236,9 @@ func (suite *e2eSuite) TestInfiniteContext() {
 	defer leaktest.Check(suite.T())()
 	ctx := context.Background()
 
+	var receivedCtx context.Context
 	svc := Service(func(req Request) Response {
+		receivedCtx = req.Context
 		return req.Response(map[string]string{
 			"b": "a"})
 	})
@@ -251,5 +252,14 @@ func (suite *e2eSuite) TestInfiniteContext() {
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
 
-	ioutil.ReadAll(rsp.Body) // Consume the body (after which the request should be auto-closed)
+	b, err := ioutil.ReadAll(rsp.Body)
+	suite.Require().NoError(err)
+	suite.Assert().Equal("{\"b\":\"a\"}\n", string(b))
+
+	// Consuming the body should have closed the receiving context
+	select {
+	case <-receivedCtx.Done():
+	case <-time.After(time.Second):
+		suite.Assert().Fail("cancellation not propagated")
+	}
 }

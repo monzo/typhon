@@ -56,27 +56,27 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 // doneReader is a wrapper around a ReadCloser which provides notification when the stream has been fully consumed
 // (ie. when EOF is reached, or when the reader is closed.)
 type doneReader struct {
-	done     chan struct{}
-	doneOnce sync.Once
+	closed     chan struct{}
+	closedOnce sync.Once
 	io.ReadCloser
 }
 
 func newDoneReader(r io.ReadCloser) *doneReader {
 	return &doneReader{
-		done:       make(chan struct{}),
+		closed:     make(chan struct{}),
 		ReadCloser: r}
 }
 
 func (r *doneReader) Close() error {
 	err := r.ReadCloser.Close()
-	r.doneOnce.Do(func() { close(r.done) })
+	r.closedOnce.Do(func() { close(r.closed) })
 	return err
 }
 
 func (r *doneReader) Read(p []byte) (int, error) {
 	n, err := r.ReadCloser.Read(p)
 	if err == io.EOF {
-		r.doneOnce.Do(func() { close(r.done) })
+		r.closedOnce.Do(func() { close(r.closed) })
 	}
 	return n, err
 }

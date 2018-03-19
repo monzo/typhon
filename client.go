@@ -47,15 +47,18 @@ func HttpService(rt http.RoundTripper) Service {
 		httpRsp, err := rt.RoundTrip(req.Request.WithContext(ctx))
 		// When the calling context is cancelled, close the response body
 		// This protects callers that forget to call Close(), or those which proxy responses upstream
-		if httpRsp != nil && httpRsp.Body != nil {
+		//
+		// If the calling context is infinite (ie. returns nil for Done()), it can never signal cancellation
+		// so we bypass this as a performance optimisation
+		if httpRsp != nil && httpRsp.Body != nil && ctx.Done() != nil {
 			body := newDoneReader(httpRsp.Body)
 			httpRsp.Body = body
 			go func() {
 				select {
-				case <-body.done:
-				case <-req.Done():
+				case <-body.closed:
+				case <-ctx.Done():
+					body.Close()
 				}
-				body.Close()
 			}()
 		}
 		return Response{
@@ -75,7 +78,7 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 	f := &ResponseFuture{
 		done: done}
 	go func() {
-		defer close(done)
+		defer close(done) // makes the response available to waiters
 		f.r = svc(req)
 	}()
 	return f
