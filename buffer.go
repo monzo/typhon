@@ -76,7 +76,7 @@ func (r *doneReader) Close() error {
 func (r *doneReader) Read(p []byte) (int, error) {
 	n, err := r.ReadCloser.Read(p)
 	if err == io.EOF {
-		r.closedOnce.Do(func() { close(r.closed) })
+		r.Close()
 	}
 	return n, err
 }
