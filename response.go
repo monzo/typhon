@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -100,14 +101,19 @@ func (r *Response) Writer() ResponseWriter {
 		r: r}
 }
 
-func (r *Response) String() string {
-	if r != nil {
-		if r.Response != nil {
-			return fmt.Sprintf("Response(%d, error: %v)", r.StatusCode, r.Error)
-		}
-		return fmt.Sprintf("Response(???, error: %v)", r.Error)
+func (r Response) String() string {
+	b := new(bytes.Buffer)
+	fmt.Fprint(b, "Response(")
+	if r.Response != nil {
+		fmt.Fprintf(b, "%d", r.StatusCode)
+	} else {
+		fmt.Fprint(b, "???")
 	}
-	return "Response(Unknown)"
+	if r.Error != nil {
+		fmt.Fprintf(b, ", error: %v", r.Error)
+	}
+	fmt.Fprint(b, ")")
+	return b.String()
 }
 
 func newHttpResponse(req Request) *http.Response {
