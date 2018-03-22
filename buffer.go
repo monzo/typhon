@@ -79,7 +79,7 @@ func (r *doneReader) Read(p []byte) (int, error) {
 	n, err := r.ReadCloser.Read(p)
 	r.read += int64(n)
 	// If we got an error reading, or the reader's length is known and is now exhausted, close
-	// the underlying reaer
+	// the underlying reader
 	if err != nil || (r.length >= 0 && r.read >= r.length) {
 		r.Close()
 	}
