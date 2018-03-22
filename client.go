@@ -51,7 +51,7 @@ func HttpService(rt http.RoundTripper) Service {
 		// If the calling context is infinite (ie. returns nil for Done()), it can never signal cancellation
 		// so we bypass this as a performance optimisation
 		if httpRsp != nil && httpRsp.Body != nil && ctx.Done() != nil {
-			body := newDoneReader(httpRsp.Body)
+			body := newDoneReader(httpRsp.Body, httpRsp.ContentLength)
 			httpRsp.Body = body
 			go func() {
 				select {
