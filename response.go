@@ -40,8 +40,11 @@ func (r *Response) Decode(v interface{}) error {
 	} else if r.Response == nil {
 		err = terrors.InternalService("", "Response has no body", nil)
 	} else {
-		defer r.Body.Close()
-		err = json.NewDecoder(r.Body).Decode(v)
+		var b []byte
+		b, err = r.BodyBytes(true)
+		if err == nil {
+			err = json.Unmarshal(b, v)
+		}
 		err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
 	}
 	if r.Error == nil {
