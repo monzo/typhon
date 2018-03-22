@@ -67,6 +67,8 @@ func (r *Request) Write(b []byte) (int, error) {
 			// This can be quite bad; we have consumed (and possibly lost) some of the original body
 			return 0, err
 		}
+		// rc will never again be accessible: once it's copied it must be closed
+		rc.Close()
 		r.Body = buf
 		return buf.Write(b)
 	}
@@ -81,10 +83,11 @@ func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	case *bufCloser:
 		return rc.Bytes(), nil
 	default:
-		rdr := io.Reader(rc)
 		buf := &bufCloser{}
 		r.Body = buf
-		rdr = io.TeeReader(rdr, buf)
+		rdr := io.TeeReader(rc, buf)
+		// rc will never again be accessible: once it's copied it must be closed
+		defer rc.Close()
 		return ioutil.ReadAll(rdr)
 	}
 }

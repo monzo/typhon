@@ -71,6 +71,9 @@ func ErrorFilter(req Request, svc Service) Response {
 	if rsp.Error != nil {
 		if rsp.StatusCode == http.StatusOK {
 			// We got an error, but there is no error in the underlying response; marshal
+			if rsp.Body != nil {
+				rsp.Body.Close()
+			}
 			rsp.Body = &bufCloser{}
 			terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 			rsp.Encode(terrors.Marshal(terr))
