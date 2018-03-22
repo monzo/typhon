@@ -50,6 +50,7 @@ func (r *Request) Encode(v interface{}) {
 
 // Decode de-serialises the JSON body into the passed object.
 func (r Request) Decode(v interface{}) error {
+	defer r.Body.Close()
 	err := json.NewDecoder(r.Body).Decode(v)
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }

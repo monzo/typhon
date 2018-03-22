@@ -39,6 +39,7 @@ func (r *Response) Decode(v interface{}) error {
 	} else if r.Response == nil {
 		err = terrors.InternalService("", "Response has no body", nil)
 	} else {
+		defer r.Body.Close()
 		err = json.NewDecoder(r.Body).Decode(v)
 		err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
 	}
@@ -75,12 +76,14 @@ func (r *Response) Write(b []byte) (int, error) {
 
 func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
+		defer r.Body.Close()
 		return ioutil.ReadAll(r.Body)
 	}
 
 	switch rc := r.Body.(type) {
 	case *bufCloser:
 		return rc.Bytes(), nil
+
 	default:
 		buf := &bufCloser{}
 		r.Body = buf
