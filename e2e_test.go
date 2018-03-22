@@ -60,6 +60,10 @@ func (suite *e2eSuite) TestStraightforward() {
 	rsp := req.Send().Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	body := map[string]string{}
+	suite.Assert().NoError(rsp.Decode(&body))
+	suite.Assert().Equal(map[string]string{
+		"b": "a"}, body)
 	// The response is simple too; shouldn't be chunked
 	suite.Assert().NotContains(rsp.TransferEncoding, "chunked")
 	suite.Assert().True(rsp.ContentLength > 0)
