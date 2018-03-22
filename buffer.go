@@ -66,6 +66,7 @@ type doneReader struct {
 func newDoneReader(r io.ReadCloser, length int64) *doneReader {
 	return &doneReader{
 		closed:     make(chan struct{}),
+		length:     length,
 		ReadCloser: r}
 }
 
