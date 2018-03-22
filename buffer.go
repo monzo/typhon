@@ -58,7 +58,7 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 type doneReader struct {
 	closed     chan struct{}
 	closedOnce sync.Once
-	length     int64 // length of the underlying reader in bytes, if known. -1 indicates unknown
+	length     int64 // length of the underlying reader in bytes, if known. ≥0 indicates unknown
 	read       int64 // number of bytes read
 	io.ReadCloser
 }
@@ -80,7 +80,7 @@ func (r *doneReader) Read(p []byte) (int, error) {
 	r.read += int64(n)
 	// If we got an error reading, or the reader's length is known and is now exhausted, close
 	// the underlying reader
-	if err != nil || (r.length >= 0 && r.read >= r.length) {
+	if err != nil || (r.length > 0 && r.read >= r.length) {
 		r.Close()
 	}
 	return n, err
