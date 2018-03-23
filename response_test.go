@@ -1,7 +1,9 @@
 package typhon
 
 import (
+	"bytes"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -43,4 +45,22 @@ func TestResponseWriter_Error(t *testing.T) {
 	rsp.Writer().WriteError(errors.New("abc"))
 	assert.Error(t, rsp.Error)
 	assert.Equal(t, "abc", rsp.Error.Error())
+}
+
+// TestResponseDecodeCloses verifies that a response body is closed after calling Decode()
+func TestResponseDecodeCloses(t *testing.T) {
+	t.Parallel()
+	req := NewRequest(nil, "GET", "/", nil)
+	rsp := NewResponse(req)
+	b := []byte("{\"a\":\"b\"}\n")
+	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	rsp.Body = r
+
+	bout := map[string]string{}
+	rsp.Decode(&bout)
+	select {
+	case <-r.closed:
+	default:
+		assert.Fail(t, "response body was not closed after Decode()")
+	}
 }

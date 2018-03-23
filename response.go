@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -39,7 +40,11 @@ func (r *Response) Decode(v interface{}) error {
 	} else if r.Response == nil {
 		err = terrors.InternalService("", "Response has no body", nil)
 	} else {
-		err = json.NewDecoder(r.Body).Decode(v)
+		var b []byte
+		b, err = r.BodyBytes(true)
+		if err == nil {
+			err = json.Unmarshal(b, v)
+		}
 		err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
 	}
 	if r.Error == nil {
@@ -75,12 +80,14 @@ func (r *Response) Write(b []byte) (int, error) {
 
 func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
+		defer r.Body.Close()
 		return ioutil.ReadAll(r.Body)
 	}
 
 	switch rc := r.Body.(type) {
 	case *bufCloser:
 		return rc.Bytes(), nil
+
 	default:
 		buf := &bufCloser{}
 		r.Body = buf
@@ -97,14 +104,19 @@ func (r *Response) Writer() ResponseWriter {
 		r: r}
 }
 
-func (r *Response) String() string {
-	if r != nil {
-		if r.Response != nil {
-			return fmt.Sprintf("Response(%d, error: %v)", r.StatusCode, r.Error)
-		}
-		return fmt.Sprintf("Response(???, error: %v)", r.Error)
+func (r Response) String() string {
+	b := new(bytes.Buffer)
+	fmt.Fprint(b, "Response(")
+	if r.Response != nil {
+		fmt.Fprintf(b, "%d", r.StatusCode)
+	} else {
+		fmt.Fprint(b, "???")
 	}
-	return "Response(Unknown)"
+	if r.Error != nil {
+		fmt.Fprintf(b, ", error: %v", r.Error)
+	}
+	fmt.Fprint(b, ")")
+	return b.String()
 }
 
 func newHttpResponse(req Request) *http.Response {

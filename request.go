@@ -50,7 +50,10 @@ func (r *Request) Encode(v interface{}) {
 
 // Decode de-serialises the JSON body into the passed object.
 func (r Request) Decode(v interface{}) error {
-	err := json.NewDecoder(r.Body).Decode(v)
+	b, err := r.BodyBytes(true)
+	if err == nil {
+		err = json.Unmarshal(b, v)
+	}
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }
 
@@ -76,6 +79,7 @@ func (r *Request) Write(b []byte) (int, error) {
 
 func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
+		defer r.Body.Close()
 		return ioutil.ReadAll(r.Body)
 	}
 
