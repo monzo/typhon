@@ -22,6 +22,11 @@ var (
 		terrors.ErrPreconditionFailed: http.StatusPreconditionFailed,
 		terrors.ErrTimeout:            http.StatusGatewayTimeout,
 		terrors.ErrUnauthorized:       http.StatusUnauthorized,
+
+		// If the client disconnects it won't receive this response status code
+		// However, this allows intermediate proxies to distinguish this behaviour
+		// giving similar behaviour to nginx
+		terrors.ErrContextCanceled: 499,
 	}
 	mapStatus2Terr map[int]string
 )
