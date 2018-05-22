@@ -8,6 +8,12 @@ import (
 	"github.com/monzo/slog"
 )
 
+const (
+	// chunkThreshold is a byte threshold above which request and response bodies that result from using buffered I/O
+	// within Typhon will be transferred with chunked encoding on the wire.
+	chunkThreshold = 5 * 1000000 // 5 megabytes
+)
+
 func isStreamingRsp(rsp Response) bool {
 	// Most straightforward: service may have set rsp.Body to a streamer
 	if s, ok := rsp.Body.(*streamer); ok && s != nil {
@@ -28,6 +34,7 @@ func isStreamingRsp(rsp Response) bool {
 	return false
 }
 
+// HttpHandler transforms the given Service into a http.Handler, suitable for use directly with net/http
 func HttpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
 		ctx, cancel := context.WithCancel(httpReq.Context())

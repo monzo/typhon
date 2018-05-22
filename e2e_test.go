@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -266,4 +267,108 @@ func (suite *e2eSuite) TestInfiniteContext() {
 	case <-time.After(time.Second):
 		suite.Assert().Fail("cancellation not propagated")
 	}
+}
+
+func (suite *e2eSuite) TestRequestAutoChunking() {
+	defer leaktest.Check(suite.T())()
+	receivedChunked := false
+	svc := Service(func(req Request) Response {
+		receivedChunked = false
+		for _, e := range req.TransferEncoding {
+			if e == "chunked" {
+				receivedChunked = true
+			}
+		}
+		return req.Response("ok")
+	})
+	svc = svc.Filter(ErrorFilter)
+	s := suite.serve(svc)
+	defer s.Stop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Streamer; should be chunked
+	stream := Streamer()
+	go func() {
+		io.WriteString(stream, "foo\n")
+		stream.Close()
+	}()
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+	req.Body = stream
+	rsp := req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Assert().True(receivedChunked)
+
+	// Small request using Encode(): should not be chunked
+	req = NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+		"a": "b"})
+	rsp = req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Assert().False(receivedChunked)
+
+	// Large request using Encode(); should be chunked
+	const targetBytes = 5000000 // 5 MB
+	body := []byte{}
+	for len(body) < targetBytes {
+		body = append(body, []byte("abc=def\n")...)
+	}
+	req = NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), body)
+	rsp = req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Assert().True(receivedChunked)
+}
+
+func (suite *e2eSuite) TestResponseAutoChunking() {
+	defer leaktest.Check(suite.T())()
+	var sendRsp Response
+	svc := Service(func(req Request) Response {
+		sendRsp.ctx = req
+		return sendRsp
+	})
+	svc = svc.Filter(ErrorFilter)
+	s := suite.serve(svc)
+	defer s.Stop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Streamer; should be chunked
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+	sendRsp = NewResponse(req)
+	stream := Streamer()
+	go func() {
+		io.WriteString(stream, "foo\n")
+		stream.Close()
+	}()
+	sendRsp.Body = stream
+	rsp := req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
+
+	// Small request using Encode(): should not be chunked
+	sendRsp = NewResponse(req)
+	sendRsp.Encode(map[string]string{
+		"a": "b"})
+	rsp = req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Assert().NotContains(rsp.TransferEncoding, "chunked")
+
+	// Large request using Encode(); should be chunked
+	const targetBytes = 5000000 // 5 MB
+	body := []byte{}
+	for len(body) < targetBytes {
+		body = append(body, []byte("abc=def\n")...)
+	}
+	sendRsp = NewResponse(req)
+	sendRsp.Encode(body)
+	rsp = req.Send().Response()
+	suite.Require().NoError(rsp.Error)
+	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
 }
