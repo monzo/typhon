@@ -43,7 +43,7 @@ func (r *Request) Encode(v interface{}) {
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
-	if r.ContentLength < 0 {
+	if r.ContentLength < 0 && cw.n < chunkThreshold {
 		r.ContentLength = int64(cw.n)
 	}
 }
