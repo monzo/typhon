@@ -9,6 +9,7 @@ import (
 
 	"github.com/facebookgo/httpdown"
 	log "github.com/monzo/slog"
+	"net/http"
 )
 
 const DefaultListenAddr = "127.0.0.1:0"
@@ -38,14 +39,7 @@ func (s server) WaitC() <-chan struct{} {
 }
 
 func Serve(svc Service, l net.Listener) (Server, error) {
-	downer := &httpdown.HTTP{
-		StopTimeout: 20 * time.Second,
-		KillTimeout: 25 * time.Second}
-	downerServer := downer.Serve(HttpServer(svc), l)
-	log.Info(nil, "Listening on %v", l.Addr())
-	return server{
-		Server: downerServer,
-		l:      l}, nil
+	return ServeHTTPServer(HttpServer(svc), l)
 }
 
 func Listen(svc Service, addr string) (Server, error) {
@@ -72,4 +66,18 @@ func Listen(svc Service, addr string) (Server, error) {
 		return nil, err
 	}
 	return Serve(svc, l)
+}
+
+// ServeHTTPServer returns a typhon server for the given HTTP server.
+// This supports callers that that need to alter the configuration of
+// the HTTP server (e.g. to support TLS).
+func ServeHTTPServer(s *http.Server, l net.Listener) (Server, error) {
+	downer := &httpdown.HTTP{
+		StopTimeout: 20 * time.Second,
+		KillTimeout: 25 * time.Second}
+	downerServer := downer.Serve(s, l)
+	log.Info(nil, "Listening on %v", l.Addr())
+	return server{
+		Server: downerServer,
+		l:      l}, nil
 }
