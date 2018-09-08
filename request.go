@@ -123,12 +123,13 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	httpReq, _ := http.NewRequest(method, url, nil) // @TODO: Don't swallow this error
+	httpReq, err := http.NewRequest(method, url, nil)
 	httpReq.ContentLength = -1
 	httpReq.Body = &bufCloser{}
 	req := Request{
 		Request: *httpReq,
-		Context: ctx}
+		Context: ctx,
+		err:     err}
 	if body != nil {
 		req.Encode(body)
 	}
