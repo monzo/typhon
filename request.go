@@ -11,6 +11,7 @@ import (
 	"github.com/monzo/terrors"
 )
 
+// A Request is Typhon's wrapper around http.Request, used by both clients and servers.
 type Request struct {
 	http.Request
 	context.Context
@@ -38,8 +39,7 @@ func (r *Request) Encode(v interface{}) {
 	cw := &countingWriter{
 		Writer: r}
 	if err := json.NewEncoder(cw).Encode(v); err != nil {
-		terr := terrors.Wrap(err, nil)
-		r.err = terr
+		r.err = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
@@ -77,6 +77,8 @@ func (r *Request) Write(b []byte) (int, error) {
 	}
 }
 
+// BodyBytes fully reads the request body and returns the bytes read. If consume is false, the body is copied into a
+// new buffer such that it may be read again.
 func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
@@ -104,6 +106,7 @@ func (r Request) SendVia(svc Service) *ResponseFuture {
 	return SendVia(r, svc)
 }
 
+// Response construct a new Response to the request, and if non-nil, encodes the given body into it.
 func (r Request) Response(body interface{}) Response {
 	rsp := NewResponse(r)
 	if body != nil {
@@ -119,18 +122,21 @@ func (r Request) String() string {
 	return fmt.Sprintf("Request(%s %s://%s%s)", r.Method, r.URL.Scheme, r.Host, r.URL.Path)
 }
 
+// NewRequest constructs a new Request with the given parameters, and if non-nil, encodes the given body into it.
 func NewRequest(ctx context.Context, method, url string, body interface{}) Request {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	httpReq, err := http.NewRequest(method, url, nil)
-	httpReq.ContentLength = -1
-	httpReq.Body = &bufCloser{}
 	req := Request{
-		Request: *httpReq,
 		Context: ctx,
 		err:     err}
-	if body != nil {
+	if httpReq != nil {
+		httpReq.ContentLength = -1
+		httpReq.Body = &bufCloser{}
+		req.Request = *httpReq
+	}
+	if body != nil && err == nil {
 		req.Encode(body)
 	}
 	return req
