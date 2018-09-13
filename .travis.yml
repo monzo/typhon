@@ -6,7 +6,6 @@ go:
 
 install:
   - export PATH=${PATH}:${HOME}/gopath/bin
-  - go get -v -t ./...
   - go get -v github.com/golang/lint/golint
 
 before_script:
