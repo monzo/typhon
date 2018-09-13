@@ -1,0 +1,19 @@
+language: go
+
+go:
+  - 1.8.x
+  - 1.9.x
+  - "1.10.x"
+
+install:
+  - export PATH=${PATH}:${HOME}/gopath/bin
+  - go get -v -t ./...
+  - go get -v github.com/golang/lint/golint
+
+before_script:
+  - go vet ./...
+  - golint .
+
+script:
+  - go test -v ./...
+  - go test -v -test.race ./...

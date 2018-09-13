@@ -1,0 +1,15 @@
+syntax = "proto3";
+option go_package = "terrorsproto";
+
+message StackFrame {
+	string filename = 1;
+	int32 line = 2;
+	string method = 3;
+}
+
+message Error {
+	string code = 1;
+	string message = 2;
+	map<string, string> params = 3;
+	repeated StackFrame stack = 4;
+}

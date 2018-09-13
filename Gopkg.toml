@@ -1,0 +1,43 @@
+[[constraint]]
+  name = "github.com/facebookgo/httpcontrol"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/facebookgo/httpdown"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/fortytw2/leaktest"
+  version = "1.2.0"
+
+[[constraint]]
+  name = "github.com/golang/protobuf"
+  version = "1.2.0"
+
+[[constraint]]
+  name = "github.com/labstack/echo"
+  version = "3.3.6"
+
+[[constraint]]
+  name = "github.com/monzo/slog"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/monzo/terrors"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/nu7hatch/gouuid"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.2.2"
+
+[[constraint]]
+  name = "gopkg.in/tomb.v2"
+  branch = "v2"
+
+[prune]
+  go-tests = true
+  unused-packages = true
