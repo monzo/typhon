@@ -62,11 +62,12 @@ func HttpHandler(svc Service) http.Handler {
 		rsp := svc(req)
 
 		// Write the response out
+		rwHeader := rw.Header()
 		for k, v := range rsp.Header {
 			if k == "Content-Length" {
 				continue
 			}
-			rw.Header()[k] = v
+			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
 		if rsp.Body != nil {
