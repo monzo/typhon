@@ -12,7 +12,7 @@ import (
 	"github.com/monzo/terrors"
 )
 
-// A Request is Typhon's wrapper around http.Response, used by both clients and servers.
+// A Response is Typhon's wrapper around http.Response, used by both clients and servers.
 type Response struct {
 	*http.Response
 	Error error
