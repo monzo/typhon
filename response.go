@@ -12,6 +12,7 @@ import (
 	"github.com/monzo/terrors"
 )
 
+// A Request is Typhon's wrapper around http.Response, used by both clients and servers.
 type Response struct {
 	*http.Response
 	Error error
@@ -78,6 +79,8 @@ func (r *Response) Write(b []byte) (int, error) {
 	}
 }
 
+// BodyBytes fully reads the response body and returns the bytes read. If consume is false, the body is copied into a
+// new buffer such that it may be read again.
 func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()

@@ -372,3 +372,34 @@ func (suite *e2eSuite) TestResponseAutoChunking() {
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
 	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
 }
+
+func BenchmarkRequestResponse(b *testing.B) {
+	b.ReportAllocs()
+	svc := Service(func(req Request) Response {
+		rsp := req.Response(nil)
+		rsp.Header.Set("a", "b")
+		rsp.Header.Set("b", "b")
+		rsp.Header.Set("c", "b")
+		return rsp
+	})
+	addr := &net.UnixAddr{
+		Net:  "unix",
+		Name: "/tmp/typhon-test.sock"}
+	l, _ := net.ListenUnix("unix", addr)
+	defer l.Close()
+	s, _ := Serve(svc, l)
+	defer s.Stop()
+
+	sockTransport := &httpcontrol.Transport{
+		Dial: func(network, address string) (net.Conn, error) {
+			return net.DialUnix("unix", nil, addr)
+		}}
+
+	ctx := context.Background()
+	req := NewRequest(ctx, "GET", "http://localhost/foo", nil)
+	sockSvc := HttpService(sockTransport)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req.SendVia(sockSvc).Response()
+	}
+}
