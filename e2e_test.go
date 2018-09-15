@@ -18,7 +18,6 @@ import (
 )
 
 func TestE2E(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, &e2eSuite{})
 }
 
