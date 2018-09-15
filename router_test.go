@@ -1,96 +1,168 @@
 package typhon
 
 import (
+	"context"
+	"fmt"
+	"net/http"
 	"testing"
 
-	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+type routerTestCase struct {
+	// inputs
+
+	method string
+	path   string
+
+	// expected outputs
+
+	status  int
+	pattern string
+	params  map[string]string
+}
+
+func routerTestHarness() (Router, []routerTestCase) {
+	router := NewRouter()
+	svc := func(req Request) Response {
+		rsp := NewResponse(req)
+		rsp.Header.Set("Router-Pattern", router.Pattern(req))
+		rsp.Encode(router.Params(req))
+		return rsp
+	}
+	router.GET("/foo", svc)
+	router.GET("/foo/:param/baz", svc)
+	router.GET("/residual/*residuals", svc)
+	router.Register("*", "/poly", svc)
+
+	cases := []routerTestCase{
+		{
+			// Unknown path: 404
+			method: http.MethodGet,
+			path:   "/",
+			status: http.StatusNotFound,
+		},
+		{
+			// Vanilla
+			method:  http.MethodGet,
+			path:    "/foo",
+			status:  http.StatusOK,
+			pattern: "/foo",
+			params:  map[string]string{},
+		},
+		{
+			// Params
+			method:  http.MethodGet,
+			path:    "/foo/bar2bär/baz",
+			status:  http.StatusOK,
+			pattern: "/foo/:param/baz",
+			params: map[string]string{
+				"param": "bar2bär"},
+		},
+		{
+			// Too many params
+			method: http.MethodGet,
+			path:   "/foo/bar/bar/baz",
+			status: http.StatusNotFound,
+		},
+		{
+			// Residual
+			method:  http.MethodGet,
+			path:    "/residual/r",
+			status:  http.StatusOK,
+			pattern: "/residual/*residuals",
+			params: map[string]string{
+				"*": "r"},
+		},
+		{
+			// Longer residual
+			method:  http.MethodGet,
+			path:    "/residual/r/e/s/i/d/u/a/l",
+			status:  http.StatusOK,
+			pattern: "/residual/*residuals",
+			params: map[string]string{
+				"*": "r/e/s/i/d/u/a/l"},
+		},
+		{
+			// Longer residual, trailing slash
+			method:  http.MethodGet,
+			path:    "/residual/r/e/s/i/d/u/a/l/",
+			status:  http.StatusOK,
+			pattern: "/residual/*residuals",
+			params: map[string]string{
+				"*": "r/e/s/i/d/u/a/l/"},
+		},
+		{
+			// Unknown poly-method
+			method: "WTAF",
+			path:   "/poly",
+			status: http.StatusNotFound,
+		}}
+
+	// Add a case per-method for the poly-method route
+	for _, m := range [...]string{"GET", "CONNECT", "DELETE", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"} {
+		cases = append(cases, routerTestCase{
+			method:  m,
+			path:    "/poly",
+			status:  http.StatusOK,
+			pattern: "/poly",
+			params:  map[string]string{},
+		})
+	}
+
+	return router, cases
+}
 
 func TestRouter(t *testing.T) {
 	t.Parallel()
 
-	svc := func(req Request) Response {
-		rsp := NewResponse(req)
-		rsp.Write([]byte("abcdef"))
-		return rsp
+	router, cases := routerTestHarness()
+	svc := router.Serve().Filter(ErrorFilter)
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%s%s", c.method, c.path), func(t *testing.T) {
+			ctx := context.Background()
+			req := NewRequest(ctx, c.method, c.path, nil)
+			rsp := req.SendVia(svc).Response()
+
+			assert.Equal(t, rsp.StatusCode, c.status)
+			if rsp.StatusCode == http.StatusOK {
+				require.NoError(t, rsp.Error)
+				assert.Equal(t, c.pattern, rsp.Header.Get("Router-Pattern"))
+
+				params := map[string]string{}
+				require.NoError(t, rsp.Decode(&params))
+				assert.Equal(t, c.params, params)
+			}
+		})
 	}
-	router := NewRouter()
-	router.GET("/foo", svc)
-	router.GET("/bar/:param/baz", svc)
-
-	// Matching path
-	req := NewRequest(nil, "GET", "/foo", nil)
-	rsp := router.Serve()(req)
-	assert.NoError(t, rsp.Error)
-	b, _ := rsp.BodyBytes(true)
-	assert.Equal(t, "abcdef", string(b))
-
-	// Wrong method should result in not found
-	// @TODO: This should really be HTTP Method Not Found
-	req = NewRequest(nil, "POST", "/foo", nil)
-	rsp = router.Serve()(req)
-	assert.Error(t, rsp.Error)
-	err := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
-	assert.True(t, err.Matches(terrors.ErrNotFound))
-
-	// Wrong path should result in not found
-	req = NewRequest(nil, "GET", "/", nil)
-	rsp = router.Serve()(req)
-	assert.Error(t, rsp.Error)
-	err = terrors.Wrap(rsp.Error, nil).(*terrors.Error)
-	assert.True(t, err.Matches(terrors.ErrNotFound))
-
-	// Pattern/param extraction
-	req = NewRequest(nil, "GET", "/bar/param", nil)
-	rsp = router.Serve()(req)
-	assert.NoError(t, rsp.Error)
-	assert.Equal(t, "/bar/:param/baz", router.Pattern(req))
 }
 
-func TestRouter_CatchallPath(t *testing.T) {
-	t.Parallel()
+func BenchmarkRouter(b *testing.B) {
+	router, cases := routerTestHarness()
 
-	// Registering a global handler should apply to all paths
-	router := NewRouter()
-	router.GET("/*residual", func(req Request) Response {
-		rsp := NewResponse(req)
-		rsp.Write([]byte("catchall"))
-		return rsp
-	})
-	req := NewRequest(nil, "GET", "/bar/baz/doodad/123/abc", nil)
-	rsp := router.Serve()(req)
-	assert.NoError(t, rsp.Error)
-	b, _ := rsp.BodyBytes(true)
-	assert.Equal(t, "catchall", string(b))
-	// …but not on another method
-	req = NewRequest(nil, "POST", "/foo", nil)
-	rsp = router.Serve()(req)
-	assert.Error(t, rsp.Error)
-	err := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
-	assert.True(t, err.Matches(terrors.ErrNotFound))
-}
+	// Lookup benchmarks
+	for _, c := range cases {
+		b.Run(fmt.Sprintf("Lookup/%s%s", c.method, c.path), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				router.Lookup(c.method, c.path)
+			}
+		})
+	}
 
-// Validate that partial matches are resolved correctly
-func TestRouterPartials(t *testing.T) {
-	t.Parallel()
-
-	router := NewRouter()
-	router.GET("/foo/", func(req Request) Response {
-		return req.Response("/foo/")
-	})
-	router.GET("/:param/bar", func(req Request) Response {
-		return req.Response("/:param/bar")
-	})
-
-	req := NewRequest(nil, "GET", "/foo/", nil)
-	rsp := router.Serve()(req)
-	s := ""
-	rsp.Decode(&s)
-	assert.Equal(t, "/foo/", s)
-
-	req = NewRequest(nil, "GET", "/abc/bar", nil)
-	rsp = router.Serve()(req)
-	rsp.Decode(&s)
-	assert.Equal(t, "/:param/bar", s)
+	// Serve benchmarks
+	ctx := context.Background()
+	svc := router.Serve()
+	for _, c := range cases {
+		b.Run(fmt.Sprintf("Serve/%s%s", c.method, c.path), func(b *testing.B) {
+			b.ReportAllocs()
+			req := NewRequest(ctx, c.method, c.path, nil)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				svc(req)
+			}
+		})
+	}
 }
