@@ -25,10 +25,8 @@ type routerTestCase struct {
 
 func routerTestHarness() (Router, []routerTestCase) {
 	router := NewRouter()
+	rsp := NewResponse(Request{})
 	svc := func(req Request) Response {
-		rsp := NewResponse(req)
-		rsp.Header.Set("Router-Pattern", router.Pattern(req))
-		rsp.Encode(router.Params(req))
 		return rsp
 	}
 	router.GET("/foo", svc)
@@ -129,10 +127,10 @@ func TestRouter(t *testing.T) {
 			assert.Equal(t, rsp.StatusCode, c.status)
 			if rsp.StatusCode == http.StatusOK {
 				require.NoError(t, rsp.Error)
-				assert.Equal(t, c.pattern, rsp.Header.Get("Router-Pattern"))
 
-				params := map[string]string{}
-				require.NoError(t, rsp.Decode(&params))
+				_, pattern, params, ok := router.Lookup(c.method, c.path)
+				require.True(t, ok)
+				assert.Equal(t, c.pattern, pattern)
 				assert.Equal(t, c.params, params)
 			}
 		})
