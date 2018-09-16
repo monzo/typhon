@@ -49,8 +49,9 @@ func (r *Router) Register(method, pattern string, svc Service) {
 	}
 }
 
-// Lookup returns the Service, pattern, and extracted path parameters for the HTTP method and path.
-func (r *Router) Lookup(method, path string) (Service, string, map[string]string, bool) {
+// lookup is the internal version of Lookup, but it extracts path parameters into the passed map (and skips it if the
+// map is nil)
+func (r *Router) lookup(method, path string, params map[string]string) (Service, string, bool) {
 	c := r.e.AcquireContext()
 	defer r.e.ReleaseContext(c)
 	c.Reset(nil, nil)
@@ -61,27 +62,35 @@ func (r *Router) Lookup(method, path string) (Service, string, map[string]string
 	pattern := c.Path()
 	if pattern == "" {
 		r.m.RUnlock()
-		return nil, "", nil, false
+		return nil, "", false
 	}
 	svc := r.svcs[method+pattern]
 	r.m.RUnlock()
 
 	if svc == nil {
-		return nil, "", nil, false
+		return nil, "", false
 	}
 
-	names := c.ParamNames()
-	params := make(map[string]string, len(names))
-	for _, name := range names {
-		params[name] = c.Param(name)
+	if params != nil {
+		names := c.ParamNames()
+		for _, name := range names {
+			params[name] = c.Param(name)
+		}
 	}
-	return svc, pattern, params, true
+	return svc, pattern, true
+}
+
+// Lookup returns the Service, pattern, and extracted path parameters for the HTTP method and path.
+func (r *Router) Lookup(method, path string) (Service, string, map[string]string, bool) {
+	params := map[string]string{}
+	svc, pattern, ok := r.lookup(method, path, params)
+	return svc, pattern, params, ok
 }
 
 // Serve returns a Service which will route inbound requests to the enclosed routes.
 func (r *Router) Serve() Service {
 	return func(req Request) Response {
-		svc, _, _, ok := r.Lookup(req.Method, req.URL.Path)
+		svc, _, ok := r.lookup(req.Method, req.URL.Path, nil)
 		if !ok {
 			txt := fmt.Sprintf("No handler for %s %s", req.Method, req.URL.Path)
 			rsp := NewResponse(req)
@@ -94,7 +103,7 @@ func (r *Router) Serve() Service {
 
 // Pattern returns the registered pattern which matches the given request.
 func (r *Router) Pattern(req Request) string {
-	_, pattern, _, _ := r.Lookup(req.Method, req.URL.Path)
+	_, pattern, _ := r.lookup(req.Method, req.URL.Path, nil)
 	return pattern
 }
 
