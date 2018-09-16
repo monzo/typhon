@@ -31,7 +31,7 @@ func routerTestHarness() (Router, []routerTestCase) {
 	}
 	router.GET("/foo", svc)
 	router.GET("/foo/:param/baz", svc)
-	router.GET("/residual/*residuals", svc)
+	router.GET("/residual/*", svc)
 	router.Register("*", "/poly", svc)
 
 	cases := []routerTestCase{
@@ -69,7 +69,7 @@ func routerTestHarness() (Router, []routerTestCase) {
 			method:  http.MethodGet,
 			path:    "/residual/r",
 			status:  http.StatusOK,
-			pattern: "/residual/*residuals",
+			pattern: "/residual/*",
 			params: map[string]string{
 				"*": "r"},
 		},
@@ -78,7 +78,7 @@ func routerTestHarness() (Router, []routerTestCase) {
 			method:  http.MethodGet,
 			path:    "/residual/r/e/s/i/d/u/a/l",
 			status:  http.StatusOK,
-			pattern: "/residual/*residuals",
+			pattern: "/residual/*",
 			params: map[string]string{
 				"*": "r/e/s/i/d/u/a/l"},
 		},
@@ -87,7 +87,7 @@ func routerTestHarness() (Router, []routerTestCase) {
 			method:  http.MethodGet,
 			path:    "/residual/r/e/s/i/d/u/a/l/",
 			status:  http.StatusOK,
-			pattern: "/residual/*residuals",
+			pattern: "/residual/*",
 			params: map[string]string{
 				"*": "r/e/s/i/d/u/a/l/"},
 		},
