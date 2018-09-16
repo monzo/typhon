@@ -1,7 +1,6 @@
 package typhon
 
 import (
-	"context"
 	"io"
 	"net/http"
 
@@ -37,27 +36,12 @@ func isStreamingRsp(rsp Response) bool {
 // HttpHandler transforms the given Service into a http.Handler, suitable for use directly with net/http
 func HttpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
-		ctx, cancel := context.WithCancel(httpReq.Context())
-		defer cancel() // if already cancelled on escape, this is a no-op
-
-		// If the ResponseWriter is a CloseNotifier, propagate the cancellation downward via the context
-		if cn, ok := rw.(http.CloseNotifier); ok {
-			closed := cn.CloseNotify()
-			go func() {
-				select {
-				case <-ctx.Done():
-				case <-closed:
-					cancel()
-				}
-			}()
-		}
-
 		if httpReq.Body != nil {
 			defer httpReq.Body.Close()
 		}
 
 		req := Request{
-			Context: ctx,
+			Context: httpReq.Context(),
 			Request: *httpReq}
 		rsp := svc(req)
 
