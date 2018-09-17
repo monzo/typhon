@@ -51,7 +51,7 @@ func (r *Router) Register(method, pattern string, svc Service) {
 
 // lookup is the internal version of Lookup, but it extracts path parameters into the passed map (and skips it if the
 // map is nil)
-func (r *Router) lookup(method, path string, params map[string]string) (Service, string, bool) {
+func (r Router) lookup(method, path string, params map[string]string) (Service, string, bool) {
 	c := r.e.AcquireContext()
 	defer r.e.ReleaseContext(c)
 	c.Reset(nil, nil)
@@ -81,14 +81,14 @@ func (r *Router) lookup(method, path string, params map[string]string) (Service,
 }
 
 // Lookup returns the Service, pattern, and extracted path parameters for the HTTP method and path.
-func (r *Router) Lookup(method, path string) (Service, string, map[string]string, bool) {
+func (r Router) Lookup(method, path string) (Service, string, map[string]string, bool) {
 	params := map[string]string{}
 	svc, pattern, ok := r.lookup(method, path, params)
 	return svc, pattern, params, ok
 }
 
 // Serve returns a Service which will route inbound requests to the enclosed routes.
-func (r *Router) Serve() Service {
+func (r Router) Serve() Service {
 	return func(req Request) Response {
 		svc, _, ok := r.lookup(req.Method, req.URL.Path, nil)
 		if !ok {
@@ -102,13 +102,13 @@ func (r *Router) Serve() Service {
 }
 
 // Pattern returns the registered pattern which matches the given request.
-func (r *Router) Pattern(req Request) string {
+func (r Router) Pattern(req Request) string {
 	_, pattern, _ := r.lookup(req.Method, req.URL.Path, nil)
 	return pattern
 }
 
 // Params returns extracted path parameters, assuming the request has been routed and has captured parameters.
-func (r *Router) Params(req Request) map[string]string {
+func (r Router) Params(req Request) map[string]string {
 	_, _, params, _ := r.Lookup(req.Method, req.URL.Path)
 	return params
 }
