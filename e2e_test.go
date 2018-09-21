@@ -60,6 +60,8 @@ func (suite *e2eSuite) TestStraightforward() {
 	rsp := req.Send().Response()
 	suite.Require().NoError(rsp.Error)
 	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	suite.Require().NotNil(rsp.Request)
+	suite.Assert().Equal(req, *rsp.Request)
 	body := map[string]string{}
 	suite.Assert().NoError(rsp.Decode(&body))
 	suite.Assert().Equal(map[string]string{
@@ -325,7 +327,7 @@ func (suite *e2eSuite) TestResponseAutoChunking() {
 	defer leaktest.Check(suite.T())()
 	var sendRsp Response
 	svc := Service(func(req Request) Response {
-		sendRsp.ctx = req
+		sendRsp.Request = &req
 		return sendRsp
 	})
 	svc = svc.Filter(ErrorFilter)

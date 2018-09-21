@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	log "github.com/monzo/slog"
+	"github.com/monzo/slog"
 	"github.com/monzo/terrors"
 	"github.com/monzo/terrors/proto"
 )
@@ -62,10 +62,10 @@ func ErrorFilter(req Request, svc Service) Response {
 	}
 
 	if rsp.Response == nil {
-		rsp.Response = newHttpResponse(req)
+		rsp.Response = newHTTPResponse(req)
 	}
-	if rsp.ctx == nil {
-		rsp.ctx = req
+	if rsp.Request == nil {
+		rsp.Request = &req
 	}
 
 	if rsp.Error != nil {
@@ -87,11 +87,12 @@ func ErrorFilter(req Request, svc Service) Response {
 		case "1":
 			tp := &terrorsproto.Error{}
 			if err := json.Unmarshal(b, tp); err != nil {
-				log.Warn(rsp.ctx, "Failed to unmarshal terror: %v", err)
+				slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
 				rsp.Error = errors.New(string(b))
 			} else {
 				rsp.Error = terrors.Unmarshal(tp)
 			}
+
 		default:
 			rsp.Error = errors.New(string(b))
 		}
