@@ -2,7 +2,10 @@ package typhon
 
 import (
 	"io"
+	"net"
 	"net/http"
+	"os"
+	"syscall"
 
 	"github.com/monzo/slog"
 )
@@ -33,6 +36,27 @@ func isStreamingRsp(rsp Response) bool {
 	return false
 }
 
+// copyErrSeverity returns a slog error severity that should be used to report an error from an io.Copy operation to
+// send the response body to a client. This exists because these errors often do not indicate actual problems. For
+// example, a client may disconnect before the response body is copied to it; this doesn't mean the server is
+// misbehaving.
+func copyErrSeverity(err error) slog.Severity {
+	// Annoyingly, these errors can be deeply nested; &net.OpError{&os.SyscallError{syscall.Errno}}
+	switch err := err.(type) {
+	case syscall.Errno:
+		return copyErrnoSeverity(err) // platform-specific
+
+	case *os.SyscallError:
+		return copyErrSeverity(err.Err)
+
+	case *net.OpError:
+		return copyErrSeverity(err.Err)
+
+	default:
+		return slog.WarnSeverity
+	}
+}
+
 // HttpHandler transforms the given Service into a http.Handler, suitable for use directly with net/http
 func HttpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
@@ -59,11 +83,11 @@ func HttpHandler(svc Service) http.Handler {
 			if isStreamingRsp(rsp) {
 				// Streaming responses use copyChunked(), which takes care of flushing transparently
 				if _, err := copyChunked(rw, rsp.Body); err != nil {
-					slog.Error(req, "Error copying streaming response body: %v", err)
+					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body: %v", err))
 				}
 			} else {
 				if _, err := io.Copy(rw, rsp.Body); err != nil {
-					slog.Error(req, "Error copying response body: %v", err)
+					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body: %v", err))
 				}
 			}
 		}
