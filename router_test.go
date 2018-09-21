@@ -27,6 +27,8 @@ func routerTestHarness() (Router, []routerTestCase) {
 	router := NewRouter()
 	rsp := NewResponse(Request{})
 	svc := func(req Request) Response {
+		// For accuracy of the benchmarks it's important that this function perform no allocations. That's why we
+		// construct the response outside the function
 		return rsp
 	}
 	router.GET("/foo", svc)
@@ -135,6 +137,22 @@ func TestRouter(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRouterForRequest(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	var reqRouter *Router
+	router.GET("/", func(req Request) Response {
+		reqRouter = RouterForRequest(req)
+		return req.Response(nil)
+	})
+
+	ctx := context.Background()
+	router.Serve()(NewRequest(ctx, "GET", "/", nil))
+	require.NotNil(t, reqRouter)
+	assert.Equal(t, router, *reqRouter)
 }
 
 func BenchmarkRouter(b *testing.B) {
