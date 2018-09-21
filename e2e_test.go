@@ -353,6 +353,35 @@ func TestResponseAutoChunking(t *testing.T) {
 	assert.Contains(t, rsp.TransferEncoding, "chunked")
 }
 
+// TestStreamingCancellation asserts that a server's writes won't block forever if a client cancels a request
+func TestStreamingCancellation(t *testing.T) {
+	defer leaktest.Check(t)()
+
+	done := make(chan struct{})
+	svc := Service(func(req Request) Response {
+		s := Streamer()
+		go func() {
+			defer close(done)
+			io.WriteString(s, "derp\n")
+			<-req.Done()
+			// Write a bunch of chunks; this should not block forever even though the client has gone
+			for i := 0; i < 500; i++ {
+				io.WriteString(s, "derp\n")
+			}
+		}()
+		rsp := req.Response(nil)
+		rsp.Body = s
+		return rsp
+	})
+	svc = svc.Filter(ErrorFilter)
+	s := serve(t, svc)
+	defer s.Stop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+	req.Send().Response()
+	cancel()
+	<-done
 }
 
 func BenchmarkRequestResponse(b *testing.B) {
