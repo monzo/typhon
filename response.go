@@ -2,7 +2,6 @@ package typhon
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,8 +14,8 @@ import (
 // A Response is Typhon's wrapper around http.Response, used by both clients and servers.
 type Response struct {
 	*http.Response
-	Error error
-	ctx   context.Context
+	Error   error
+	Request *Request // The Request that we are responding to
 }
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
@@ -56,7 +55,7 @@ func (r *Response) Decode(v interface{}) error {
 
 func (r *Response) Write(b []byte) (int, error) {
 	if r.Response == nil {
-		r.Response = newHttpResponse(Request{})
+		r.Response = newHTTPResponse(Request{})
 	}
 	switch rc := r.Body.(type) {
 	// In the "regular" case, the response body will be a bufCloser; we can write
@@ -122,7 +121,7 @@ func (r Response) String() string {
 	return b.String()
 }
 
-func newHttpResponse(req Request) *http.Response {
+func newHTTPResponse(req Request) *http.Response {
 	return &http.Response{
 		StatusCode:    http.StatusOK, // Seems like a reasonable default
 		Proto:         req.Proto,
@@ -136,7 +135,7 @@ func newHttpResponse(req Request) *http.Response {
 // NewResponse constructs a Response
 func NewResponse(req Request) Response {
 	return Response{
-		ctx:      req.Context,
+		Request:  &req,
 		Error:    nil,
-		Response: newHttpResponse(req)}
+		Response: newHTTPResponse(req)}
 }
