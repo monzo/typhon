@@ -14,65 +14,44 @@ import (
 	"github.com/facebookgo/httpcontrol"
 	"github.com/fortytw2/leaktest"
 	"github.com/monzo/terrors"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestE2E(t *testing.T) {
-	suite.Run(t, &e2eSuite{})
-}
-
-type e2eSuite struct {
-	suite.Suite
-}
-
-func (suite *e2eSuite) SetupTest() {
-	Client = Service(BareClient).Filter(ErrorFilter)
-}
-
-func (suite *e2eSuite) TearDownTest() {
-	Client = BareClient
-}
-
-func (suite *e2eSuite) serve(svc Service) Server {
-	s, err := Listen(svc, "localhost:0")
-	suite.Require().NoError(err)
-	return s
-}
-
-func (suite *e2eSuite) TestStraightforward() {
-	defer leaktest.Check(suite.T())()
+	defer leaktest.Check(t)()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	svc := Service(func(req Request) Response {
 		// Simple requests like this shouldn't be chunked
-		suite.Assert().NotContains(req.TransferEncoding, "chunked")
-		suite.Assert().True(req.ContentLength > 0)
+		assert.NotContains(t, req.TransferEncoding, "chunked")
+		assert.True(t, req.ContentLength > 0)
 		return req.Response(map[string]string{
 			"b": "a"})
 	})
 	svc = svc.Filter(ErrorFilter)
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
 		"a": "b"})
 	rsp := req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Require().NotNil(rsp.Request)
-	suite.Assert().Equal(req, *rsp.Request)
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	require.NotNil(t, rsp.Request)
+	assert.Equal(t, req, *rsp.Request)
 	body := map[string]string{}
-	suite.Assert().NoError(rsp.Decode(&body))
-	suite.Assert().Equal(map[string]string{
+	assert.NoError(t, rsp.Decode(&body))
+	assert.Equal(t, map[string]string{
 		"b": "a"}, body)
 	// The response is simple too; shouldn't be chunked
-	suite.Assert().NotContains(rsp.TransferEncoding, "chunked")
-	suite.Assert().True(rsp.ContentLength > 0)
+	assert.NotContains(t, rsp.TransferEncoding, "chunked")
+	assert.True(t, rsp.ContentLength > 0)
 }
 
-func (suite *e2eSuite) TestDomainSocket() {
-	defer leaktest.Check(suite.T())()
+func TestE2EDomainSocket(t *testing.T) {
+	defer leaktest.Check(t)()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -85,11 +64,11 @@ func (suite *e2eSuite) TestDomainSocket() {
 		Net:  "unix",
 		Name: "/tmp/typhon-test.sock"}
 	l, err := net.ListenUnix("unix", addr)
-	suite.Require().NoError(err)
+	require.NoError(t, err)
 	defer l.Close()
 
 	s, err := Serve(svc, l)
-	suite.Require().NoError(err)
+	require.NoError(t, err)
 	defer s.Stop()
 
 	sockTransport := &httpcontrol.Transport{
@@ -98,12 +77,12 @@ func (suite *e2eSuite) TestDomainSocket() {
 		}}
 	req := NewRequest(ctx, "GET", "http://localhost/foo", nil)
 	rsp := req.SendVia(HttpService(sockTransport)).Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
 }
 
-func (suite *e2eSuite) TestError() {
-	defer leaktest.Check(suite.T())()
+func TestE2EError(t *testing.T) {
+	defer leaktest.Check(t)()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -116,26 +95,26 @@ func (suite *e2eSuite) TestError() {
 		return rsp
 	})
 	svc = svc.Filter(ErrorFilter)
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
-	suite.Assert().Equal(http.StatusUnauthorized, rsp.StatusCode)
+	assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
 
 	b, _ := rsp.BodyBytes(false)
-	suite.Assert().NotContains(string(b), "throwaway")
+	assert.NotContains(t, string(b), "throwaway")
 
-	suite.Require().Error(rsp.Error)
+	require.Error(t, rsp.Error)
 	terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
 	terrExpect := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", nil)
-	suite.Assert().Equal(terrExpect.Message, terr.Message)
-	suite.Assert().Equal(terrExpect.Code, terr.Code)
-	suite.Assert().Equal("value", terr.Params["param"])
+	assert.Equal(t, terrExpect.Message, terr.Message)
+	assert.Equal(t, terrExpect.Code, terr.Code)
+	assert.Equal(t, "value", terr.Params["param"])
 }
 
-func (suite *e2eSuite) TestCancellation() {
-	defer leaktest.Check(suite.T())()
+func TestE2ECancellation(t *testing.T) {
+	defer leaktest.Check(t)()
 
 	cancelled := make(chan struct{})
 	svc := Service(func(req Request) Response {
@@ -144,7 +123,7 @@ func (suite *e2eSuite) TestCancellation() {
 		return req.Response("cancelled ok")
 	})
 	svc = svc.Filter(ErrorFilter)
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -152,19 +131,19 @@ func (suite *e2eSuite) TestCancellation() {
 	req.Send()
 	select {
 	case <-cancelled:
-		suite.Assert().Fail("cancellation propagated prematurely")
+		assert.Fail(t, "cancellation propagated prematurely")
 	case <-time.After(30 * time.Millisecond):
 	}
 	cancel()
 	select {
 	case <-cancelled:
 	case <-time.After(30 * time.Millisecond):
-		suite.Assert().Fail("cancellation not propagated")
+		assert.Fail(t, "cancellation not propagated")
 	}
 }
 
-func (suite *e2eSuite) TestNoFollowRedirect() {
-	defer leaktest.Check(suite.T())()
+func TestNoFollowRedirect(t *testing.T) {
+	defer leaktest.Check(t)()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -178,16 +157,16 @@ func (suite *e2eSuite) TestNoFollowRedirect() {
 		http.Redirect(rsp.Writer(), &req.Request, dst, http.StatusFound)
 		return rsp
 	})
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 	rsp := req.Send().Response()
-	suite.Assert().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusFound, rsp.StatusCode)
+	assert.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusFound, rsp.StatusCode)
 }
 
-func (suite *e2eSuite) TestProxiedStreamer() {
-	defer leaktest.Check(suite.T())()
+func TestProxiedStreamer(t *testing.T) {
+	defer leaktest.Check(t)()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -207,30 +186,30 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 		}()
 		return rsp
 	})
-	s := suite.serve(downstream)
+	s := serve(t, downstream)
 	defer s.Stop()
 
 	proxy := Service(func(req Request) Response {
 		proxyReq := NewRequest(req, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 		return proxyReq.Send().Response()
 	})
-	ps := suite.serve(proxy)
+	ps := serve(t, proxy)
 	defer ps.Stop()
 
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
 	rsp := req.Send().Response()
-	suite.Assert().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	assert.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
 	// The response is streaming; should be chunked
-	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
-	suite.Assert().True(rsp.ContentLength < 0)
+	assert.Contains(t, rsp.TransferEncoding, "chunked")
+	assert.True(t, rsp.ContentLength < 0)
 	for i := 0; i < 1000; i++ {
 		b := make([]byte, 500)
 		n, err := rsp.Body.Read(b)
-		suite.Require().NoError(err)
+		require.NoError(t, err)
 		v := map[string]int{}
-		suite.Require().NoError(json.Unmarshal(b[:n], &v))
-		suite.Require().Equal(i, v["chunk"])
+		require.NoError(t, json.Unmarshal(b[:n], &v))
+		require.Equal(t, i, v["chunk"])
 		chunks <- true
 	}
 	close(chunks)
@@ -238,8 +217,8 @@ func (suite *e2eSuite) TestProxiedStreamer() {
 
 // TestInfiniteContext verifies that Typhon does not leak Goroutines if an infinite context (one that's never cancelled)
 // is used to make a request.
-func (suite *e2eSuite) TestInfiniteContext() {
-	defer leaktest.Check(suite.T())()
+func TestInfiniteContext(t *testing.T) {
+	defer leaktest.Check(t)()
 	ctx := context.Background()
 
 	var receivedCtx context.Context
@@ -249,29 +228,29 @@ func (suite *e2eSuite) TestInfiniteContext() {
 			"b": "a"})
 	})
 	svc = svc.Filter(ErrorFilter)
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
 		"a": "b"})
 	rsp := req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
 
 	b, err := ioutil.ReadAll(rsp.Body)
-	suite.Require().NoError(err)
-	suite.Assert().Equal("{\"b\":\"a\"}\n", string(b))
+	require.NoError(t, err)
+	assert.Equal(t, "{\"b\":\"a\"}\n", string(b))
 
 	// Consuming the body should have closed the receiving context
 	select {
 	case <-receivedCtx.Done():
 	case <-time.After(time.Second):
-		suite.Assert().Fail("cancellation not propagated")
+		assert.Fail(t, "cancellation not propagated")
 	}
 }
 
-func (suite *e2eSuite) TestRequestAutoChunking() {
-	defer leaktest.Check(suite.T())()
+func TestRequestAutoChunking(t *testing.T) {
+	defer leaktest.Check(t)()
 	receivedChunked := false
 	svc := Service(func(req Request) Response {
 		receivedChunked = false
@@ -283,7 +262,7 @@ func (suite *e2eSuite) TestRequestAutoChunking() {
 		return req.Response("ok")
 	})
 	svc = svc.Filter(ErrorFilter)
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -298,17 +277,17 @@ func (suite *e2eSuite) TestRequestAutoChunking() {
 	req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
 	req.Body = stream
 	rsp := req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Assert().True(receivedChunked)
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	assert.True(t, receivedChunked)
 
 	// Small request using Encode(): should not be chunked
 	req = NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
 		"a": "b"})
 	rsp = req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Assert().False(receivedChunked)
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	assert.False(t, receivedChunked)
 
 	// Large request using Encode(); should be chunked
 	const targetBytes = 5000000 // 5 MB
@@ -318,20 +297,20 @@ func (suite *e2eSuite) TestRequestAutoChunking() {
 	}
 	req = NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), body)
 	rsp = req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Assert().True(receivedChunked)
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	assert.True(t, receivedChunked)
 }
 
-func (suite *e2eSuite) TestResponseAutoChunking() {
-	defer leaktest.Check(suite.T())()
+func TestResponseAutoChunking(t *testing.T) {
+	defer leaktest.Check(t)()
 	var sendRsp Response
 	svc := Service(func(req Request) Response {
 		sendRsp.Request = &req
 		return sendRsp
 	})
 	svc = svc.Filter(ErrorFilter)
-	s := suite.serve(svc)
+	s := serve(t, svc)
 	defer s.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -347,18 +326,18 @@ func (suite *e2eSuite) TestResponseAutoChunking() {
 	}()
 	sendRsp.Body = stream
 	rsp := req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	assert.Contains(t, rsp.TransferEncoding, "chunked")
 
 	// Small request using Encode(): should not be chunked
 	sendRsp = NewResponse(req)
 	sendRsp.Encode(map[string]string{
 		"a": "b"})
 	rsp = req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Assert().NotContains(rsp.TransferEncoding, "chunked")
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	assert.NotContains(t, rsp.TransferEncoding, "chunked")
 
 	// Large request using Encode(); should be chunked
 	const targetBytes = 5000000 // 5 MB
@@ -369,9 +348,11 @@ func (suite *e2eSuite) TestResponseAutoChunking() {
 	sendRsp = NewResponse(req)
 	sendRsp.Encode(body)
 	rsp = req.Send().Response()
-	suite.Require().NoError(rsp.Error)
-	suite.Assert().Equal(http.StatusOK, rsp.StatusCode)
-	suite.Assert().Contains(rsp.TransferEncoding, "chunked")
+	require.NoError(t, rsp.Error)
+	assert.Equal(t, http.StatusOK, rsp.StatusCode)
+	assert.Contains(t, rsp.TransferEncoding, "chunked")
+}
+
 }
 
 func BenchmarkRequestResponse(b *testing.B) {
