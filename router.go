@@ -1,12 +1,15 @@
 package typhon
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/labstack/echo"
 	"github.com/monzo/terrors"
 )
+
+var routerContextKey = struct{}{}
 
 // A Router multiplexes requests to a set of Services by pattern matching on method and path, and can also extract
 // parameters from paths.
@@ -25,6 +28,14 @@ func NewRouter() Router {
 		r:    echo.NewRouter(e),
 		svcs: make(map[string]Service, 10),
 		m:    new(sync.RWMutex)}
+}
+
+// RouterForRequest returns a pointer to the Router that successfully dispatched the request, or nil.
+func RouterForRequest(r Request) *Router {
+	if v := r.Context.Value(routerContextKey); v != nil {
+		return v.(*Router)
+	}
+	return nil
 }
 
 // Register associates a Service with a method and path.
@@ -97,6 +108,7 @@ func (r Router) Serve() Service {
 			rsp.Error = terrors.NotFound("no_handler", txt, nil)
 			return rsp
 		}
+		req.Context = context.WithValue(req.Context, routerContextKey, &r)
 		return svc(req)
 	}
 }
