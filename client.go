@@ -17,7 +17,7 @@ var (
 		Proxy:               http.ProxyFromEnvironment,
 		DisableKeepAlives:   false,
 		DisableCompression:  false,
-		MaxIdleConnsPerHost: 10,
+		MaxIdleConnsPerHost: 20,
 		DialKeepAlive:       10 * time.Minute,
 		MaxTries:            6}
 )
