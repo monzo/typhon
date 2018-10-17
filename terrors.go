@@ -14,14 +14,14 @@ import (
 
 var (
 	mapTerr2Status = map[string]int{
-		terrors.ErrBadRequest:         http.StatusBadRequest,
-		terrors.ErrBadResponse:        http.StatusNotAcceptable,
-		terrors.ErrForbidden:          http.StatusForbidden,
-		terrors.ErrInternalService:    http.StatusInternalServerError,
-		terrors.ErrNotFound:           http.StatusNotFound,
-		terrors.ErrPreconditionFailed: http.StatusPreconditionFailed,
-		terrors.ErrTimeout:            http.StatusGatewayTimeout,
-		terrors.ErrUnauthorized:       http.StatusUnauthorized,
+		terrors.ErrBadRequest:         http.StatusBadRequest,          // 400
+		terrors.ErrBadResponse:        http.StatusNotAcceptable,       // 406
+		terrors.ErrForbidden:          http.StatusForbidden,           // 403
+		terrors.ErrInternalService:    http.StatusInternalServerError, // 500
+		terrors.ErrNotFound:           http.StatusNotFound,            // 404
+		terrors.ErrPreconditionFailed: http.StatusPreconditionFailed,  // 412
+		terrors.ErrTimeout:            http.StatusGatewayTimeout,      // 504
+		terrors.ErrUnauthorized:       http.StatusUnauthorized,        // 401
 	}
 	mapStatus2Terr map[int]string
 )
