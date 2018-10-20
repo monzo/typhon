@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/facebookgo/httpdown"
-	log "github.com/monzo/slog"
 )
 
 const DefaultListenAddr = "127.0.0.1:0"
@@ -42,7 +41,6 @@ func Serve(svc Service, l net.Listener) (Server, error) {
 		StopTimeout: 20 * time.Second,
 		KillTimeout: 25 * time.Second}
 	downerServer := downer.Serve(HttpServer(svc), l)
-	log.Info(nil, "Listening on %v", l.Addr())
 	return server{
 		Server: downerServer,
 		l:      l}, nil
