@@ -67,9 +67,16 @@ func HttpHandler(svc Service) http.Handler {
 		req := Request{
 			Context: httpReq.Context(),
 			Request: *httpReq}
+		if h, ok := rw.(http.Hijacker); ok {
+			req.hijacker = h
+		}
 		rsp := svc(req)
 
-		// Write the response out
+		// If the connection was hijacked, we should not attempt to write anything out
+		if rsp.hijacked {
+			return
+		}
+
 		rwHeader := rw.Header()
 		for k, v := range rsp.Header {
 			if k == "Content-Length" {

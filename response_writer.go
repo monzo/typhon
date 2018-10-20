@@ -1,6 +1,8 @@
 package typhon
 
 import (
+	"bufio"
+	"net"
 	"net/http"
 )
 
@@ -35,4 +37,14 @@ func (rw responseWriterWrapper) WriteJSON(v interface{}) {
 
 func (rw responseWriterWrapper) WriteError(err error) {
 	rw.r.Error = err
+}
+
+type hijackerRw struct {
+	responseWriterWrapper
+	http.Hijacker
+}
+
+func (rw hijackerRw) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	rw.r.hijacked = true
+	return rw.Hijacker.Hijack()
 }
