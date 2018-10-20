@@ -62,6 +62,7 @@ func HttpService(rt http.RoundTripper) Service {
 			}()
 		}
 		return Response{
+			Request:  &req,
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
 	}
