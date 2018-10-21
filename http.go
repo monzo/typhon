@@ -79,9 +79,6 @@ func HttpHandler(svc Service) http.Handler {
 
 		rwHeader := rw.Header()
 		for k, v := range rsp.Header {
-			if k == "Content-Length" {
-				continue
-			}
 			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
