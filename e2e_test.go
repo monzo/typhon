@@ -9,21 +9,21 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/net/http2"
 
 	"github.com/facebookgo/httpcontrol"
 	"github.com/fortytw2/leaktest"
 	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 )
 
 type e2eFlavour interface {
 	Serve(Service) Server
+	URL(Server) string
+	Proto() string
 }
 
 // flavours runs the passed E2E test with all test flavours (HTTP/1.1, HTTP/2.0/h2c, etc.)
@@ -38,7 +38,7 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 			return true
 		}
 		for _, o := range only {
-			if strings.HasPrefix(name, o) {
+			if name == o {
 				return true
 			}
 		}
@@ -58,8 +58,21 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 				T: t})
 		})
 	}
-	if run("http2.0/h2c") {
-		t.Run("http2.0/h2c", func(t *testing.T) {
+	if run("http1.1-tls") {
+		t.Run("http1.1-tls", func(t *testing.T) {
+			defer leaktest.Check(t)()
+			cert := keypair(t, []string{"localhost"})
+			Client = HttpService(&http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true},
+			}).Filter(ErrorFilter)
+			impl(t, http1TLSFlavour{
+				T:    t,
+				cert: cert})
+		})
+	}
+	if run("http2.0-h2c") {
+		t.Run("http2.0-h2c", func(t *testing.T) {
 			defer leaktest.Check(t)()
 			transport := &http2.Transport{
 				AllowHTTP: true,
@@ -69,6 +82,21 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 			defer transport.CloseIdleConnections()
 			Client = HttpService(transport).Filter(ErrorFilter)
 			impl(t, http2H2cFlavour{T: t})
+		})
+	}
+	if run("http2.0-h2") {
+		t.Run("http2.0-h2", func(t *testing.T) {
+			defer leaktest.Check(t)()
+			cert := keypair(t, []string{"localhost"})
+			transport := &http2.Transport{
+				AllowHTTP: false,
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true}}
+			defer transport.CloseIdleConnections()
+			Client = HttpService(transport).Filter(ErrorFilter)
+			impl(t, http2H2Flavour{
+				T:    t,
+				cert: cert})
 		})
 	}
 }
@@ -89,11 +117,12 @@ func TestE2E(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop()
 
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+		req := NewRequest(ctx, "GET", flav.URL(s), map[string]string{
 			"a": "b"})
 		rsp := req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+		assert.Equal(t, flav.Proto(), rsp.Proto)
 		require.NotNil(t, rsp.Request)
 		assert.Equal(t, req, *rsp.Request)
 		body := map[string]string{}
@@ -107,7 +136,7 @@ func TestE2E(t *testing.T) {
 }
 
 func TestE2EStreaming(t *testing.T) {
-	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
+	someFlavours(t, []string{"http1.1", "http1.1-tls"}, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -129,7 +158,7 @@ func TestE2EStreaming(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop()
 
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
@@ -150,7 +179,7 @@ func TestE2EStreaming(t *testing.T) {
 	// The HTTP/2.0 streaming implementation is more advanced, as it allows the response body to be streamed back
 	// concurrently with the request body. This test constructs a server that echoes the request body back to the client
 	// and asserts that the chunks are returned in real time.
-	someFlavours(t, []string{"http2.0"}, func(t *testing.T, flav e2eFlavour) {
+	someFlavours(t, []string{"http2.0-h2", "http2.0-h2c"}, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -163,7 +192,7 @@ func TestE2EStreaming(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop()
 
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		reqS := Streamer()
 		req.Body = reqS
 		rsp := req.Send().Response()
@@ -214,6 +243,7 @@ func TestE2EDomainSocket(t *testing.T) {
 		rsp := req.SendVia(HttpService(sockTransport)).Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+		assert.Equal(t, flav.Proto(), rsp.Proto)
 	})
 }
 
@@ -234,7 +264,7 @@ func TestE2EError(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop()
 
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
 
@@ -263,7 +293,7 @@ func TestE2ECancellation(t *testing.T) {
 		defer s.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		req.Send()
 		select {
 		case <-cancelled:
@@ -281,9 +311,6 @@ func TestE2ECancellation(t *testing.T) {
 
 func TestE2ENoFollowRedirect(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
 		svc := Service(func(req Request) Response {
 			if req.URL.Path == "/redirected" {
 				return req.Response("😱")
@@ -296,7 +323,10 @@ func TestE2ENoFollowRedirect(t *testing.T) {
 		})
 		s := flav.Serve(svc)
 		defer s.Stop()
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		assert.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusFound, rsp.StatusCode)
@@ -327,13 +357,13 @@ func TestE2EProxiedStreamer(t *testing.T) {
 		defer s.Stop()
 
 		proxy := Service(func(req Request) Response {
-			proxyReq := NewRequest(req, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+			proxyReq := NewRequest(req, "GET", flav.URL(s), nil)
 			return proxyReq.Send().Response()
 		})
 		ps := flav.Serve(proxy)
 		defer ps.Stop()
 
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(ps), nil)
 		rsp := req.Send().Response()
 		assert.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
@@ -372,7 +402,7 @@ func TestE2EInfiniteContext(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop()
 
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+		req := NewRequest(ctx, "GET", flav.URL(s), map[string]string{
 			"a": "b"})
 		rsp := req.Send().Response()
 		require.NoError(t, rsp.Error)
@@ -392,7 +422,7 @@ func TestE2EInfiniteContext(t *testing.T) {
 }
 
 func TestE2ERequestAutoChunking(t *testing.T) {
-	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
+	someFlavours(t, []string{"http1.1", "http1.1-tls"}, func(t *testing.T, flav e2eFlavour) {
 		receivedChunked := false
 		svc := Service(func(req Request) Response {
 			receivedChunked = false
@@ -416,7 +446,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 			io.WriteString(stream, "foo\n")
 			stream.Close()
 		}()
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		req.Body = stream
 		rsp := req.Send().Response()
 		require.NoError(t, rsp.Error)
@@ -424,7 +454,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 		assert.True(t, receivedChunked)
 
 		// Small request using Encode(): should not be chunked
-		req = NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
+		req = NewRequest(ctx, "GET", flav.URL(s), map[string]string{
 			"a": "b"})
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
@@ -437,7 +467,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 		for len(body) < targetBytes {
 			body = append(body, []byte("abc=def\n")...)
 		}
-		req = NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), body)
+		req = NewRequest(ctx, "GET", flav.URL(s), body)
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
@@ -446,7 +476,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 }
 
 func TestE2EResponseAutoChunking(t *testing.T) {
-	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
+	someFlavours(t, []string{"http1.1", "http1.1-tls"}, func(t *testing.T, flav e2eFlavour) {
 		var sendRsp Response
 		svc := Service(func(req Request) Response {
 			sendRsp.Request = &req
@@ -460,7 +490,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		defer cancel()
 
 		// Streamer; should be chunked
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		sendRsp = NewResponse(req)
 		stream := Streamer()
 		go func() {
@@ -521,7 +551,7 @@ func TestE2EStreamingCancellation(t *testing.T) {
 		defer s.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		req.Send().Response()
 		cancel()
 		<-done
