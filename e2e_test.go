@@ -2,14 +2,18 @@ package typhon
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/http2"
 
 	"github.com/facebookgo/httpcontrol"
 	"github.com/fortytw2/leaktest"
@@ -18,8 +22,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type e2eFlavour interface {
+	Serve(Service) Server
+}
+
+// flavours runs the passed E2E test with all test flavours (HTTP/1.1, HTTP/2.0/h2c, etc.)
+func flavours(t *testing.T, impl func(*testing.T, e2eFlavour)) {
+	someFlavours(t, nil, impl)
+}
+
+// someFlavours runs the passed test with only the passed flavours
+func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)) {
+	run := func(name string) bool {
+		if only == nil {
+			return true
+		}
+		for _, o := range only {
+			if strings.HasPrefix(name, o) {
+				return true
+			}
+		}
+		return false
+	}
+
+	onlys := make(map[string]bool, len(only))
+	for _, o := range only {
+		onlys[o] = true
+	}
+
+	if run("http1.1") {
+		t.Run("http1.1", func(t *testing.T) {
+			defer leaktest.Check(t)()
+			Client = Service(BareClient).Filter(ErrorFilter)
+			impl(t, http1Flavour{
+				T: t})
+		})
+	}
+	if run("http2.0/h2c") {
+		t.Run("http2.0/h2c", func(t *testing.T) {
+			defer leaktest.Check(t)()
+			transport := &http2.Transport{
+				AllowHTTP: true,
+				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+					return net.Dial(network, addr)
+				}}
+			defer transport.CloseIdleConnections()
+			Client = HttpService(transport).Filter(ErrorFilter)
+			impl(t, http2H2cFlavour{T: t})
+		})
+	}
+}
+
 func TestE2E(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -31,12 +86,12 @@ func TestE2E(t *testing.T) {
 				"b": "a"})
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
 			"a": "b"})
-		rsp := req.SendVia(i.Client).Response()
+		rsp := req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
 		require.NotNil(t, rsp.Request)
@@ -52,8 +107,7 @@ func TestE2E(t *testing.T) {
 }
 
 func TestE2EDomainSocket(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -85,8 +139,7 @@ func TestE2EDomainSocket(t *testing.T) {
 }
 
 func TestE2EError(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -99,7 +152,7 @@ func TestE2EError(t *testing.T) {
 			return rsp
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
@@ -119,9 +172,7 @@ func TestE2EError(t *testing.T) {
 }
 
 func TestE2ECancellation(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
-
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		cancelled := make(chan struct{})
 		svc := Service(func(req Request) Response {
 			<-req.Done()
@@ -129,7 +180,7 @@ func TestE2ECancellation(t *testing.T) {
 			return req.Response("cancelled ok")
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -149,9 +200,8 @@ func TestE2ECancellation(t *testing.T) {
 	})
 }
 
-func TestNoFollowRedirect(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+func TestE2ENoFollowRedirect(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -165,7 +215,7 @@ func TestNoFollowRedirect(t *testing.T) {
 			http.Redirect(rsp.Writer(), &req.Request, dst, http.StatusFound)
 			return rsp
 		})
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 		rsp := req.Send().Response()
@@ -174,14 +224,12 @@ func TestNoFollowRedirect(t *testing.T) {
 	})
 }
 
-func TestProxiedStreamer(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+func TestE2EProxiedStreamer(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		chunks := make(chan bool, 2)
-		chunks <- true
+		chunks := make(chan bool)
 		downstream := Service(func(req Request) Response {
 			rsp := req.Response(nil)
 			rsp.Body = Streamer()
@@ -196,41 +244,43 @@ func TestProxiedStreamer(t *testing.T) {
 			}()
 			return rsp
 		})
-		s := i.serve(downstream)
+		s := flav.Serve(downstream)
 		defer s.Stop()
 
 		proxy := Service(func(req Request) Response {
 			proxyReq := NewRequest(req, "GET", fmt.Sprintf("http://%s/", s.Listener().Addr()), nil)
 			return proxyReq.Send().Response()
 		})
-		ps := i.serve(proxy)
+		ps := flav.Serve(proxy)
 		defer ps.Stop()
 
 		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s/", ps.Listener().Addr()), nil)
 		rsp := req.Send().Response()
 		assert.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
-		// The response is streaming; should be chunked
-		assert.Contains(t, rsp.TransferEncoding, "chunked")
+		if !rsp.ProtoAtLeast(2, 0) {
+			assert.Contains(t, rsp.TransferEncoding, "chunked")
+		}
 		assert.True(t, rsp.ContentLength < 0)
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < 100; i++ {
+			chunks <- true
 			b := make([]byte, 500)
 			n, err := rsp.Body.Read(b)
 			require.NoError(t, err)
 			v := map[string]int{}
 			require.NoError(t, json.Unmarshal(b[:n], &v))
 			require.Equal(t, i, v["chunk"])
-			chunks <- true
 		}
 		close(chunks)
+		_, err := rsp.Body.Read(make([]byte, 100))
+		assert.Equal(t, io.EOF, err)
 	})
 }
 
-// TestInfiniteContext verifies that Typhon does not leak Goroutines if an infinite context (one that's never cancelled)
-// is used to make a request.
-func TestInfiniteContext(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+// TestE2EInfiniteContext verifies that Typhon does not leak Goroutines if an infinite context (one that's never
+// cancelled) is used to make a request.
+func TestE2EInfiniteContext(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx := context.Background()
 
 		var receivedCtx context.Context
@@ -240,7 +290,7 @@ func TestInfiniteContext(t *testing.T) {
 				"b": "a"})
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), map[string]string{
@@ -262,9 +312,8 @@ func TestInfiniteContext(t *testing.T) {
 	})
 }
 
-func TestRequestAutoChunking(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+func TestE2ERequestAutoChunking(t *testing.T) {
+	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
 		receivedChunked := false
 		svc := Service(func(req Request) Response {
 			receivedChunked = false
@@ -276,7 +325,7 @@ func TestRequestAutoChunking(t *testing.T) {
 			return req.Response("ok")
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -317,16 +366,15 @@ func TestRequestAutoChunking(t *testing.T) {
 	})
 }
 
-func TestResponseAutoChunking(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
+func TestE2EResponseAutoChunking(t *testing.T) {
+	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
 		var sendRsp Response
 		svc := Service(func(req Request) Response {
 			sendRsp.Request = &req
 			return sendRsp
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -371,10 +419,8 @@ func TestResponseAutoChunking(t *testing.T) {
 }
 
 // TestStreamingCancellation asserts that a server's writes won't block forever if a client cancels a request
-func TestStreamingCancellation(t *testing.T) {
-	testH1H2(t, func(t *testing.T, i testUtils) {
-		defer leaktest.Check(t)()
-
+func TestE2EStreamingCancellation(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		done := make(chan struct{})
 		svc := Service(func(req Request) Response {
 			s := Streamer()
@@ -392,7 +438,7 @@ func TestStreamingCancellation(t *testing.T) {
 			return rsp
 		})
 		svc = svc.Filter(ErrorFilter)
-		s := i.serve(svc)
+		s := flav.Serve(svc)
 		defer s.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
