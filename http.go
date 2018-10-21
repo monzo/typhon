@@ -4,10 +4,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/textproto"
 	"os"
 	"syscall"
 
 	"github.com/monzo/slog"
+	"golang.org/x/net/http/httpguts"
 )
 
 const (
@@ -21,18 +23,30 @@ func isStreamingRsp(rsp Response) bool {
 	if s, ok := rsp.Body.(*streamer); ok && s != nil {
 		return true
 	}
-	// In a proxy situation, the upstream would have set Transfer-Encoding
-	for _, v := range rsp.Header["Transfer-Encoding"] {
-		if v == "chunked" {
+
+	// If the content length is unknown, it should stream
+	if rsp.ContentLength <= 0 {
+		return true
+	}
+
+	// If the response body is the same as the request body and the request is streaming, the response should be too
+	if rsp.Request != nil && rsp.Request.ContentLength <= 0 && rsp.Body == rsp.Request.Body {
+		return true
+	}
+
+	// Chunked transfer encoding (only in HTTP/1.1) gives us an additional clue
+	if !rsp.ProtoAtLeast(2, 0) {
+		if httpguts.HeaderValuesContainsToken(rsp.Header[textproto.CanonicalMIMEHeaderKey("Transfer-Encoding")], "chunked") {
 			return true
 		}
-	}
-	// Annoyingly, this can be removed from headers by net/http and promoted to its own field
-	for _, v := range rsp.TransferEncoding {
-		if v == "chunked" {
-			return true
+		// Annoyingly, this can be removed from headers by net/http and promoted to its own field
+		for _, v := range rsp.TransferEncoding {
+			if v == "chunked" {
+				return true
+			}
 		}
 	}
+
 	return false
 }
 
