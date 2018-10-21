@@ -106,6 +106,85 @@ func TestE2E(t *testing.T) {
 	})
 }
 
+func TestE2EStreaming(t *testing.T) {
+	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		chunks := make(chan []byte)
+		svc := Service(func(req Request) Response {
+			rsp := req.Response(nil)
+			s := Streamer()
+			go func() {
+				defer s.Close()
+				for c := range chunks {
+					_, err := s.Write(c)
+					require.NoError(t, err)
+				}
+			}()
+			rsp.Body = s
+			return rsp
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop()
+
+		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		rsp := req.Send().Response()
+		require.NoError(t, rsp.Error)
+		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+
+		for i := 0; i < 10; i++ {
+			v := fmt.Sprintf("w®ï†é %d", i)
+			chunks <- []byte(v)
+			b := make([]byte, len(v)*2)
+			n, err := rsp.Body.Read(b)
+			require.NoError(t, err)
+			assert.Equal(t, v, string(b[:n]))
+		}
+		close(chunks)
+		_, err := rsp.Body.Read(make([]byte, 100))
+		assert.Equal(t, io.EOF, err)
+	})
+
+	// The HTTP/2.0 streaming implementation is more advanced, as it allows the response body to be streamed back
+	// concurrently with the request body. This test constructs a server that echoes the request body back to the client
+	// and asserts that the chunks are returned in real time.
+	someFlavours(t, []string{"http2.0"}, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		svc := Service(func(req Request) Response {
+			rsp := req.Response(nil)
+			rsp.Body = req.Body
+			return rsp
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop()
+
+		req := NewRequest(ctx, "GET", fmt.Sprintf("http://%s", s.Listener().Addr()), nil)
+		reqS := Streamer()
+		req.Body = reqS
+		rsp := req.Send().Response()
+		require.NoError(t, rsp.Error)
+		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+
+		for i := 0; i < 10; i++ {
+			v := fmt.Sprintf("w®ï†é %d", i)
+			_, err := io.WriteString(reqS, v)
+			require.NoError(t, err)
+			b := make([]byte, len(v)*2)
+			n, err := rsp.Body.Read(b)
+			require.NoError(t, err)
+			assert.Equal(t, v, string(b[:n]))
+		}
+		reqS.Close()
+		_, err := rsp.Body.Read(make([]byte, 100))
+		assert.Equal(t, io.EOF, err)
+	})
+}
+
 func TestE2EDomainSocket(t *testing.T) {
 	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
