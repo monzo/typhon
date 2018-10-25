@@ -21,8 +21,8 @@ import (
 )
 
 type e2eFlavour interface {
-	Serve(Service) Server
-	URL(Server) string
+	Serve(Service) *Server
+	URL(*Server) string
 	Proto() string
 }
 
@@ -79,7 +79,6 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
 					return net.Dial(network, addr)
 				}}
-			defer transport.CloseIdleConnections()
 			Client = HttpService(transport).Filter(ErrorFilter)
 			impl(t, http2H2cFlavour{T: t})
 		})
@@ -92,7 +91,6 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 				AllowHTTP: false,
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: true}}
-			defer transport.CloseIdleConnections()
 			Client = HttpService(transport).Filter(ErrorFilter)
 			impl(t, http2H2Flavour{
 				T:    t,
@@ -115,7 +113,7 @@ func TestE2E(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		req := NewRequest(ctx, "GET", flav.URL(s), map[string]string{
 			"a": "b"})
@@ -156,7 +154,7 @@ func TestE2EStreaming(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
@@ -190,7 +188,7 @@ func TestE2EStreaming(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		reqS := Streamer()
@@ -233,7 +231,7 @@ func TestE2EDomainSocket(t *testing.T) {
 
 		s, err := Serve(svc, l)
 		require.NoError(t, err)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		sockTransport := &httpcontrol.Transport{
 			Dial: func(network, address string) (net.Conn, error) {
@@ -262,7 +260,7 @@ func TestE2EError(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
@@ -290,7 +288,7 @@ func TestE2ECancellation(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
@@ -322,7 +320,7 @@ func TestE2ENoFollowRedirect(t *testing.T) {
 			return rsp
 		})
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -354,14 +352,14 @@ func TestE2EProxiedStreamer(t *testing.T) {
 			return rsp
 		})
 		s := flav.Serve(downstream)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		proxy := Service(func(req Request) Response {
 			proxyReq := NewRequest(req, "GET", flav.URL(s), nil)
 			return proxyReq.Send().Response()
 		})
 		ps := flav.Serve(proxy)
-		defer ps.Stop()
+		defer ps.Stop(context.Background())
 
 		req := NewRequest(ctx, "GET", flav.URL(ps), nil)
 		rsp := req.Send().Response()
@@ -400,7 +398,7 @@ func TestE2EInfiniteContext(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		req := NewRequest(ctx, "GET", flav.URL(s), map[string]string{
 			"a": "b"})
@@ -435,7 +433,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -484,7 +482,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -548,7 +546,7 @@ func TestE2EStreamingCancellation(t *testing.T) {
 		})
 		svc = svc.Filter(ErrorFilter)
 		s := flav.Serve(svc)
-		defer s.Stop()
+		defer s.Stop(context.Background())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
@@ -573,7 +571,7 @@ func BenchmarkRequestResponse(b *testing.B) {
 	l, _ := net.ListenUnix("unix", addr)
 	defer l.Close()
 	s, _ := Serve(svc, l)
-	defer s.Stop()
+	defer s.Stop(context.Background())
 
 	sockTransport := &httpcontrol.Transport{
 		Dial: func(network, address string) (net.Conn, error) {

@@ -13,14 +13,14 @@ type http2H2cFlavour struct {
 	client Service
 }
 
-func (f http2H2cFlavour) Serve(svc Service) Server {
+func (f http2H2cFlavour) Serve(svc Service) *Server {
 	svc = svc.Filter(H2cFilter)
 	s, err := Listen(svc, "localhost:0")
 	require.NoError(f.T, err)
 	return s
 }
 
-func (f http2H2cFlavour) URL(s Server) string {
+func (f http2H2cFlavour) URL(s *Server) string {
 	return fmt.Sprintf("http://%s", s.Listener().Addr())
 }
 
@@ -34,7 +34,7 @@ type http2H2Flavour struct {
 	cert   tls.Certificate
 }
 
-func (f http2H2Flavour) Serve(svc Service) Server {
+func (f http2H2Flavour) Serve(svc Service) *Server {
 	l, err := tls.Listen("tcp", "localhost:0", &tls.Config{
 		Certificates: []tls.Certificate{f.cert},
 		ClientAuth:   tls.NoClientCert,
@@ -45,7 +45,7 @@ func (f http2H2Flavour) Serve(svc Service) Server {
 	return s
 }
 
-func (f http2H2Flavour) URL(s Server) string {
+func (f http2H2Flavour) URL(s *Server) string {
 	return fmt.Sprintf("https://%s", s.Listener().Addr())
 }
 

@@ -12,13 +12,13 @@ type http1Flavour struct {
 	T *testing.T
 }
 
-func (f http1Flavour) Serve(svc Service) Server {
+func (f http1Flavour) Serve(svc Service) *Server {
 	s, err := Listen(svc, "localhost:0")
 	require.NoError(f.T, err)
 	return s
 }
 
-func (f http1Flavour) URL(s Server) string {
+func (f http1Flavour) URL(s *Server) string {
 	return fmt.Sprintf("http://%s", s.Listener().Addr())
 }
 
@@ -31,7 +31,7 @@ type http1TLSFlavour struct {
 	cert tls.Certificate
 }
 
-func (f http1TLSFlavour) Serve(svc Service) Server {
+func (f http1TLSFlavour) Serve(svc Service) *Server {
 	l, err := tls.Listen("tcp", "localhost:0", &tls.Config{
 		Certificates: []tls.Certificate{f.cert},
 		ClientAuth:   tls.NoClientCert})
@@ -41,7 +41,7 @@ func (f http1TLSFlavour) Serve(svc Service) Server {
 	return s
 }
 
-func (f http1TLSFlavour) URL(s Server) string {
+func (f http1TLSFlavour) URL(s *Server) string {
 	return fmt.Sprintf("https://%s", s.Listener().Addr())
 }
 
