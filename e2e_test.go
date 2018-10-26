@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookgo/httpcontrol"
 	"github.com/fortytw2/leaktest"
 	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
@@ -233,8 +232,8 @@ func TestE2EDomainSocket(t *testing.T) {
 		require.NoError(t, err)
 		defer s.Stop(context.Background())
 
-		sockTransport := &httpcontrol.Transport{
-			Dial: func(network, address string) (net.Conn, error) {
+		sockTransport := &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 				return net.DialUnix("unix", nil, addr)
 			}}
 		req := NewRequest(ctx, "GET", "http://localhost/foo", nil)
@@ -573,9 +572,12 @@ func BenchmarkRequestResponse(b *testing.B) {
 	s, _ := Serve(svc, l)
 	defer s.Stop(context.Background())
 
-	sockTransport := &httpcontrol.Transport{
-		Dial: func(network, address string) (net.Conn, error) {
-			return net.DialUnix("unix", nil, addr)
+	conn, err := net.DialUnix("unix", nil, addr)
+	require.NoError(b, err)
+	defer conn.Close()
+	sockTransport := &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return conn, nil
 		}}
 
 	ctx := context.Background()
