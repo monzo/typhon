@@ -555,4 +555,48 @@ func TestE2EStreamingCancellation(t *testing.T) {
 	})
 }
 
+func TestE2EDraining(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		returnRsp := make(chan bool)
+		svc := Service(func(req Request) Response {
+			<-returnRsp
+			return NewResponse(req)
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+
+		// Send a request, which will hang in the handler until we send to returnRsp
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rspF := req.Send()
+		time.Sleep(10 * time.Millisecond) // allow connection to be established
+
+		// Stop the server; the in-flight request should remain pending and the server should sit in graceful shutdown
+		// until the request completes
+		serverClosed := make(chan struct{})
+		go func() {
+			s.Stop(ctx)
+			close(serverClosed)
+		}()
+		select {
+		case <-serverClosed:
+			require.FailNow(t, "server closed with request outstanding")
+		case <-rspF.WaitC():
+			require.FailNow(t, "premature response")
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		// Send a new request (while the original one is still in-flight); this one should be rejected
+		req2 := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rsp2 := req2.Send().Response()
+		require.Error(t, rsp2.Error)
+
+		// Unblock the handler; a successful response should be returned and server shutdown should complete
+		returnRsp <- true
+		rsp := rspF.Response()
+		require.NoError(t, rsp.Error)
+		<-serverClosed
 	})
+}
