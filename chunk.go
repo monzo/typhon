@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func copyChunked(dst io.Writer, src io.Reader) (written int64, err error) {
+func copyChunked(dst io.Writer, src io.Reader, buf []byte) (written int64, err error) {
 	flusher, flusherOk := dst.(http.Flusher)
 	if !flusherOk {
 		return io.Copy(dst, src)
@@ -17,7 +17,6 @@ func copyChunked(dst io.Writer, src io.Reader) (written int64, err error) {
 	flusher.Flush()
 
 	// This is taken and lightly adapted from the source of io.Copy
-	buf := make([]byte, 32*1024)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
