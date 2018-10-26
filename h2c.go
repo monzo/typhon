@@ -8,6 +8,7 @@ import (
 	"net/textproto"
 	"sync"
 
+	"github.com/deckarep/golang-set"
 	"github.com/monzo/terrors"
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2"
@@ -46,8 +47,7 @@ var h2cConns sync.Map // map[*Server]*h2cInfo
 
 // h2cInfo stores information about connections that have been upgraded by a single Typhon server
 type h2cInfo struct {
-	sync.Mutex
-	conns []*hijackedConn
+	conns mapset.Set
 	h2s   *http2.Server
 }
 
@@ -55,19 +55,23 @@ type h2cInfo struct {
 // need to know when the connection has been closed, to know if/when graceful shutdown completes.
 type hijackedConn struct {
 	net.Conn
+	onClose   func(*hijackedConn)
 	closed    chan struct{}
 	closeOnce sync.Once
 }
 
 func (c *hijackedConn) Close() error {
-	defer c.closeOnce.Do(func() { close(c.closed) })
+	defer c.closeOnce.Do(func() {
+		close(c.closed)
+		c.onClose(c)
+	})
 	return c.Conn.Close()
 }
 
 type h2cHijacker struct {
 	http.ResponseWriter
 	http.Hijacker
-	hijacked func(*hijackedConn)
+	onHijack func(*hijackedConn)
 }
 
 func (h h2cHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
@@ -75,32 +79,26 @@ func (h h2cHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	conn := &hijackedConn{
 		Conn:   c,
 		closed: make(chan struct{})}
-	h.hijacked(conn)
+	h.onHijack(conn)
 	return conn, r, err
 }
 
-func shutdownH2c(ctx context.Context, srv *Server) {
-	_h2c, ok := h2cConns.Load(srv)
-	if !ok {
-		return
-	}
-	h2c := _h2c.(*h2cInfo)
-	h2c.Lock()
-	defer h2c.Unlock()
-
+func shutdownH2c(ctx context.Context, srv *Server, h2c *h2cInfo) {
 gracefulCloseLoop:
-	for _, c := range h2c.conns {
+	for _, _c := range h2c.conns.ToSlice() {
+		c := _c.(*hijackedConn)
 		select {
 		case <-ctx.Done():
 			break gracefulCloseLoop
 		case <-c.closed:
-			h2c.conns = h2c.conns[1:]
+			h2c.conns.Remove(c)
 		}
 	}
 	// If any connections remain after gracefulCloseLoop, we need to forcefully close them
-	for _, c := range h2c.conns {
+	for _, _c := range h2c.conns.ToSlice() {
+		c := _c.(*hijackedConn)
 		c.Close()
-		h2c.conns = h2c.conns[1:]
+		h2c.conns.Remove(c)
 	}
 	h2cConns.Delete(srv)
 }
@@ -117,7 +115,8 @@ func setupH2cHijacker(req Request, rw http.ResponseWriter) (http.ResponseWriter,
 	}
 
 	h2c := &h2cInfo{
-		h2s: &http2.Server{}}
+		conns: mapset.NewSet(),
+		h2s:   &http2.Server{}}
 	_h2c, loaded := h2cConns.LoadOrStore(srv, h2c)
 	h2c = _h2c.(*h2cInfo)
 	if !loaded {
@@ -128,17 +127,19 @@ func setupH2cHijacker(req Request, rw http.ResponseWriter) (http.ResponseWriter,
 		// timeout before then to terminate them forcefully.
 		http2.ConfigureServer(srv.srv, h2c.h2s)
 		srv.addShutdownFunc(func(ctx context.Context) {
-			shutdownH2c(ctx, srv)
+			shutdownH2c(ctx, srv, h2c)
 		})
 	}
 
 	h := h2cHijacker{
 		ResponseWriter: rw,
 		Hijacker:       hijacker,
-		hijacked: func(c *hijackedConn) {
-			h2c.Lock()
-			defer h2c.Unlock()
-			h2c.conns = append(h2c.conns, c)
+		onHijack: func(c *hijackedConn) {
+			h2c.conns.Add(c)
+			// when the connection closes, remove from h2cInfo's to prevent refs to dead connections accumulating
+			c.onClose = func(c *hijackedConn) {
+				h2c.conns.Remove(c)
+			}
 		}}
 	return h, h2c.h2s, nil
 }
