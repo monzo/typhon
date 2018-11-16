@@ -34,6 +34,8 @@ func routerTestHarness() (Router, []routerTestCase) {
 	router.GET("/foo", svc)
 	router.GET("/foo/:param/baz", svc)
 	router.GET("/residual/*", svc)
+	router.DELETE("/:a/:b", svc)
+	router.DELETE("/:a", svc)
 	router.Register("*", "/poly", svc)
 
 	cases := []routerTestCase{
@@ -98,7 +100,24 @@ func routerTestHarness() (Router, []routerTestCase) {
 			method: "WTAF",
 			path:   "/poly",
 			status: http.StatusNotFound,
-		}}
+		},
+		{
+			method:  http.MethodDelete,
+			path:    "/hi",
+			status:  http.StatusOK,
+			pattern: "/:a",
+			params: map[string]string{
+				"a": "hi"},
+		},
+		{
+			method:  http.MethodDelete,
+			path:    "/hi/there",
+			status:  http.StatusOK,
+			pattern: "/:a/:b",
+			params: map[string]string{
+				"a": "hi", "b": "there"},
+		},
+	}
 
 	// Add a case per-method for the poly-method route
 	for _, m := range [...]string{"GET", "CONNECT", "DELETE", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"} {
