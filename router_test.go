@@ -36,6 +36,7 @@ func routerTestHarness() (Router, []routerTestCase) {
 	router.GET("/residual/*", svc)
 	router.DELETE("/:a/:b", svc)
 	router.DELETE("/:a", svc)
+	router.PUT("/:a/baz", svc)
 	router.Register("*", "/poly", svc)
 
 	cases := []routerTestCase{
@@ -116,6 +117,14 @@ func routerTestHarness() (Router, []routerTestCase) {
 			pattern: "/:a/:b",
 			params: map[string]string{
 				"a": "hi", "b": "there"},
+		},
+		{
+			method:  http.MethodGet,
+			path:    "/hi/baz",
+			status:  http.StatusNotFound, // should be http.StatusOK
+			pattern: "/:a/baz",
+			params: map[string]string{
+				"a": "hi"},
 		},
 	}
 
