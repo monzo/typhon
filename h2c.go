@@ -36,7 +36,7 @@ func H2cFilter(req Request, svc Service) Response {
 }
 
 // Dear reader: I'm sorry, the code below isn't fun. This is because Go's h2c implementation doesn't have support for
-// connection draining, and all the hooks that make would make this easy are unexported.
+// connection draining, and all the hooks that would make this easy are unexported.
 //
 // If this ticket gets resolved this code can be dramatically simplified, but it is not a priority for the Go team:
 // https://github.com/golang/go/issues/26682
