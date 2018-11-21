@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -186,6 +188,42 @@ func TestRouterPathCollision(t *testing.T) {
 
 func handle(req Request) Response {
 	return Response{}
+}
+
+func TestEchoRouterPathCollision(t *testing.T) {
+	e := echo.New()
+	router := e.Router()
+	handled := false
+
+	// this replicates routes defined in service.api.payee
+	router.Add("GET", "/", handleEcho)
+	router.Add("GET", "/list", handleEcho)
+	router.Add("GET", "/:id", handleEcho)
+	router.Add("PUT", "/:id", handleEcho)
+	router.Add("DELETE", "/:id/accounts/:scheme", func(c echo.Context) error {
+		handled = true
+		return nil
+	})
+	router.Add("DELETE", "/:id", handleEcho)
+	router.Add("PUT", "/:id/accounts/fps", handleEcho)
+	router.Add("PUT", "/:id/accounts/p2p", handleEcho)
+	router.Add("GET", "/validate", handleEcho)
+	router.Add("GET", "/sort-code", handleEcho)
+
+	w := &httptest.ResponseRecorder{}
+	r, err := http.NewRequest("DELETE", "http://example.com/payee_12345/accounts/fps", nil)
+	if err != nil {
+		t.Errorf("expected nil, got %s", err)
+	}
+	e.ServeHTTP(w, r)
+	fmt.Println(w.Result().Status)
+	if !handled {
+		t.Errorf("expected handled to be true")
+	}
+}
+
+func handleEcho(ctx echo.Context) error {
+	return nil
 }
 
 func BenchmarkRouter(b *testing.B) {
