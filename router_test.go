@@ -155,6 +155,39 @@ func TestRouterForRequest(t *testing.T) {
 	assert.Equal(t, router, *reqRouter)
 }
 
+func TestRouterPathCollision(t *testing.T) {
+	router := NewRouter()
+
+	// this replicates routes defined in service.api.payee
+	router.Register("GET", "/", handle)
+	router.Register("GET", "/list", handle)
+	router.Register("GET", "/:id", handle)
+	router.Register("PUT", "/:id", handle)
+	router.Register("DELETE", "/:id/accounts/:scheme", handle)
+	router.Register("DELETE", "/:id", handle)
+	router.Register("PUT", "/:id/accounts/fps", handle)
+	router.Register("PUT", "/:id/accounts/p2p", handle)
+
+	// Utility endpoints
+	router.Register("GET", "/validate", handle)
+	router.Register("GET", "/sort-code", handle)
+
+	svc := router.Serve()
+	ctx := context.Background()
+
+	req := NewRequest(ctx, "DELETE", "/payee_123456/accounts/fps", nil)
+
+	res := svc(req)
+
+	if res.Error != nil {
+		t.Errorf("expected nil, got %s", res.Error)
+	}
+}
+
+func handle(req Request) Response {
+	return Response{}
+}
+
 func BenchmarkRouter(b *testing.B) {
 	router, cases := routerTestHarness()
 
