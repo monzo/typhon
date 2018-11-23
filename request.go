@@ -15,7 +15,7 @@ import (
 type Request struct {
 	http.Request
 	context.Context
-	err error // Any error from request construction; read by Client
+	Error error // Any error from request construction
 }
 
 // unwrappedContext returns the most "unwrapped" Context possible for that in the request.
@@ -39,7 +39,7 @@ func (r *Request) Encode(v interface{}) {
 	cw := &countingWriter{
 		Writer: r}
 	if err := json.NewEncoder(cw).Encode(v); err != nil {
-		r.err = terrors.Wrap(err, nil)
+		r.Error = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
@@ -130,7 +130,7 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 	httpReq, err := http.NewRequest(method, url, nil)
 	req := Request{
 		Context: ctx,
-		err:     err}
+		Error:   err}
 	if httpReq != nil {
 		httpReq.ContentLength = -1
 		httpReq.Body = &bufCloser{}
