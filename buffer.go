@@ -84,6 +84,11 @@ func (r *doneReader) Read(p []byte) (int, error) {
 	// the underlying reader
 	if err != nil || (r.length > 0 && r.read >= r.length) {
 		r.Close()
+		// Some underlying reader implementations may not return io.EOF when they have been closed.
+		// Returning EOF on this "final successful read" prevents consumers from erroring.
+		if err == nil {
+			err = io.EOF
+		}
 	}
 	return n, err
 }

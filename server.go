@@ -1,54 +1,101 @@
 package typhon
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
-	"time"
+	"sync"
 
-	"github.com/facebookgo/httpdown"
-	log "github.com/monzo/slog"
+	"github.com/monzo/slog"
 )
 
-const DefaultListenAddr = "127.0.0.1:0"
-
-type Server interface {
-	httpdown.Server
-	Listener() net.Listener
-	WaitC() <-chan struct{}
+type Server struct {
+	l              net.Listener
+	srv            *http.Server
+	shuttingDown   chan struct{}
+	shutdownOnce   sync.Once
+	shutdownFuncs  []func(context.Context)
+	shutdownFuncsM sync.Mutex
 }
 
-type server struct {
-	httpdown.Server
-	l net.Listener
-}
-
-func (s server) Listener() net.Listener {
+// Listener returns the network listener that this server is active on.
+func (s *Server) Listener() net.Listener {
 	return s.l
 }
 
-func (s server) WaitC() <-chan struct{} {
-	c := make(chan struct{}, 0)
+// Done returns a channel that will be closed when the server begins to shutdown. The server may still be draining its
+// connections at the time the channel is closed.
+func (s *Server) Done() <-chan struct{} {
+	return s.shuttingDown
+}
+
+// Stop shuts down the server, returning when there are no more connections still open. Graceful shutdown will be
+// attempted until the passed context expires, at which time all connections will be forcibly terminated.
+func (s *Server) Stop(ctx context.Context) {
+	s.shutdownFuncsM.Lock()
+	defer s.shutdownFuncsM.Unlock()
+	s.shutdownOnce.Do(func() {
+		close(s.shuttingDown)
+		// Shut down the HTTP server in parallel to calling any custom shutdown functions
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.srv.Shutdown(ctx); err != nil {
+				slog.Debug(ctx, "Graceful shutdown failed; forcibly closing connections 👢")
+				if err := s.srv.Close(); err != nil {
+					slog.Critical(ctx, "Forceful shutdown failed, exiting 😱: %v", err)
+					panic(err) // Something is super hosed here
+				}
+			}
+		}()
+		for _, f := range s.shutdownFuncs {
+			f := f // capture range variable
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				f(ctx)
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+// addShutdownFunc registers a function that will be called when the server is stopped. The function is expected to try
+// to shutdown gracefully until the context expires, at which time it should terminate its work forcefully.
+func (s *Server) addShutdownFunc(f func(context.Context)) {
+	s.shutdownFuncsM.Lock()
+	defer s.shutdownFuncsM.Unlock()
+	s.shutdownFuncs = append(s.shutdownFuncs, f)
+}
+
+// Serve starts a HTTP server, binding the passed Service to the passed listener.
+func Serve(svc Service, l net.Listener) (*Server, error) {
+	s := &Server{
+		l:            l,
+		shuttingDown: make(chan struct{})}
+	svc = svc.Filter(func(req Request, svc Service) Response {
+		req.server = s
+		return svc(req)
+	})
+	s.srv = HttpServer(svc)
 	go func() {
-		s.Server.Wait()
-		close(c)
+		err := s.srv.Serve(l)
+		if err != nil && err != http.ErrServerClosed {
+			slog.Error(nil, "HTTP server error: %v", err)
+			// Stopping with an already-closed context means we go immediately to "forceful" mode
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			s.Stop(ctx)
+		}
 	}()
-	return c
+	return s, nil
 }
 
-func Serve(svc Service, l net.Listener) (Server, error) {
-	downer := &httpdown.HTTP{
-		StopTimeout: 20 * time.Second,
-		KillTimeout: 25 * time.Second}
-	downerServer := downer.Serve(HttpServer(svc), l)
-	log.Info(nil, "Listening on %v", l.Addr())
-	return server{
-		Server: downerServer,
-		l:      l}, nil
-}
-
-func Listen(svc Service, addr string) (Server, error) {
+func Listen(svc Service, addr string) (*Server, error) {
 	// Determine on which address to listen, choosing in order one of:
 	// 1. The passed addr
 	// 2. PORT variable (listening on all interfaces)

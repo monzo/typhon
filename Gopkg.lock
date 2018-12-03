@@ -18,36 +18,12 @@
   version = "v1.1.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:5fe3f6ede1c208a2efd3b78fe4df0306aa9624edd39476143d14f0326e5a8d29"
-  name = "github.com/facebookgo/clock"
+  digest = "1:e47d51dab652d26c3fba6f8cba403f922d02757a82abdc77e90df7948daf296e"
+  name = "github.com/deckarep/golang-set"
   packages = ["."]
   pruneopts = "UT"
-  revision = "600d898af40aa09a7a93ecb9265d87b0504b6f03"
-
-[[projects]]
-  branch = "master"
-  digest = "1:fec88e30e88bd6e12e5d3f052b5313843670534a15708119b9e79ae8f8141e59"
-  name = "github.com/facebookgo/httpcontrol"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "ccde4420e1fee9af5da365cb76075b95683f39a6"
-
-[[projects]]
-  branch = "master"
-  digest = "1:17cb421603403a24edb0c7eeb382295dd31c72ab9ccf31cf7f0a37971f00aaa7"
-  name = "github.com/facebookgo/httpdown"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "5979d39b15c26299dc282711b0d65b113daccea6"
-
-[[projects]]
-  branch = "master"
-  digest = "1:02c7a4e944d94d6b80f51517158d10633b10775f528a3b7bdfc658d6f92415bd"
-  name = "github.com/facebookgo/stats"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "1b76add642e42c6ffba7211ad7b3939ce654526e"
+  revision = "cbaa98ba5575e67703b32b4b19f73c91f3c4159e"
+  version = "v1.7.1"
 
 [[projects]]
   digest = "1:544229a3ca0fb2dd5ebc2896d3d2ff7ce096d9751635301e44e37e761349ee70"
@@ -177,9 +153,16 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:76ee51c3f468493aff39dbacc401e8831fbb765104cbf613b89bef01cf4bad70"
+  digest = "1:23f67364c4c5dc0798b2d8c09448f520c0b1c7354a20a259981dd0ba2418b4f4"
   name = "golang.org/x/net"
-  packages = ["context"]
+  packages = [
+    "context",
+    "http/httpguts",
+    "http2",
+    "http2/h2c",
+    "http2/hpack",
+    "idna",
+  ]
   pruneopts = "UT"
   revision = "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2"
 
@@ -190,6 +173,29 @@
   packages = ["unix"]
   pruneopts = "UT"
   revision = "d0be0721c37eeb5299f245a996a483160fc36940"
+
+[[projects]]
+  digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
+  name = "golang.org/x/text"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable",
+  ]
+  pruneopts = "UT"
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "v2"
@@ -203,8 +209,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/facebookgo/httpcontrol",
-    "github.com/facebookgo/httpdown",
+    "github.com/deckarep/golang-set",
     "github.com/fortytw2/leaktest",
     "github.com/golang/protobuf/proto",
     "github.com/labstack/echo",
@@ -215,6 +220,9 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
+    "golang.org/x/net/http/httpguts",
+    "golang.org/x/net/http2",
+    "golang.org/x/net/http2/h2c",
     "gopkg.in/tomb.v2",
   ]
   solver-name = "gps-cdcl"

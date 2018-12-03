@@ -15,7 +15,9 @@ import (
 type Request struct {
 	http.Request
 	context.Context
-	err error // Any error from request construction; read by Client
+	err      error // Any error from request construction; read by Client
+	hijacker http.Hijacker
+	server   *Server
 }
 
 // unwrappedContext returns the most "unwrapped" Context possible for that in the request.

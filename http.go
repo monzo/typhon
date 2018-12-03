@@ -4,10 +4,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/textproto"
 	"os"
+	"sync"
 	"syscall"
 
 	"github.com/monzo/slog"
+	"golang.org/x/net/http/httpguts"
 )
 
 const (
@@ -16,23 +19,40 @@ const (
 	chunkThreshold = 5 * 1000000 // 5 megabytes
 )
 
+var httpChunkBufPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, 32*1024) // size is the same as io.Copy uses internally
+	}}
+
 func isStreamingRsp(rsp Response) bool {
 	// Most straightforward: service may have set rsp.Body to a streamer
 	if s, ok := rsp.Body.(*streamer); ok && s != nil {
 		return true
 	}
-	// In a proxy situation, the upstream would have set Transfer-Encoding
-	for _, v := range rsp.Header["Transfer-Encoding"] {
-		if v == "chunked" {
+
+	// If the content length is unknown, it should stream
+	if rsp.ContentLength <= 0 {
+		return true
+	}
+
+	// If the response body is the same as the request body and the request is streaming, the response should be too
+	if rsp.Request != nil && rsp.Request.ContentLength <= 0 && rsp.Body == rsp.Request.Body {
+		return true
+	}
+
+	// Chunked transfer encoding (only in HTTP/1.1) gives us an additional clue
+	if !rsp.ProtoAtLeast(2, 0) {
+		if httpguts.HeaderValuesContainsToken(rsp.Header[textproto.CanonicalMIMEHeaderKey("Transfer-Encoding")], "chunked") {
 			return true
 		}
-	}
-	// Annoyingly, this can be removed from headers by net/http and promoted to its own field
-	for _, v := range rsp.TransferEncoding {
-		if v == "chunked" {
-			return true
+		// Annoyingly, this can be removed from headers by net/http and promoted to its own field
+		for _, v := range rsp.TransferEncoding {
+			if v == "chunked" {
+				return true
+			}
 		}
 	}
+
 	return false
 }
 
@@ -67,26 +87,32 @@ func HttpHandler(svc Service) http.Handler {
 		req := Request{
 			Context: httpReq.Context(),
 			Request: *httpReq}
+		if h, ok := rw.(http.Hijacker); ok {
+			req.hijacker = h
+		}
 		rsp := svc(req)
 
-		// Write the response out
+		// If the connection was hijacked, we should not attempt to write anything out
+		if rsp.hijacked {
+			return
+		}
+
 		rwHeader := rw.Header()
 		for k, v := range rsp.Header {
-			if k == "Content-Length" {
-				continue
-			}
 			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
 		if rsp.Body != nil {
 			defer rsp.Body.Close()
+			buf := httpChunkBufPool.Get().([]byte)
+			defer httpChunkBufPool.Put(buf)
 			if isStreamingRsp(rsp) {
 				// Streaming responses use copyChunked(), which takes care of flushing transparently
-				if _, err := copyChunked(rw, rsp.Body); err != nil {
+				if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
 					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body: %v", err))
 				}
 			} else {
-				if _, err := io.Copy(rw, rsp.Body); err != nil {
+				if _, err := io.CopyBuffer(rw, rsp.Body, buf); err != nil {
 					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body: %v", err))
 				}
 			}

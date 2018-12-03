@@ -5,14 +5,18 @@ import (
 	"net/http"
 )
 
-func copyChunked(dst io.Writer, src io.Reader) (written int64, err error) {
+func copyChunked(dst io.Writer, src io.Reader, buf []byte) (written int64, err error) {
 	flusher, flusherOk := dst.(http.Flusher)
 	if !flusherOk {
 		return io.Copy(dst, src)
 	}
 
+	// Mysteriously, Go's http2 implementation doesn't write response headers until there is at least one byte of the
+	// body available. Code comments indicate that is deliberate, but it isn't desirable for us. Calling Flush()
+	// forces headers to be sent.
+	flusher.Flush()
+
 	// This is taken and lightly adapted from the source of io.Copy
-	buf := make([]byte, 32*1024)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {

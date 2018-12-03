@@ -14,8 +14,9 @@ import (
 // A Response is Typhon's wrapper around http.Response, used by both clients and servers.
 type Response struct {
 	*http.Response
-	Error   error
-	Request *Request // The Request that we are responding to
+	Error    error
+	Request  *Request // The Request that we are responding to
+	hijacked bool
 }
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
@@ -102,6 +103,12 @@ func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 
 // Writer returns a ResponseWriter proxy.
 func (r *Response) Writer() ResponseWriter {
+	if r.Request != nil && r.Request.hijacker != nil {
+		return hijackerRw{
+			responseWriterWrapper: responseWriterWrapper{
+				r: r},
+			Hijacker: r.Request.hijacker}
+	}
 	return responseWriterWrapper{
 		r: r}
 }

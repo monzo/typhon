@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/facebookgo/httpcontrol"
 	"github.com/monzo/terrors"
 )
 
@@ -13,13 +12,12 @@ var (
 	// takes place; access is not synchronised.
 	Client Service = BareClient
 	// RoundTripper is used by default in Typhon clients
-	RoundTripper http.RoundTripper = &httpcontrol.Transport{
+	RoundTripper http.RoundTripper = &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		DisableKeepAlives:   false,
 		DisableCompression:  false,
-		MaxIdleConnsPerHost: 10,
-		DialKeepAlive:       10 * time.Minute,
-		MaxTries:            6}
+		IdleConnTimeout:     10 * time.Minute,
+		MaxIdleConnsPerHost: 10}
 )
 
 // A ResponseFuture is a container for a Response which will materialise at some point.
@@ -62,6 +60,7 @@ func HttpService(rt http.RoundTripper) Service {
 			}()
 		}
 		return Response{
+			Request:  &req,
 			Response: httpRsp,
 			Error:    terrors.Wrap(err, nil)}
 	}
