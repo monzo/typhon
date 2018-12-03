@@ -13,7 +13,7 @@ It provides a number of conveniences and tries to promote safety wherever possib
 * **Middleware "filters"**  
   Filters are decorators around `Service`s; in Typhon servers and clients share common functionality by composing it functionally.
 
-* **Body encoding/decoding**  
+* **Body encoding and decoding**  
   Marshalling and unmarshalling request bodies to structs is such a common operation that our `Request` and `Response` objects support them directly. If the operations fail, the errors are propagated automatically since that's nearly always what a server will want.
 
 * **Propagation of cancellation**  
@@ -22,6 +22,10 @@ It provides a number of conveniences and tries to promote safety wherever possib
 * **Error propagation**  
   Responses have an inbuilt `Error` attribute, and serialisation/deserialisation of these errors into HTTP errors is taken care of automatically. We recommend using this in conjunction with [`monzo/terrors`].
 
+* **Full HTTP/1.1 and HTTP/2.0 support**  
+  Applications implemented using Typhon can communicate over HTTP/1.1 or HTTP/2.0. Typhon has support for full duplex communication under HTTP/2.0, and [`h2c`] (HTTP/2.0 over TCP, ie. without TLS) is also supported if required.
+
 [`net/http`]: https://golang.org/pkg/net/http/
 [platform blog post]: https://monzo.com/blog/2016/09/19/building-a-modern-bank-backend/
 [`monzo/terrors`]: http://github.com/monzo/terrors
+[`h2c`]: https://httpwg.org/specs/rfc7540.html#discover-http
