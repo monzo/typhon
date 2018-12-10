@@ -113,12 +113,11 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:5110e3d4f130772fd39e6ce8208ad1955b242ccfcc8ad9d158857250579c82f4"
+  digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
-    "suite",
   ]
   pruneopts = "UT"
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
@@ -197,33 +196,21 @@
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
-[[projects]]
-  branch = "v2"
-  digest = "1:5bb148b78468350091db2ffbb2370f35cc6dcd74d9378a31b1c7b86ff7528f08"
-  name = "gopkg.in/tomb.v2"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "d5d1b5820637886def9eef33e03a27a9f166942c"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/deckarep/golang-set",
     "github.com/fortytw2/leaktest",
-    "github.com/golang/protobuf/proto",
     "github.com/labstack/echo",
     "github.com/monzo/slog",
     "github.com/monzo/terrors",
     "github.com/monzo/terrors/proto",
-    "github.com/nu7hatch/gouuid",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
-    "github.com/stretchr/testify/suite",
     "golang.org/x/net/http/httpguts",
     "golang.org/x/net/http2",
     "golang.org/x/net/http2/h2c",
-    "gopkg.in/tomb.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
