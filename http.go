@@ -11,6 +11,7 @@ import (
 
 	"github.com/monzo/slog"
 	"golang.org/x/net/http/httpguts"
+	"time"
 )
 
 const (
@@ -123,5 +124,6 @@ func HttpHandler(svc Service) http.Handler {
 func HttpServer(svc Service) *http.Server {
 	return &http.Server{
 		Handler:        HttpHandler(svc),
+		ReadHeaderTimeout: 10 * time.Second,
 		MaxHeaderBytes: http.DefaultMaxHeaderBytes}
 }
