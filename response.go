@@ -21,6 +21,23 @@ type Response struct {
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Response) Encode(v interface{}) {
+	if r.Response == nil {
+		r.Response = newHTTPResponse(Request{})
+	}
+
+	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
+	switch v := v.(type) {
+	case json.Marshaler:
+	case io.ReadCloser:
+		r.Body = v
+		r.ContentLength = -1
+		return
+	case io.Reader:
+		r.Body = ioutil.NopCloser(v)
+		r.ContentLength = -1
+		return
+	}
+
 	cw := &countingWriter{
 		Writer: r}
 	if err := json.NewEncoder(cw).Encode(v); err != nil {
@@ -54,6 +71,7 @@ func (r *Response) Decode(v interface{}) error {
 	return err
 }
 
+// Write writes the passed bytes to the response's body.
 func (r *Response) Write(b []byte) (int, error) {
 	if r.Response == nil {
 		r.Response = newHTTPResponse(Request{})
@@ -101,7 +119,10 @@ func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	}
 }
 
-// Writer returns a ResponseWriter proxy.
+// Writer returns a ResponseWriter which can be used to populate the response.
+//
+// This is useful when you want to use another HTTP library that is used to wrapping net/http directly. For example,
+// it allows a Typhon Service to use a http.Handler internally.
 func (r *Response) Writer() ResponseWriter {
 	if r.Request != nil && r.Request.hijacker != nil {
 		return hijackerRw{

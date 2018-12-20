@@ -3,6 +3,7 @@ package typhon
 import (
 	"bytes"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -140,4 +141,50 @@ func TestResponseBodyBytes_Preserving(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []byte("def"), b)
 	}
+}
+
+type jsonMarshalerReader struct {
+	io.ReadCloser
+}
+
+func (r jsonMarshalerReader) MarshalJSON() ([]byte, error) {
+	return []byte("{}"), nil
+}
+
+// TestResponseEncodeReader verifies that passing an io.Reader to response.Encode() uses it properly as the body, and
+// does not attempt to encode it as JSON
+func TestResponseEncodeReader(t *testing.T) {
+	t.Parallel()
+
+	// io.ReadCloser: this should be used with no modification
+	rc := ioutil.NopCloser(strings.NewReader("hello world"))
+	rsp := Response{}
+	rsp.Encode(rc)
+	assert.Nil(t, rsp.Error)
+	assert.Equal(t, rsp.Body, rc)
+	assert.EqualValues(t, -1, rsp.ContentLength)
+	assert.Empty(t, rsp.Header.Get("Content-Type"))
+
+	// io.Reader: this should be wrapped in an ioutil.NopCloser
+	r := strings.NewReader("hello world, again")
+	rsp = Response{}
+	rsp.Encode(r)
+	assert.Nil(t, rsp.Error)
+	assert.EqualValues(t, -1, rsp.ContentLength)
+	assert.Empty(t, rsp.Header.Get("Content-Type"))
+	body, err := ioutil.ReadAll(rsp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("hello world, again"), body)
+
+	// an io.ReadCloser that happens to implement json.Marshaler should not be used directly and should be marshaled
+	jm := jsonMarshalerReader{
+		ReadCloser: ioutil.NopCloser(strings.NewReader("this should never see the light of day"))}
+	rsp = Response{}
+	rsp.Encode(jm)
+	assert.Nil(t, rsp.Error)
+	assert.EqualValues(t, 3, rsp.ContentLength)
+	assert.Equal(t, "application/json", rsp.Header.Get("Content-Type"))
+	body, err = ioutil.ReadAll(rsp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("{}\n"), body)
 }

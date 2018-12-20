@@ -81,7 +81,9 @@ func Serve(svc Service, l net.Listener) (*Server, error) {
 		req.server = s
 		return svc(req)
 	})
-	s.srv = HttpServer(svc)
+	s.srv = &http.Server{
+		Handler:        HttpHandler(svc),
+		MaxHeaderBytes: http.DefaultMaxHeaderBytes}
 	go func() {
 		err := s.srv.Serve(l)
 		if err != nil && err != http.ErrServerClosed {

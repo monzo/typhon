@@ -71,7 +71,8 @@ func BareClient(req Request) Response {
 	return HttpService(RoundTripper)(req)
 }
 
-// SendVia sends the given request via the given service, returning a future representing the operation
+// SendVia round-trips the request via the passed Service. It does not block, instead returning a ResponseFuture
+// representing the asynchronous operation to produce the response.
 func SendVia(req Request, svc Service) *ResponseFuture {
 	done := make(chan struct{}, 0)
 	f := &ResponseFuture{
@@ -83,7 +84,10 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 	return f
 }
 
-// Send is equivalent to SendVia(req, Client)
+// Send round-trips the request via the default Client. It does not block, instead returning a ResponseFuture
+// representing the asynchronous operation to produce the response. It is equivalent to:
+//
+//  SendVia(req, Client)
 func Send(req Request) *ResponseFuture {
 	return SendVia(req, Client)
 }

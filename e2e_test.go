@@ -555,6 +555,49 @@ func TestE2EStreamingCancellation(t *testing.T) {
 	})
 }
 
+// TestE2EFullDuplex verifies that HTTP/2.0 full-duplex communication works properly. It constructs a service which
+// will write chunks of output by both copying them from the request body, and writing them directly. The two should
+// be interleaved and sent to the client without delay.
+func TestE2EFullDuplex(t *testing.T) {
+	someFlavours(t, []string{"http2.0-h2", "http2.0-h2c"}, func(t *testing.T, flav e2eFlavour) {
+		chunks := make(chan []byte)
+		svc := Service(func(req Request) Response {
+			body := Streamer()
+			go func() {
+				defer body.Close()
+				go io.Copy(body, req.Body)
+				for c := range chunks {
+					body.Write(c)
+				}
+			}()
+			return req.Response(body)
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		req.Body = Streamer()
+		defer req.Body.Close()
+		rsp := req.Send().Response()
+		for i := 0; i < 50; i++ {
+			b := []byte(fmt.Sprintf("foo %d", i))
+			if i%2 == 0 { // Alternate between sending a chunk in the request body, and sending it "directly"
+				req.Write(b)
+			} else {
+				chunks <- b
+			}
+			bb := make([]byte, len(b)*2)
+			n, _ := rsp.Body.Read(bb)
+			bb = bb[:n]
+			assert.Equal(t, b, bb)
+		}
+		close(chunks)
+	})
+}
+
 func TestE2EDraining(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := context.WithCancel(context.Background())
