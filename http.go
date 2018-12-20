@@ -119,9 +119,3 @@ func HttpHandler(svc Service) http.Handler {
 		}
 	})
 }
-
-func HttpServer(svc Service) *http.Server {
-	return &http.Server{
-		Handler:        HttpHandler(svc),
-		MaxHeaderBytes: http.DefaultMaxHeaderBytes}
-}
