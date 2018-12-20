@@ -38,6 +38,19 @@ func (r *Request) unwrappedContext() context.Context {
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Request) Encode(v interface{}) {
+	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
+	switch v := v.(type) {
+	case json.Marshaler:
+	case io.ReadCloser:
+		r.Body = v
+		r.ContentLength = -1
+		return
+	case io.Reader:
+		r.Body = ioutil.NopCloser(v)
+		r.ContentLength = -1
+		return
+	}
+
 	cw := &countingWriter{
 		Writer: r}
 	if err := json.NewEncoder(cw).Encode(v); err != nil {
@@ -68,12 +81,14 @@ func (r *Request) Write(b []byte) (int, error) {
 	// cleverer.
 	default:
 		buf := &bufCloser{}
-		if _, err := io.Copy(buf, rc); err != nil {
-			// This can be quite bad; we have consumed (and possibly lost) some of the original body
-			return 0, err
+		if rc != nil {
+			if _, err := io.Copy(buf, rc); err != nil {
+				// This can be quite bad; we have consumed (and possibly lost) some of the original body
+				return 0, err
+			}
+			// rc will never again be accessible: once it's copied it must be closed
+			rc.Close()
 		}
-		// rc will never again be accessible: once it's copied it must be closed
-		rc.Close()
 		r.Body = buf
 		return buf.Write(b)
 	}

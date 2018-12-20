@@ -21,6 +21,23 @@ type Response struct {
 
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Response) Encode(v interface{}) {
+	if r.Response == nil {
+		r.Response = newHTTPResponse(Request{})
+	}
+
+	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
+	switch v := v.(type) {
+	case json.Marshaler:
+	case io.ReadCloser:
+		r.Body = v
+		r.ContentLength = -1
+		return
+	case io.Reader:
+		r.Body = ioutil.NopCloser(v)
+		r.ContentLength = -1
+		return
+	}
+
 	cw := &countingWriter{
 		Writer: r}
 	if err := json.NewEncoder(cw).Encode(v); err != nil {
