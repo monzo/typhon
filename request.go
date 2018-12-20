@@ -72,6 +72,7 @@ func (r Request) Decode(v interface{}) error {
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }
 
+// Write writes the passed bytes to the request's body.
 func (r *Request) Write(b []byte) (int, error) {
 	switch rc := r.Body.(type) {
 	// In the "normal" case, the response body will be a buffer, to which we can write
@@ -94,8 +95,10 @@ func (r *Request) Write(b []byte) (int, error) {
 	}
 }
 
-// BodyBytes fully reads the request body and returns the bytes read. If consume is false, the body is copied into a
-// new buffer such that it may be read again.
+// BodyBytes fully reads the request body and returns the bytes read.
+//
+// If consume is true, this is equivalent to ioutil.ReadAll; if false, the caller will observe the body to be in
+// the same state that it was before (ie. any remaining unread body can be read again).
 func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
@@ -115,10 +118,16 @@ func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	}
 }
 
+// Send round-trips the request via the default Client. It does not block, instead returning a ResponseFuture
+// representing the asynchronous operation to produce the response. It is equivalent to:
+//
+//  r.SendVia(Client)
 func (r Request) Send() *ResponseFuture {
 	return Send(r)
 }
 
+// SendVia round-trips the request via the passed Service. It does not block, instead returning a ResponseFuture
+// representing the asynchronous operation to produce the response.
 func (r Request) SendVia(svc Service) *ResponseFuture {
 	return SendVia(r, svc)
 }

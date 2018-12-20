@@ -127,47 +127,56 @@ func (r Router) Params(req Request) map[string]string {
 
 // Sugar
 
-// GET is shorthand for Register("GET", pattern, svc).
+// GET is shorthand for:
+//  r.Register("GET", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) GET(pattern string, svc Service) { r.Register("GET", pattern, svc) }
 
-// CONNECT is shorthand for Register("CONNECT", pattern, svc).
+// CONNECT is shorthand for:
+//  r.Register("CONNECT", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) CONNECT(pattern string, svc Service) { r.Register("CONNECT", pattern, svc) }
 
-// DELETE is shorthand for Register("DELETE", pattern, svc).
+// DELETE is shorthand for:
+//  r.Register("DELETE", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) DELETE(pattern string, svc Service) { r.Register("DELETE", pattern, svc) }
 
-// HEAD is shorthand for Register("HEAD", pattern, svc).
+// HEAD is shorthand for:
+//  r.Register("HEAD", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) HEAD(pattern string, svc Service) { r.Register("HEAD", pattern, svc) }
 
-// OPTIONS is shorthand for Register("OPTIONS", pattern, svc).
+// OPTIONS is shorthand for:
+//  r.Register("OPTIONS", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) OPTIONS(pattern string, svc Service) { r.Register("OPTIONS", pattern, svc) }
 
-// PATCH is shorthand for Register("PATCH", pattern, svc).
+// PATCH is shorthand for:
+//  r.Register("PATCH", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) PATCH(pattern string, svc Service) { r.Register("PATCH", pattern, svc) }
 
-// POST is shorthand for Register("POST", pattern, svc).
+// POST is shorthand for:
+//  r.Register("POST", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) POST(pattern string, svc Service) { r.Register("POST", pattern, svc) }
 
-// PUT is shorthand for Register("PUT", pattern, svc).
+// PUT is shorthand for:
+//  r.Register("PUT", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) PUT(pattern string, svc Service) { r.Register("PUT", pattern, svc) }
 
-// TRACE is shorthand for Register("TRACE", pattern, svc).
+// TRACE is shorthand for:
+//  r.Register("TRACE", pattern, svc)
 //
 // Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) TRACE(pattern string, svc Service) { r.Register("TRACE", pattern, svc) }

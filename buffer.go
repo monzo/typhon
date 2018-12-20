@@ -19,8 +19,18 @@ type streamer struct {
 	pipeW *io.PipeWriter
 }
 
-// Streamer returns a reader/writer/closer that can be used to stream service responses. It does not necessarily
-// perform internal buffering, so users should take care not to depend on such behaviour.
+// Streamer returns a reader/writer/closer that can be used to stream responses. A simple use of this is:
+//  func streamingService(req typhon.Request) typhon.Response {
+//      body := typhon.Streamer()
+//      go func() {
+//          defer body.Close()
+//          // do something to asynchronously produce output into body
+//      }()
+//      return req.Response(body)
+//  }
+//
+// Note that a Streamer may not perform any internal buffering, so callers should take care not to depend on writes
+// being non-blocking. If buffering is needed, Streamer can be wrapped in a bufio.Writer.
 func Streamer() io.ReadWriteCloser {
 	pipeR, pipeW := io.Pipe()
 	return &streamer{

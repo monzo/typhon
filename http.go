@@ -77,7 +77,8 @@ func copyErrSeverity(err error) slog.Severity {
 	}
 }
 
-// HttpHandler transforms the given Service into a http.Handler, suitable for use directly with net/http
+// HttpHandler transforms the given Service into a standard library HTTP handler. It is one of the main "bridges"
+// between Typhon and net/http.
 func HttpHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, httpReq *http.Request) {
 		if httpReq.Body != nil {

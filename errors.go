@@ -33,7 +33,9 @@ func init() {
 	}
 }
 
-// ErrorStatusCode returns an HTTP status code for the error
+// ErrorStatusCode returns a HTTP status code for the given error.
+//
+// If the error is not a terror, this will always be 500 (Internal Server Error).
 func ErrorStatusCode(err error) int {
 	code := terrors.Wrap(err, nil).(*terrors.Error).Code
 	if c, ok := mapTerr2Status[strings.SplitN(code, ".", 2)[0]]; ok {
@@ -50,7 +52,8 @@ func status2TerrCode(code int) string {
 	return terrors.ErrInternalService
 }
 
-// ErrorFilter serialises and de-serialises response errors
+// ErrorFilter serialises and deserialises response errors. Without this filter, errors may not be passed across
+// the network properly so it is recommended to use this in most/all cases.
 func ErrorFilter(req Request, svc Service) Response {
 	// If the request contains an error, short-circuit and return that directly
 	var rsp Response
