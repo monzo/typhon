@@ -15,7 +15,7 @@ import (
 type Request struct {
 	http.Request
 	context.Context
-	err      error // Any error from request construction; read by Client
+	err      error // Any error from request construction; read by ErrorFilter
 	hijacker http.Hijacker
 	server   *Server
 }
