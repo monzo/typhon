@@ -3,31 +3,33 @@ package typhon
 import (
 	"context"
 	"fmt"
-	"sync"
+	"regexp"
+	"strings"
 
-	"github.com/labstack/echo"
 	"github.com/monzo/terrors"
 )
 
-var routerContextKey = struct{}{}
+var (
+	routerContextKey   = struct{}{}
+	routerComponentsRe = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
+)
+
+type routerEntry struct {
+	Method  string
+	Pattern string
+	Service Service
+	re      *regexp.Regexp
+}
+
+func (e routerEntry) String() string {
+	return fmt.Sprintf("%s %s", e.Method, e.Pattern)
+}
 
 // A Router multiplexes requests to a set of Services by pattern matching on method and path, and can also extract
 // parameters from paths.
 type Router struct {
-	e    *echo.Echo
-	r    *echo.Router
-	svcs map[string]Service
-	m    *sync.RWMutex
-}
-
-// NewRouter vends a new implementation of Router
-func NewRouter() Router {
-	e := echo.New()
-	return Router{
-		e:    e,
-		r:    echo.NewRouter(e),
-		svcs: make(map[string]Service, 10),
-		m:    new(sync.RWMutex)}
+	re      *regexp.Regexp
+	entries []routerEntry
 }
 
 // RouterForRequest returns a pointer to the Router that successfully dispatched the request, or nil.
@@ -38,57 +40,66 @@ func RouterForRequest(r Request) *Router {
 	return nil
 }
 
+func (r *Router) compile(pattern string) *regexp.Regexp {
+	re, pos := ``, 0
+	for _, m := range routerComponentsRe.FindAllStringSubmatchIndex(pattern, -1) {
+		re += regexp.QuoteMeta(pattern[pos:m[2]]) // head
+		token := pattern[m[2]:m[3]]
+		switch sigil, name := token[0], token[1:]; sigil {
+		case '*':
+			if len(name) == 0 { // bare residual (*): doesn't capture what it consumes
+				re += `.*?`
+			} else { // named residual (*name): captures what it consumes
+				re += `(?P<` + name + `>.*?)`
+			}
+		case ':':
+			re += `(?P<` + name + `>[^/]+)`
+		default:
+			panic(fmt.Errorf("unhandled router token %#v", token))
+		}
+		pos = m[3]
+	}
+	re += regexp.QuoteMeta(pattern[pos:]) // tail
+	re = `^` + re + `$`
+	return regexp.MustCompile(re)
+}
+
 // Register associates a Service with a method and path.
 //
-// Method is a single HTTP method name, or * which is expanded to {OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE}.
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
+// Method is a HTTP method name, or "*" to match any method.
+//
+// Patterns are strings of the format: /foo/:name/baz/*residual
+// As well as being literal paths, they can contain named parameters like :name whose value is dynamic and only known at
+// runtime, or *residual components which match (potentially) multiple path components.
+//
+// In the case that patterns are ambiguous, the last route to be registered will take precedence.
 func (r *Router) Register(method, pattern string, svc Service) {
-	echoHandler := func(c echo.Context) error { return nil }
-
-	r.m.Lock()
-	defer r.m.Unlock()
-
-	if method == "*" {
-		// Expand * to the set of all known methods
-		for _, m := range [...]string{"GET", "CONNECT", "DELETE", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"} {
-			r.r.Add(m, pattern, echoHandler)
-			r.svcs[m+pattern] = svc
-		}
-	} else {
-		r.r.Add(method, pattern, echoHandler)
-		r.svcs[method+pattern] = svc
-	}
+	re := r.compile(pattern)
+	r.entries = append(r.entries, routerEntry{
+		Method:  strings.ToUpper(method),
+		Pattern: pattern,
+		Service: svc,
+		re:      re})
 }
 
 // lookup is the internal version of Lookup, but it extracts path parameters into the passed map (and skips it if the
 // map is nil)
 func (r Router) lookup(method, path string, params map[string]string) (Service, string, bool) {
-	c := r.e.AcquireContext()
-	defer r.e.ReleaseContext(c)
-	c.Reset(nil, nil)
-	c.SetPath("") // Annoyingly, this isn't done as part of Reset()
-
-	r.m.RLock()
-	r.r.Find(method, path, c)
-	pattern := c.Path()
-	if pattern == "" {
-		r.m.RUnlock()
-		return nil, "", false
-	}
-	svc := r.svcs[method+pattern]
-	r.m.RUnlock()
-
-	if svc == nil {
-		return nil, "", false
-	}
-
-	if params != nil {
-		names := c.ParamNames()
-		for _, name := range names {
-			params[name] = c.Param(name)
+	method = strings.ToUpper(method)
+	for i := len(r.entries) - 1; i >= 0; i-- { // iterate in reverse to prefer routes registered later
+		e := r.entries[i]
+		if (e.Method == method || e.Method == `*`) && e.re.MatchString(path) {
+			// We have a match
+			if params != nil && e.re.NumSubexp() > 0 { // extract params
+				names := e.re.SubexpNames()[1:]
+				for i, value := range e.re.FindStringSubmatch(path)[1:] {
+					params[names[i]] = value
+				}
+			}
+			return e.Service, e.Pattern, true
 		}
 	}
-	return svc, pattern, true
+	return nil, "", false
 }
 
 // Lookup returns the Service, pattern, and extracted path parameters for the HTTP method and path.
@@ -129,54 +140,36 @@ func (r Router) Params(req Request) map[string]string {
 
 // GET is shorthand for:
 //  r.Register("GET", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) GET(pattern string, svc Service) { r.Register("GET", pattern, svc) }
 
 // CONNECT is shorthand for:
 //  r.Register("CONNECT", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) CONNECT(pattern string, svc Service) { r.Register("CONNECT", pattern, svc) }
 
 // DELETE is shorthand for:
 //  r.Register("DELETE", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) DELETE(pattern string, svc Service) { r.Register("DELETE", pattern, svc) }
 
 // HEAD is shorthand for:
 //  r.Register("HEAD", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) HEAD(pattern string, svc Service) { r.Register("HEAD", pattern, svc) }
 
 // OPTIONS is shorthand for:
 //  r.Register("OPTIONS", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) OPTIONS(pattern string, svc Service) { r.Register("OPTIONS", pattern, svc) }
 
 // PATCH is shorthand for:
 //  r.Register("PATCH", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) PATCH(pattern string, svc Service) { r.Register("PATCH", pattern, svc) }
 
 // POST is shorthand for:
 //  r.Register("POST", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) POST(pattern string, svc Service) { r.Register("POST", pattern, svc) }
 
 // PUT is shorthand for:
 //  r.Register("PUT", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) PUT(pattern string, svc Service) { r.Register("PUT", pattern, svc) }
 
 // TRACE is shorthand for:
 //  r.Register("TRACE", pattern, svc)
-//
-// Pattern syntax is as described in echo's documentation: https://echo.labstack.com/guide/routing
 func (r *Router) TRACE(pattern string, svc Service) { r.Register("TRACE", pattern, svc) }

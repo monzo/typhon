@@ -12,10 +12,13 @@ import (
 )
 
 // A Request is Typhon's wrapper around http.Request, used by both clients and servers.
+//
+// Note that Typhon makes no guarantees that a Request is safe to access or mutate concurrently. If a single Request
+// object is to be used by multiple goroutines concurrently, callers must make sure to properly synchronise accesses.
 type Request struct {
 	http.Request
 	context.Context
-	err      error // Any error from request construction; read by Client
+	err      error // Any error from request construction; read by ErrorFilter
 	hijacker http.Hijacker
 	server   *Server
 }

@@ -24,91 +24,47 @@ type routerTestCase struct {
 }
 
 func routerTestHarness() (Router, []routerTestCase) {
-	router := NewRouter()
 	rsp := NewResponse(Request{})
 	svc := func(req Request) Response {
 		// For accuracy of the benchmarks it's important that this function perform no allocations. That's why we
 		// construct the response outside the function
 		return rsp
 	}
-	router.GET("/foo", svc)
-	router.GET("/foo/:param/baz", svc)
-	router.GET("/residual/*", svc)
-	router.Register("*", "/poly", svc)
+
+	router := Router{}
+	router.GET("/", svc)
+	router.GET("/index.html", svc)
+	router.PUT("/:p/:p2", svc)
+	router.Register("*", "/:p3/:p4", svc) // should take precedence over /put/:p/:p2
+	router.GET("/:p5/:p6", svc)           // should take precedence over /poly/:p/:p2
+	router.GET("/anon-residual/*", svc)
+	router.GET("/residual/*r", svc)
+	router.GET("/residual/*r/:p/:p2", svc)
+	router.GET("/residual/*r/:p/:p2/*rr", svc)
 
 	cases := []routerTestCase{
-		{
-			// Unknown path: 404
-			method: http.MethodGet,
-			path:   "/",
-			status: http.StatusNotFound,
-		},
-		{
-			// Vanilla
-			method:  http.MethodGet,
-			path:    "/foo",
-			status:  http.StatusOK,
-			pattern: "/foo",
-			params:  map[string]string{},
-		},
-		{
-			// Params
-			method:  http.MethodGet,
-			path:    "/foo/bar2bär/baz",
-			status:  http.StatusOK,
-			pattern: "/foo/:param/baz",
-			params: map[string]string{
-				"param": "bar2bär"},
-		},
-		{
-			// Too many params
-			method: http.MethodGet,
-			path:   "/foo/bar/bar/baz",
-			status: http.StatusNotFound,
-		},
-		{
-			// Residual
-			method:  http.MethodGet,
-			path:    "/residual/r",
-			status:  http.StatusOK,
-			pattern: "/residual/*",
-			params: map[string]string{
-				"*": "r"},
-		},
-		{
-			// Longer residual
-			method:  http.MethodGet,
-			path:    "/residual/r/e/s/i/d/u/a/l",
-			status:  http.StatusOK,
-			pattern: "/residual/*",
-			params: map[string]string{
-				"*": "r/e/s/i/d/u/a/l"},
-		},
-		{
-			// Longer residual, trailing slash
-			method:  http.MethodGet,
-			path:    "/residual/r/e/s/i/d/u/a/l/",
-			status:  http.StatusOK,
-			pattern: "/residual/*",
-			params: map[string]string{
-				"*": "r/e/s/i/d/u/a/l/"},
-		},
-		{
-			// Unknown poly-method
-			method: "WTAF",
-			path:   "/poly",
-			status: http.StatusNotFound,
-		}}
-
-	// Add a case per-method for the poly-method route
-	for _, m := range [...]string{"GET", "CONNECT", "DELETE", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"} {
-		cases = append(cases, routerTestCase{
-			method:  m,
-			path:    "/poly",
-			status:  http.StatusOK,
-			pattern: "/poly",
-			params:  map[string]string{},
-		})
+		// static
+		{"GET", "/", 200, "/", map[string]string{}},
+		{"GET", "/index.html", 200, "/index.html", map[string]string{}},
+		// parameter extraction and precedence
+		{"POST", "/1/2", 200, "/:p3/:p4", map[string]string{"p3": "1", "p4": "2"}},
+		{"PUT", "/1/2", 200, "/:p3/:p4", map[string]string{"p3": "1", "p4": "2"}},
+		{"GET", "/1/2", 200, "/:p5/:p6", map[string]string{"p5": "1", "p6": "2"}},
+		{"GET", "/龍/Дракон", 200, "/:p5/:p6", map[string]string{"p5": "龍", "p6": "Дракон"}},
+		{"WTAF", "/1/2", 200, "/:p3/:p4", map[string]string{"p3": "1", "p4": "2"}}, // * should match _any_ method
+		// residuals
+		{"GET", "/anon-residual/foo", 200, "/anon-residual/*", map[string]string{}},
+		{"GET", "/anon-residual/foo/bar", 200, "/anon-residual/*", map[string]string{}},
+		{"GET", "/anon-residual/foo/bar/", 200, "/anon-residual/*", map[string]string{}},
+		{"GET", "/residual/foo", 200, "/residual/*r", map[string]string{"r": "foo"}},
+		{"GET", "/residual/foo/bar", 200, "/residual/*r", map[string]string{"r": "foo/bar"}},
+		{"GET", "/residual/foo/bar/", 200, "/residual/*r", map[string]string{"r": "foo/bar/"}},
+		// complex combinations of residuals and named parameters
+		{"GET", "/residual/foo/bar/baz", 200, "/residual/*r/:p/:p2", map[string]string{"r": "foo", "p": "bar", "p2": "baz"}},
+		{"GET", "/residual/foo/bar/baz/bar/baz", 200, "/residual/*r/:p/:p2/*rr", map[string]string{"r": "foo", "p": "bar", "p2": "baz", "rr": "bar/baz"}},
+		// not found
+		{"GET", "/404", 404, "", map[string]string{}},
+		{"GET", "/1/2/", 404, "", map[string]string{}}, // pattern doesn't include trailing slash
 	}
 
 	return router, cases
@@ -126,10 +82,9 @@ func TestRouter(t *testing.T) {
 			req := NewRequest(ctx, c.method, c.path, nil)
 			rsp := req.SendVia(svc).Response()
 
-			assert.Equal(t, rsp.StatusCode, c.status)
+			assert.Equal(t, c.status, rsp.StatusCode)
 			if rsp.StatusCode == http.StatusOK {
 				require.NoError(t, rsp.Error)
-
 				_, pattern, params, ok := router.Lookup(c.method, c.path)
 				require.True(t, ok)
 				assert.Equal(t, c.pattern, pattern)
@@ -142,7 +97,7 @@ func TestRouter(t *testing.T) {
 func TestRouterForRequest(t *testing.T) {
 	t.Parallel()
 
-	router := NewRouter()
+	router := Router{}
 	var reqRouter *Router
 	router.GET("/", func(req Request) Response {
 		reqRouter = RouterForRequest(req)

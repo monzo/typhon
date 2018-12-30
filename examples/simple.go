@@ -16,7 +16,7 @@ func ping(req typhon.Request) typhon.Response {
 }
 
 func main() {
-	router := typhon.NewRouter()
+	router := typhon.Router{}
 	router.GET("/ping", ping)
 
 	svc := router.Serve().
