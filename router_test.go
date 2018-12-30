@@ -24,110 +24,47 @@ type routerTestCase struct {
 }
 
 func routerTestHarness() (Router, []routerTestCase) {
-	router := Router{}
 	rsp := NewResponse(Request{})
 	svc := func(req Request) Response {
 		// For accuracy of the benchmarks it's important that this function perform no allocations. That's why we
 		// construct the response outside the function
 		return rsp
 	}
-	router.GET("/foo", svc)
-	router.PUT("/foo/:param/:param2", svc)
-	router.GET("/foo/:param/:param2", svc)
-	router.GET("/foo/:param/baz", svc) // Should take precedence over the above
+
+	router := Router{}
+	router.GET("/", svc)
+	router.GET("/index.html", svc)
+	router.PUT("/:p/:p2", svc)
+	router.Register("*", "/:p3/:p4", svc) // should take precedence over /put/:p/:p2
+	router.GET("/:p5/:p6", svc)           // should take precedence over /poly/:p/:p2
 	router.GET("/anon-residual/*", svc)
-	router.GET("/named-residual/*residual", svc)
-	router.Register("*", "/poly", svc)
+	router.GET("/residual/*r", svc)
+	router.GET("/residual/*r/:p/:p2", svc)
+	router.GET("/residual/*r/:p/:p2/*rr", svc)
 
 	cases := []routerTestCase{
-		{
-			// Unknown path: 404
-			method: http.MethodGet,
-			path:   "/",
-			status: http.StatusNotFound,
-		},
-		{
-			// Vanilla
-			method:  http.MethodGet,
-			path:    "/foo",
-			status:  http.StatusOK,
-			pattern: "/foo",
-			params:  map[string]string{},
-		},
-		{
-			// Params
-			method:  http.MethodGet,
-			path:    "/foo/bar2bär/baz",
-			status:  http.StatusOK,
-			pattern: "/foo/:param/baz",
-			params: map[string]string{
-				"param": "bar2bär"},
-		},
-		{
-			method:  http.MethodPut,
-			path:    "/foo/bar2bär/baz",
-			status:  http.StatusOK,
-			pattern: "/foo/:param/:param2",
-			params: map[string]string{
-				"param":  "bar2bär",
-				"param2": "baz"},
-		},
-		{
-			// Too many params
-			method: http.MethodGet,
-			path:   "/foo/bar/bar/baz",
-			status: http.StatusNotFound,
-		},
-		{
-			// Residual
-			method:  http.MethodGet,
-			path:    "/anon-residual/r",
-			status:  http.StatusOK,
-			pattern: "/anon-residual/*",
-			params:  map[string]string{},
-		},
-		{
-			// Longer residual
-			method:  http.MethodGet,
-			path:    "/anon-residual/r/e/s/i/d/u/a/l",
-			status:  http.StatusOK,
-			pattern: "/anon-residual/*",
-			params:  map[string]string{},
-		},
-		{
-			// Longer residual, trailing slash
-			method:  http.MethodGet,
-			path:    "/anon-residual/r/e/s/i/d/u/a/l/",
-			status:  http.StatusOK,
-			pattern: "/anon-residual/*",
-			params:  map[string]string{},
-		},
-		{
-			method:  http.MethodGet,
-			path:    "/named-residual/r",
-			status:  http.StatusOK,
-			pattern: "/named-residual/*residual",
-			params: map[string]string{
-				"residual": "r"},
-		},
-		{
-			// Esoteric poly-method
-			method:  "WTAF",
-			path:    "/poly",
-			status:  http.StatusOK,
-			pattern: "/poly",
-			params:  map[string]string{},
-		}}
-
-	// Add a case per-method for the poly-method route
-	for _, m := range [...]string{"GET", "CONNECT", "DELETE", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"} {
-		cases = append(cases, routerTestCase{
-			method:  m,
-			path:    "/poly",
-			status:  http.StatusOK,
-			pattern: "/poly",
-			params:  map[string]string{},
-		})
+		// static
+		{"GET", "/", 200, "/", map[string]string{}},
+		{"GET", "/index.html", 200, "/index.html", map[string]string{}},
+		// parameter extraction and precedence
+		{"POST", "/1/2", 200, "/:p3/:p4", map[string]string{"p3": "1", "p4": "2"}},
+		{"PUT", "/1/2", 200, "/:p3/:p4", map[string]string{"p3": "1", "p4": "2"}},
+		{"GET", "/1/2", 200, "/:p5/:p6", map[string]string{"p5": "1", "p6": "2"}},
+		{"GET", "/龍/Дракон", 200, "/:p5/:p6", map[string]string{"p5": "龍", "p6": "Дракон"}},
+		{"WTAF", "/1/2", 200, "/:p3/:p4", map[string]string{"p3": "1", "p4": "2"}}, // * should match _any_ method
+		// residuals
+		{"GET", "/anon-residual/foo", 200, "/anon-residual/*", map[string]string{}},
+		{"GET", "/anon-residual/foo/bar", 200, "/anon-residual/*", map[string]string{}},
+		{"GET", "/anon-residual/foo/bar/", 200, "/anon-residual/*", map[string]string{}},
+		{"GET", "/residual/foo", 200, "/residual/*r", map[string]string{"r": "foo"}},
+		{"GET", "/residual/foo/bar", 200, "/residual/*r", map[string]string{"r": "foo/bar"}},
+		{"GET", "/residual/foo/bar/", 200, "/residual/*r", map[string]string{"r": "foo/bar/"}},
+		// complex combinations of residuals and named parameters
+		{"GET", "/residual/foo/bar/baz", 200, "/residual/*r/:p/:p2", map[string]string{"r": "foo", "p": "bar", "p2": "baz"}},
+		{"GET", "/residual/foo/bar/baz/bar/baz", 200, "/residual/*r/:p/:p2/*rr", map[string]string{"r": "foo", "p": "bar", "p2": "baz", "rr": "bar/baz"}},
+		// not found
+		{"GET", "/404", 404, "", map[string]string{}},
+		{"GET", "/1/2/", 404, "", map[string]string{}}, // pattern doesn't include trailing slash
 	}
 
 	return router, cases
