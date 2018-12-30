@@ -12,6 +12,9 @@ import (
 )
 
 // A Response is Typhon's wrapper around http.Response, used by both clients and servers.
+//
+// Note that Typhon makes no guarantees that a Response is safe to access or mutate concurrently. If a single Response
+// object is to be used by multiple goroutines concurrently, callers must make sure to properly synchronise accesses.
 type Response struct {
 	*http.Response
 	Error    error
