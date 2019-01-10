@@ -120,7 +120,11 @@ func (r Router) Serve() Service {
 			return rsp
 		}
 		req.Context = context.WithValue(req.Context, routerContextKey, &r)
-		return svc(req)
+		rsp := svc(req)
+		if rsp.Request == nil {
+			rsp.Request = &req
+		}
+		return rsp
 	}
 }
 
