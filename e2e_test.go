@@ -128,7 +128,7 @@ func TestE2E(t *testing.T) {
 			"b": "a"}, body)
 		// The response is simple too; shouldn't be chunked
 		assert.NotContains(t, rsp.TransferEncoding, "chunked")
-		assert.True(t, rsp.ContentLength > 0)
+		assert.Equal(t, int64(10), rsp.ContentLength)
 	})
 }
 
@@ -264,6 +264,7 @@ func TestE2EError(t *testing.T) {
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
+		assert.True(t, rsp.ContentLength > 0)
 
 		b, _ := rsp.BodyBytes(false)
 		assert.NotContains(t, string(b), "throwaway")
@@ -327,6 +328,7 @@ func TestE2ENoFollowRedirect(t *testing.T) {
 		rsp := req.Send().Response()
 		assert.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusFound, rsp.StatusCode)
+		assert.Equal(t, int64(56), rsp.ContentLength)
 	})
 }
 
@@ -499,6 +501,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
 		assert.Contains(t, rsp.TransferEncoding, "chunked")
+		assert.True(t, rsp.ContentLength < 0)
 
 		// Small request using Encode(): should not be chunked
 		sendRsp = NewResponse(req)
@@ -582,6 +585,8 @@ func TestE2EFullDuplex(t *testing.T) {
 		req.Body = Streamer()
 		defer req.Body.Close()
 		rsp := req.Send().Response()
+		assert.True(t, rsp.ContentLength < 0)
+
 		for i := 0; i < 50; i++ {
 			b := []byte(fmt.Sprintf("foo %d", i))
 			if i%2 == 0 { // Alternate between sending a chunk in the request body, and sending it "directly"
@@ -595,6 +600,8 @@ func TestE2EFullDuplex(t *testing.T) {
 			assert.Equal(t, b, bb)
 		}
 		close(chunks)
+
+		assert.True(t, rsp.ContentLength < 0)
 	})
 }
 
