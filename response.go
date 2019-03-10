@@ -41,16 +41,11 @@ func (r *Response) Encode(v interface{}) {
 		return
 	}
 
-	cw := &countingWriter{
-		Writer: r}
-	if err := json.NewEncoder(cw).Encode(v); err != nil {
+	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.Error = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
-	if r.ContentLength < 0 && cw.n < chunkThreshold {
-		r.ContentLength = int64(cw.n)
-	}
 }
 
 // Decode de-serialises the JSON body into the passed object.

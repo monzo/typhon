@@ -458,6 +458,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+		assert.Equal(t, rsp.ContentLength, int64(5))
 		assert.False(t, receivedChunked)
 
 		// Large request using Encode(); should be chunked
@@ -510,6 +511,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+		assert.Equal(t, int64(10), rsp.ContentLength)
 		assert.NotContains(t, rsp.TransferEncoding, "chunked")
 
 		// Large request using Encode(); should be chunked
@@ -523,6 +525,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+		assert.Equal(t, rsp.ContentLength, int64(-1))
 		assert.Contains(t, rsp.TransferEncoding, "chunked")
 	})
 }
