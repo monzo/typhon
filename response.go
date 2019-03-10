@@ -75,17 +75,17 @@ func (r *Response) Decode(v interface{}) error {
 }
 
 // Write writes the passed bytes to the response's body.
-func (r *Response) Write(b []byte) (int, error) {
+func (r *Response) Write(b []byte) (n int,err  error) {
 	if r.Response == nil {
 		r.Response = newHTTPResponse(Request{})
 	}
-	var cw *countingWriter
-
 	switch rc := r.Body.(type) {
 	// In the "regular" case, the response body will be a bufCloser; we can write
 	case io.Writer:
-		cw = &countingWriter{
-			Writer: rc}
+		n, err = rc.Write(b)
+		if err != nil {
+			return 0, err
+		}
 	// If a caller manually sets Response.Body, then we may not be able to write to it. In that case, we need to be
 	// cleverer.
 	default:
@@ -99,15 +99,16 @@ func (r *Response) Write(b []byte) (int, error) {
 			rc.Close()
 		}
 		r.Body = buf
-		cw = &countingWriter{
-			Writer: buf}
+		n, err = buf.Write(b)
+		if err != nil {
+			return 0, err
+		}
 	}
 
-	n, err := cw.Write(b)
-	if r.ContentLength < 0 && cw.n < chunkThreshold {
-		r.ContentLength = int64(cw.n)
+	if r.ContentLength < 0 && n < chunkThreshold {
+		r.ContentLength = int64(n)
 	} else if r.ContentLength >= 0 {
-		total := r.ContentLength + int64(cw.n)
+		total := r.ContentLength + int64(n)
 		if total < chunkThreshold {
 			r.ContentLength = total
 		} else {
