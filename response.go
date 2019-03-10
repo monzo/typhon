@@ -110,7 +110,7 @@ func (r *Response) Write(b []byte) (n int,err  error) {
 			r.ContentLength = -1
 		}
 	}
-	return n, err
+	return n, nil
 }
 
 // BodyBytes fully reads the response body and returns the bytes read. If consume is false, the body is copied into a
