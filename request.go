@@ -100,13 +100,11 @@ func (r *Request) Write(b []byte) (n int, err error) {
 		}
 	}
 
-	if r.ContentLength < 0 && n < chunkThreshold {
-		r.ContentLength = int64(n)
-	} else if r.ContentLength >= 0 {
-		total := r.ContentLength + int64(n)
-		if total < chunkThreshold {
-			r.ContentLength = total
-		} else {
+	if r.ContentLength >= 0 {
+		r.ContentLength += int64(n)
+		// If this write pushed the content length above the chunking threshold,
+		// set to -1 (unknown) to trigger chunked encoding
+		if r.ContentLength >= chunkThreshold {
 			r.ContentLength = -1
 		}
 	}
@@ -176,7 +174,7 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		Context: ctx,
 		err:     err}
 	if httpReq != nil {
-		httpReq.ContentLength = -1
+		httpReq.ContentLength = 0
 		httpReq.Body = &bufCloser{}
 		req.Request = *httpReq
 	}

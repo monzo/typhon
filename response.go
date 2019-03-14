@@ -70,7 +70,7 @@ func (r *Response) Decode(v interface{}) error {
 }
 
 // Write writes the passed bytes to the response's body.
-func (r *Response) Write(b []byte) (n int,err  error) {
+func (r *Response) Write(b []byte) (n int, err error) {
 	if r.Response == nil {
 		r.Response = newHTTPResponse(Request{})
 	}
@@ -100,13 +100,11 @@ func (r *Response) Write(b []byte) (n int,err  error) {
 		}
 	}
 
-	if r.ContentLength < 0 && n < chunkThreshold {
-		r.ContentLength = int64(n)
-	} else if r.ContentLength >= 0 {
-		total := r.ContentLength + int64(n)
-		if total < chunkThreshold {
-			r.ContentLength = total
-		} else {
+	if r.ContentLength >= 0 {
+		r.ContentLength += int64(n)
+		// If this write pushed the content length above the chunking threshold,
+		// set to -1 (unknown) to trigger chunked encoding
+		if r.ContentLength >= chunkThreshold {
 			r.ContentLength = -1
 		}
 	}
@@ -171,7 +169,7 @@ func newHTTPResponse(req Request) *http.Response {
 		Proto:         req.Proto,
 		ProtoMajor:    req.ProtoMajor,
 		ProtoMinor:    req.ProtoMinor,
-		ContentLength: -1,
+		ContentLength: 0,
 		Header:        make(http.Header, 5),
 		Body:          &bufCloser{}}
 }
