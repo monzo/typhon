@@ -22,6 +22,7 @@ func TestResponseWriter(t *testing.T) {
 	r.Write([]byte("boop"))
 	b, _ := r.BodyBytes(true)
 	assert.Equal(t, []byte("boop"), b)
+	assert.EqualValues(t, 4, r.ContentLength)
 
 	// Using NewResponse, via ResponseWriter
 	r = NewResponse(req)
@@ -30,6 +31,7 @@ func TestResponseWriter(t *testing.T) {
 	r.Writer().Write([]byte("boop"))
 	b, _ = r.BodyBytes(true)
 	assert.Equal(t, []byte("boop"), b)
+	assert.EqualValues(t, 4, r.ContentLength)
 	assert.Equal(t, http.StatusForbidden, r.StatusCode)
 	assert.Equal(t, "def", r.Header.Get("abc"))
 
@@ -39,6 +41,7 @@ func TestResponseWriter(t *testing.T) {
 	r.Writer().Write([]byte("woop"))
 	b, _ = r.BodyBytes(true)
 	assert.Equal(t, []byte("boopwoop"), b)
+	assert.EqualValues(t, 8, r.ContentLength)
 }
 
 func TestResponseWriter_Error(t *testing.T) {

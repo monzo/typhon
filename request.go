@@ -54,16 +54,11 @@ func (r *Request) Encode(v interface{}) {
 		return
 	}
 
-	cw := &countingWriter{
-		Writer: r}
-	if err := json.NewEncoder(cw).Encode(v); err != nil {
+	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.err = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
-	if r.ContentLength < 0 && cw.n < chunkThreshold {
-		r.ContentLength = int64(cw.n)
-	}
 }
 
 // Decode de-serialises the JSON body into the passed object.
@@ -76,11 +71,14 @@ func (r Request) Decode(v interface{}) error {
 }
 
 // Write writes the passed bytes to the request's body.
-func (r *Request) Write(b []byte) (int, error) {
+func (r *Request) Write(b []byte) (n int, err error) {
 	switch rc := r.Body.(type) {
 	// In the "normal" case, the response body will be a buffer, to which we can write
 	case io.Writer:
-		return rc.Write(b)
+		n, err = rc.Write(b)
+		if err != nil {
+			return n, err
+		}
 	// If a caller manually sets Response.Body, then we may not be able to write to it. In that case, we need to be
 	// cleverer.
 	default:
@@ -94,8 +92,21 @@ func (r *Request) Write(b []byte) (int, error) {
 			rc.Close()
 		}
 		r.Body = buf
-		return buf.Write(b)
+		n, err = buf.Write(b)
+		if err != nil {
+			return n, err
+		}
 	}
+
+	if r.ContentLength >= 0 {
+		r.ContentLength += int64(n)
+		// If this write pushed the content length above the chunking threshold,
+		// set to -1 (unknown) to trigger chunked encoding
+		if r.ContentLength >= chunkThreshold {
+			r.ContentLength = -1
+		}
+	}
+	return n, nil
 }
 
 // BodyBytes fully reads the request body and returns the bytes read.
@@ -161,7 +172,7 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		Context: ctx,
 		err:     err}
 	if httpReq != nil {
-		httpReq.ContentLength = -1
+		httpReq.ContentLength = 0
 		httpReq.Body = &bufCloser{}
 		req.Request = *httpReq
 	}

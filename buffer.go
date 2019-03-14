@@ -50,19 +50,6 @@ func (s *streamer) Close() error {
 	return s.pipeW.Close()
 }
 
-// countingWriter is a writer which proxies writes to an underlying io.Writer, keeping track of how many bytes have
-// been written in total
-type countingWriter struct {
-	n int
-	io.Writer
-}
-
-func (w *countingWriter) Write(p []byte) (int, error) {
-	n, err := w.Writer.Write(p)
-	w.n += n
-	return n, err
-}
-
 // doneReader is a wrapper around a ReadCloser which provides notification when the stream has been fully consumed
 // (ie. when EOF is reached, when the reader is explicitly closed, or if the size of the underlying reader is known,
 // when it has been fully read [even if EOF is not reached.])

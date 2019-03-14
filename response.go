@@ -41,16 +41,11 @@ func (r *Response) Encode(v interface{}) {
 		return
 	}
 
-	cw := &countingWriter{
-		Writer: r}
-	if err := json.NewEncoder(cw).Encode(v); err != nil {
+	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.Error = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
-	if r.ContentLength < 0 && cw.n < chunkThreshold {
-		r.ContentLength = int64(cw.n)
-	}
 }
 
 // Decode de-serialises the JSON body into the passed object.
@@ -75,14 +70,17 @@ func (r *Response) Decode(v interface{}) error {
 }
 
 // Write writes the passed bytes to the response's body.
-func (r *Response) Write(b []byte) (int, error) {
+func (r *Response) Write(b []byte) (n int, err error) {
 	if r.Response == nil {
 		r.Response = newHTTPResponse(Request{})
 	}
 	switch rc := r.Body.(type) {
 	// In the "regular" case, the response body will be a bufCloser; we can write
 	case io.Writer:
-		return rc.Write(b)
+		n, err = rc.Write(b)
+		if err != nil {
+			return n, err
+		}
 	// If a caller manually sets Response.Body, then we may not be able to write to it. In that case, we need to be
 	// cleverer.
 	default:
@@ -96,8 +94,21 @@ func (r *Response) Write(b []byte) (int, error) {
 			rc.Close()
 		}
 		r.Body = buf
-		return buf.Write(b)
+		n, err = buf.Write(b)
+		if err != nil {
+			return n, err
+		}
 	}
+
+	if r.ContentLength >= 0 {
+		r.ContentLength += int64(n)
+		// If this write pushed the content length above the chunking threshold,
+		// set to -1 (unknown) to trigger chunked encoding
+		if r.ContentLength >= chunkThreshold {
+			r.ContentLength = -1
+		}
+	}
+	return n, nil
 }
 
 // BodyBytes fully reads the response body and returns the bytes read. If consume is false, the body is copied into a
@@ -158,7 +169,7 @@ func newHTTPResponse(req Request) *http.Response {
 		Proto:         req.Proto,
 		ProtoMajor:    req.ProtoMajor,
 		ProtoMinor:    req.ProtoMinor,
-		ContentLength: -1,
+		ContentLength: 0,
 		Header:        make(http.Header, 5),
 		Body:          &bufCloser{}}
 }
