@@ -96,7 +96,7 @@ func (r *Response) Write(b []byte) (n int, err error) {
 		r.Body = buf
 		n, err = buf.Write(b)
 		if err != nil {
-			return 0, err
+			return n, err
 		}
 	}
 

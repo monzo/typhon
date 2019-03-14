@@ -128,7 +128,7 @@ func TestE2E(t *testing.T) {
 			"b": "a"}, body)
 		// The response is simple too; shouldn't be chunked
 		assert.NotContains(t, rsp.TransferEncoding, "chunked")
-		assert.Equal(t, int64(10), rsp.ContentLength)
+		assert.EqualValues(t, 10, rsp.ContentLength)
 	})
 }
 
@@ -328,7 +328,7 @@ func TestE2ENoFollowRedirect(t *testing.T) {
 		rsp := req.Send().Response()
 		assert.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusFound, rsp.StatusCode)
-		assert.Equal(t, int64(56), rsp.ContentLength)
+		assert.EqualValues(t, 56, rsp.ContentLength)
 	})
 }
 
@@ -369,7 +369,7 @@ func TestE2EProxiedStreamer(t *testing.T) {
 		if !rsp.ProtoAtLeast(2, 0) {
 			assert.Contains(t, rsp.TransferEncoding, "chunked")
 		}
-		assert.True(t, rsp.ContentLength < 0)
+		assert.EqualValues(t,-1, rsp.ContentLength)
 		for i := 0; i < 100; i++ {
 			chunks <- true
 			b := make([]byte, 500)
@@ -458,7 +458,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
-		assert.Equal(t, rsp.ContentLength, int64(5))
+		assert.EqualValues(t, 5, rsp.ContentLength)
 		assert.False(t, receivedChunked)
 
 		// Large request using Encode(); should be chunked
@@ -502,7 +502,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
 		assert.Contains(t, rsp.TransferEncoding, "chunked")
-		assert.True(t, rsp.ContentLength < 0)
+		assert.EqualValues(t, -1, rsp.ContentLength)
 
 		// Small request using Encode(): should not be chunked
 		sendRsp = NewResponse(req)
@@ -511,7 +511,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
-		assert.Equal(t, int64(10), rsp.ContentLength)
+		assert.EqualValues(t, 10, rsp.ContentLength)
 		assert.NotContains(t, rsp.TransferEncoding, "chunked")
 
 		// Large request using Encode(); should be chunked
@@ -525,7 +525,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		rsp = req.Send().Response()
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
-		assert.Equal(t, rsp.ContentLength, int64(-1))
+		assert.EqualValues(t, -1, rsp.ContentLength)
 		assert.Contains(t, rsp.TransferEncoding, "chunked")
 	})
 }
@@ -588,7 +588,7 @@ func TestE2EFullDuplex(t *testing.T) {
 		req.Body = Streamer()
 		defer req.Body.Close()
 		rsp := req.Send().Response()
-		assert.True(t, rsp.ContentLength < 0)
+		assert.EqualValues(t, -1, rsp.ContentLength)
 
 		for i := 0; i < 50; i++ {
 			b := []byte(fmt.Sprintf("foo %d", i))
@@ -604,7 +604,7 @@ func TestE2EFullDuplex(t *testing.T) {
 		}
 		close(chunks)
 
-		assert.True(t, rsp.ContentLength < 0)
+		assert.EqualValues(t, -1, rsp.ContentLength)
 	})
 }
 
