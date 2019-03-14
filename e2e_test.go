@@ -369,7 +369,7 @@ func TestE2EProxiedStreamer(t *testing.T) {
 		if !rsp.ProtoAtLeast(2, 0) {
 			assert.Contains(t, rsp.TransferEncoding, "chunked")
 		}
-		assert.EqualValues(t,-1, rsp.ContentLength)
+		assert.EqualValues(t, -1, rsp.ContentLength)
 		for i := 0; i < 100; i++ {
 			chunks <- true
 			b := make([]byte, 500)

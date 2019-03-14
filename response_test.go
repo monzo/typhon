@@ -31,7 +31,7 @@ func TestResponseWriter(t *testing.T) {
 	r.Writer().Write([]byte("boop"))
 	b, _ = r.BodyBytes(true)
 	assert.Equal(t, []byte("boop"), b)
-	assert.EqualValues(t,  4, r.ContentLength)
+	assert.EqualValues(t, 4, r.ContentLength)
 	assert.Equal(t, http.StatusForbidden, r.StatusCode)
 	assert.Equal(t, "def", r.Header.Get("abc"))
 
