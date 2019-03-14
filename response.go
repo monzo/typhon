@@ -79,7 +79,7 @@ func (r *Response) Write(b []byte) (n int, err error) {
 	case io.Writer:
 		n, err = rc.Write(b)
 		if err != nil {
-			return 0, err
+			return n, err
 		}
 	// If a caller manually sets Response.Body, then we may not be able to write to it. In that case, we need to be
 	// cleverer.
