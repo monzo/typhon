@@ -54,9 +54,7 @@ func (r *Request) Encode(v interface{}) {
 		return
 	}
 
-	cw := &countingWriter{
-		Writer: r}
-	if err := json.NewEncoder(cw).Encode(v); err != nil {
+	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.err = terrors.Wrap(err, nil)
 		return
 	}
