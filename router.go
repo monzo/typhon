@@ -28,7 +28,6 @@ func (e routerEntry) String() string {
 // A Router multiplexes requests to a set of Services by pattern matching on method and path, and can also extract
 // parameters from paths.
 type Router struct {
-	re      *regexp.Regexp
 	entries []routerEntry
 }
 
