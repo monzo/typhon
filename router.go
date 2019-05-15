@@ -9,8 +9,13 @@ import (
 	"github.com/monzo/terrors"
 )
 
+// We use a custom type to guarantee we won't get a collision with another package. Using an anonymous struct type
+// directly means we'd get a collision with any other package that does the same.
+// https://play.golang.org/p/MxhRiL37R-9
+type routerContextKeyType struct{}
+
 var (
-	routerContextKey   = struct{}{}
+	routerContextKey   = routerContextKeyType{}
 	routerComponentsRe = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
 )
 
