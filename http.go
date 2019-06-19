@@ -21,7 +21,8 @@ const (
 
 var httpChunkBufPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, 32*1024) // size is the same as io.Copy uses internally
+		buf := make([]byte, 32*1024) // size is the same as io.Copy uses internally
+		return &buf
 	}}
 
 func isStreamingRsp(rsp Response) bool {
@@ -105,8 +106,8 @@ func HttpHandler(svc Service) http.Handler {
 		rw.WriteHeader(rsp.StatusCode)
 		if rsp.Body != nil {
 			defer rsp.Body.Close()
-			buf := httpChunkBufPool.Get().([]byte)
-			defer httpChunkBufPool.Put(buf)
+			buf := *httpChunkBufPool.Get().(*[]byte)
+			defer httpChunkBufPool.Put(&buf)
 			if isStreamingRsp(rsp) {
 				// Streaming responses use copyChunked(), which takes care of flushing transparently
 				if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
