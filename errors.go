@@ -44,14 +44,6 @@ func ErrorStatusCode(err error) int {
 	return http.StatusInternalServerError
 }
 
-// terr2StatusCode converts HTTP status codes to a roughly equivalent terrors' code
-func status2TerrCode(code int) string {
-	if c, ok := mapStatus2Terr[code]; ok {
-		return c
-	}
-	return terrors.ErrInternalService
-}
-
 // ErrorFilter serialises and deserialises response errors. Without this filter, errors may not be passed across
 // the network properly so it is recommended to use this in most/all cases.
 func ErrorFilter(req Request, svc Service) (rsp Response) {
