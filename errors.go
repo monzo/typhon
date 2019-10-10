@@ -55,6 +55,12 @@ func status2TerrCode(code int) string {
 // ErrorFilter serialises and deserialises response errors. Without this filter, errors may not be passed across
 // the network properly so it is recommended to use this in most/all cases.
 func ErrorFilter(req Request, svc Service) (rsp Response) {
+	defer func() {
+		if rsp.Error != nil && rsp.Error.Error() == "" && rsp.Response != nil {
+			rsp.Error = fmt.Errorf("Response error (%d)", rsp.StatusCode)
+		}
+	}()
+
 	// If the request contains an error, short-circuit and return that directly
 	if req.err != nil {
 		rsp = NewResponse(req)
@@ -82,29 +88,23 @@ func ErrorFilter(req Request, svc Service) (rsp Response) {
 			rsp.StatusCode = ErrorStatusCode(terr)
 			rsp.Header.Set("Terror", "1")
 		}
-	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
+		return rsp
+	}
+
+	if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
 		// There is an error in the underlying response; unmarshal
 		b, _ := rsp.BodyBytes(false)
-		switch rsp.Header.Get("Terror") {
-		case "1":
+		if rsp.Header.Get("Terror") == "1" {
 			tp := &terrorsproto.Error{}
 			if err := json.Unmarshal(b, tp); err != nil {
 				slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
 				rsp.Error = errors.New(string(b))
-			} else {
-				rsp.Error = terrors.Unmarshal(tp)
+				return rsp
 			}
-
-		default:
-			rsp.Error = errors.New(string(b))
+			rsp.Error = terrors.Unmarshal(tp)
+			return rsp
 		}
+		rsp.Error = errors.New(string(b))
 	}
-
-	if rsp.Error != nil && rsp.Error.Error() == "" {
-		if rsp.Response != nil {
-			rsp.Error = fmt.Errorf("Response error (%d)", rsp.StatusCode)
-		}
-	}
-
 	return rsp
 }
