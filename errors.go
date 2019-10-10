@@ -103,8 +103,6 @@ func ErrorFilter(req Request, svc Service) (rsp Response) {
 	if rsp.Error != nil && rsp.Error.Error() == "" {
 		if rsp.Response != nil {
 			rsp.Error = fmt.Errorf("Response error (%d)", rsp.StatusCode)
-		} else {
-			rsp.Error = fmt.Errorf("Response error")
 		}
 	}
 
