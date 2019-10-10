@@ -54,9 +54,8 @@ func status2TerrCode(code int) string {
 
 // ErrorFilter serialises and deserialises response errors. Without this filter, errors may not be passed across
 // the network properly so it is recommended to use this in most/all cases.
-func ErrorFilter(req Request, svc Service) Response {
+func ErrorFilter(req Request, svc Service) (rsp Response) {
 	// If the request contains an error, short-circuit and return that directly
-	var rsp Response
 	if req.err != nil {
 		rsp = NewResponse(req)
 		rsp.Error = req.err
