@@ -55,7 +55,6 @@ func ErrorFilter(req Request, svc Service) (rsp Response) {
 
 	// If the request contains an error, short-circuit and return that directly
 	if req.err != nil {
-		rsp = NewResponse(req)
 		rsp.Error = req.err
 	} else {
 		rsp = svc(req)
