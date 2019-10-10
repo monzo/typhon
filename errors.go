@@ -77,34 +77,37 @@ func ErrorFilter(req Request, svc Service) (rsp Response) {
 	}
 
 	if rsp.Error != nil {
-		if rsp.StatusCode == http.StatusOK {
-			// We got an error, but there is no error in the underlying response; marshal
-			if rsp.Body != nil {
-				rsp.Body.Close()
-			}
-			rsp.Body = &bufCloser{}
-			terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
-			rsp.Encode(terrors.Marshal(terr))
-			rsp.StatusCode = ErrorStatusCode(terr)
-			rsp.Header.Set("Terror", "1")
+		if rsp.StatusCode != http.StatusOK {
+			return rsp
 		}
+		// We got an error, but there is no error in the underlying response; marshal
+		if rsp.Body != nil {
+			rsp.Body.Close()
+		}
+		rsp.Body = &bufCloser{}
+		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
+		rsp.Encode(terrors.Marshal(terr))
+		rsp.StatusCode = ErrorStatusCode(terr)
+		rsp.Header.Set("Terror", "1")
 		return rsp
 	}
 
 	if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
 		// There is an error in the underlying response; unmarshal
 		b, _ := rsp.BodyBytes(false)
-		if rsp.Header.Get("Terror") == "1" {
-			tp := &terrorsproto.Error{}
-			if err := json.Unmarshal(b, tp); err != nil {
-				slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
-				rsp.Error = errors.New(string(b))
-				return rsp
-			}
-			rsp.Error = terrors.Unmarshal(tp)
+		if rsp.Header.Get("Terror") != "1" {
+			rsp.Error = errors.New(string(b))
 			return rsp
 		}
-		rsp.Error = errors.New(string(b))
+		tp := &terrorsproto.Error{}
+		if err := json.Unmarshal(b, tp); err != nil {
+			slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
+			rsp.Error = errors.New(string(b))
+			return rsp
+		}
+		rsp.Error = terrors.Unmarshal(tp)
+		return rsp
 	}
+
 	return rsp
 }
