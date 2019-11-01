@@ -50,10 +50,11 @@ func (r *Response) Encode(v interface{}) {
 
 // Decode de-serialises the JSON body into the passed object.
 func (r *Response) Decode(v interface{}) error {
-	err := error(nil)
 	if r.Error != nil {
 		return r.Error
-	} else if r.Response == nil {
+	}
+	err := error(nil)
+	if r.Response == nil {
 		err = terrors.InternalService("", "Response has no body", nil)
 	} else {
 		var b []byte
