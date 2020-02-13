@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/net/http2"
 	"io"
 	"io/ioutil"
 	"net"
@@ -16,13 +17,13 @@ import (
 	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 )
 
 type e2eFlavour interface {
 	Serve(Service) *Server
 	URL(*Server) string
 	Proto() string
+	Context() (context.Context, func())
 }
 
 // flavours runs the passed E2E test with all test flavours (HTTP/1.1, HTTP/2.0/h2c, etc.)
@@ -73,12 +74,7 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 	if run("http2.0-h2c") {
 		t.Run("http2.0-h2c", func(t *testing.T) {
 			defer leaktest.Check(t)()
-			transport := &http2.Transport{
-				AllowHTTP: true,
-				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-					return net.Dial(network, addr)
-				}}
-			Client = HttpService(transport).Filter(ErrorFilter)
+			Client = Service(BareClient).Filter(ErrorFilter)
 			impl(t, http2H2cFlavour{T: t})
 		})
 	}
@@ -86,10 +82,10 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 		t.Run("http2.0-h2", func(t *testing.T) {
 			defer leaktest.Check(t)()
 			cert := keypair(t, []string{"localhost"})
-			transport := &http2.Transport{
-				AllowHTTP: false,
+			transport := &http.Transport{
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: true}}
+			require.NoError(t, http2.ConfigureTransport(transport))
 			Client = HttpService(transport).Filter(ErrorFilter)
 			impl(t, http2H2Flavour{
 				T:    t,
@@ -100,7 +96,7 @@ func someFlavours(t *testing.T, only []string, impl func(*testing.T, e2eFlavour)
 
 func TestE2E(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		svc := Service(func(req Request) Response {
@@ -134,7 +130,7 @@ func TestE2E(t *testing.T) {
 
 func TestE2EStreaming(t *testing.T) {
 	someFlavours(t, []string{"http1.1", "http1.1-tls"}, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		chunks := make(chan []byte)
@@ -177,7 +173,7 @@ func TestE2EStreaming(t *testing.T) {
 	// concurrently with the request body. This test constructs a server that echoes the request body back to the client
 	// and asserts that the chunks are returned in real time.
 	someFlavours(t, []string{"http2.0-h2", "http2.0-h2c"}, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		svc := Service(func(req Request) Response {
@@ -213,7 +209,7 @@ func TestE2EStreaming(t *testing.T) {
 
 func TestE2EDomainSocket(t *testing.T) {
 	someFlavours(t, []string{"http1.1"}, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		svc := Service(func(req Request) Response {
@@ -246,7 +242,7 @@ func TestE2EDomainSocket(t *testing.T) {
 
 func TestE2EError(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		expectedErr := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
@@ -290,7 +286,7 @@ func TestE2ECancellation(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop(context.Background())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		req.Send()
 		select {
@@ -322,7 +318,7 @@ func TestE2ENoFollowRedirect(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop(context.Background())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
@@ -334,7 +330,7 @@ func TestE2ENoFollowRedirect(t *testing.T) {
 
 func TestE2EProxiedStreamer(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		chunks := make(chan bool)
@@ -357,6 +353,9 @@ func TestE2EProxiedStreamer(t *testing.T) {
 
 		proxy := Service(func(req Request) Response {
 			proxyReq := NewRequest(req, "GET", flav.URL(s), nil)
+			if flav.Proto() == "HTTP/2.0" {
+				proxyReq.Context = WithH2C(proxyReq.Context)
+			}
 			return proxyReq.Send().Response()
 		})
 		ps := flav.Serve(proxy)
@@ -389,7 +388,7 @@ func TestE2EProxiedStreamer(t *testing.T) {
 // cancelled) is used to make a request.
 func TestE2EInfiniteContext(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
-		ctx := context.Background()
+		ctx, _ := flav.Context()
 
 		var receivedCtx context.Context
 		svc := Service(func(req Request) Response {
@@ -436,7 +435,7 @@ func TestE2ERequestAutoChunking(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop(context.Background())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		// Streamer; should be chunked
@@ -486,7 +485,7 @@ func TestE2EResponseAutoChunking(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop(context.Background())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		// Streamer; should be chunked
@@ -553,7 +552,7 @@ func TestE2EStreamingCancellation(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop(context.Background())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		req.Send().Response()
 		cancel()
@@ -582,7 +581,7 @@ func TestE2EFullDuplex(t *testing.T) {
 		s := flav.Serve(svc)
 		defer s.Stop(context.Background())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		req.Body = Streamer()
@@ -610,7 +609,7 @@ func TestE2EFullDuplex(t *testing.T) {
 
 func TestE2EDraining(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := flav.Context()
 		defer cancel()
 
 		returnRsp := make(chan bool)
