@@ -3,6 +3,7 @@ package typhon
 import (
 	"bufio"
 	"context"
+	"math"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -116,7 +117,11 @@ func setupH2cHijacker(req Request, rw http.ResponseWriter) (http.ResponseWriter,
 
 	h2c := &h2cInfo{
 		conns: mapset.NewSet(),
-		h2s:   &http2.Server{}}
+		h2s: &http2.Server{
+			// We're copying envoy and grpc by setting this to the max uint32.
+			// The Go default is 250 which is not ideal for long lived streaming requests.
+			MaxConcurrentStreams: math.MaxUint32,
+		}}
 	_h2c, loaded := h2cConns.LoadOrStore(srv, h2c)
 	h2c = _h2c.(*h2cInfo)
 	if !loaded {
