@@ -2,12 +2,15 @@ package typhon
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/monzo/terrors"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,6 +53,50 @@ func TestResponseWriter_Error(t *testing.T) {
 	rsp.Writer().WriteError(errors.New("abc"))
 	assert.Error(t, rsp.Error)
 	assert.Equal(t, "abc", rsp.Error.Error())
+}
+
+func TestResponse_MaskDownstreamErrors(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		desc            string
+		downstreamErr   error
+		ctx             context.Context
+		expectedErrCode string
+	}{
+		{
+			desc:            "mask downstream errors not set",
+			ctx:             context.Background(),
+			downstreamErr:   terrors.NotFound("foo", "not found", nil),
+			expectedErrCode: "not_found.foo",
+		},
+		{
+			desc:            "mask downstream errors set",
+			ctx:             context.WithValue(context.Background(), MaskDownstreamErrors{}, "1"),
+			downstreamErr:   terrors.NotFound("foo", "not found", nil),
+			expectedErrCode: "internal_service.downstream",
+		},
+		{
+			desc:            "mask downstream errors empty",
+			ctx:             context.WithValue(context.Background(), MaskDownstreamErrors{}, ""),
+			downstreamErr:   terrors.NotFound("foo", "not found", nil),
+			expectedErrCode: "not_found.foo",
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+			req := Request{}
+			req.Context = tc.ctx
+			rsp := NewResponse(req)
+			rsp.Error = tc.downstreamErr
+			err := rsp.Decode(nil)
+			require.Error(t, err)
+			assert.Truef(t, terrors.PrefixMatches(err, tc.expectedErrCode),
+				"expected error with code: [%s] got: [%s]", tc.expectedErrCode, err.Error(),
+			)
+		})
+	}
 }
 
 // TestResponseDecodeCloses verifies that a response body is closed after calling Decode()

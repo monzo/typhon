@@ -19,9 +19,10 @@ var (
 )
 
 type Frame struct {
-	Filename string `json:"filename"`
-	Method   string `json:"method"`
-	Line     int    `json:"lineno"`
+	Filename string  `json:"filename"`
+	Method   string  `json:"method"`
+	Line     int     `json:"lineno"`
+	PC       uintptr `json:"pc"`
 }
 
 type Stack []*Frame
@@ -50,6 +51,7 @@ func BuildStack(skip int) Stack {
 			Filename: shortenFilePath(frame.File),
 			Method:   functionName(frame.PC),
 			Line:     frame.Line,
+			PC:       frame.PC,
 		})
 		if !ok {
 			// This was the last valid caller
