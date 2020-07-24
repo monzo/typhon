@@ -55,7 +55,7 @@ func TestResponseWriter_Error(t *testing.T) {
 	assert.Equal(t, "abc", rsp.Error.Error())
 }
 
-func TestResponse_MaskDownstreamErrors(t *testing.T) {
+func TestResponse_WrapDownstreamErrors(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		desc            string
@@ -64,20 +64,20 @@ func TestResponse_MaskDownstreamErrors(t *testing.T) {
 		expectedErrCode string
 	}{
 		{
-			desc:            "mask downstream errors not set",
+			desc:            "wrap downstream errors not set",
 			ctx:             context.Background(),
 			downstreamErr:   terrors.NotFound("foo", "not found", nil),
 			expectedErrCode: "not_found.foo",
 		},
 		{
-			desc:            "mask downstream errors set",
-			ctx:             context.WithValue(context.Background(), MaskDownstreamErrors{}, "1"),
+			desc:            "wrap downstream errors set",
+			ctx:             context.WithValue(context.Background(), WrapDownstreamErrors{}, "1"),
 			downstreamErr:   terrors.NotFound("foo", "not found", nil),
 			expectedErrCode: "internal_service.downstream",
 		},
 		{
-			desc:            "mask downstream errors empty",
-			ctx:             context.WithValue(context.Background(), MaskDownstreamErrors{}, ""),
+			desc:            "wrap downstream errors empty",
+			ctx:             context.WithValue(context.Background(), WrapDownstreamErrors{}, ""),
 			downstreamErr:   terrors.NotFound("foo", "not found", nil),
 			expectedErrCode: "not_found.foo",
 		},

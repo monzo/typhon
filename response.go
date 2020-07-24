@@ -48,18 +48,18 @@ func (r *Response) Encode(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
-// MaskDownstreamErrors is a context key that can be used to enable
+// WrapDownstreamErrors is a context key that can be used to enable
 // wrapping of downstream response errors on a per-request basis.
 //
 // This is implemented as a context key to allow us to migrate individual
 // services from the old behaviour to the new behaviour without adding a
 // dependency on config to Typhon.
-type MaskDownstreamErrors struct{}
+type WrapDownstreamErrors struct{}
 
 // Decode de-serialises the JSON body into the passed object.
 func (r *Response) Decode(v interface{}) error {
 	if r.Error != nil {
-		if s, ok := r.Request.Context.Value(MaskDownstreamErrors{}).(string); ok && s != "" {
+		if s, ok := r.Request.Context.Value(WrapDownstreamErrors{}).(string); ok && s != "" {
 			return terrors.NewInternalWithCause(r.Error, "Downstream request error", nil, "downstream")
 		}
 
