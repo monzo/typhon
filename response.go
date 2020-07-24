@@ -59,8 +59,10 @@ type WrapDownstreamErrors struct{}
 // Decode de-serialises the JSON body into the passed object.
 func (r *Response) Decode(v interface{}) error {
 	if r.Error != nil {
-		if s, ok := r.Request.Context.Value(WrapDownstreamErrors{}).(string); ok && s != "" {
-			return terrors.NewInternalWithCause(r.Error, "Downstream request error", nil, "downstream")
+		if r.Request != nil && r.Request.Context != nil {
+			if s, ok := r.Request.Context.Value(WrapDownstreamErrors{}).(string); ok && s != "" {
+				return terrors.NewInternalWithCause(r.Error, "Downstream request error", nil, "downstream")
+			}
 		}
 
 		return r.Error

@@ -64,6 +64,12 @@ func TestResponse_WrapDownstreamErrors(t *testing.T) {
 		expectedErrCode string
 	}{
 		{
+			desc:            "missing context",
+			ctx:             nil,
+			downstreamErr:   terrors.NotFound("foo", "not found", nil),
+			expectedErrCode: "not_found.foo",
+		},
+		{
 			desc:            "wrap downstream errors not set",
 			ctx:             context.Background(),
 			downstreamErr:   terrors.NotFound("foo", "not found", nil),
@@ -97,6 +103,14 @@ func TestResponse_WrapDownstreamErrors(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestResponse_WrapDownstreamErrorsWithoutRequest(t *testing.T) {
+	// It's possible to create a Response without a Request.
+	// This test ensures that we don't panic when trying to read from the context.
+	err := terrors.NotFound("foo", "not found", nil)
+	rsp := Response{Error: err}
+	assert.Equal(t, err, rsp.Decode(nil))
 }
 
 // TestResponseDecodeCloses verifies that a response body is closed after calling Decode()
