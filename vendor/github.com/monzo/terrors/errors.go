@@ -229,22 +229,38 @@ func PrefixMatches(err error, prefixParts ...string) bool {
 	return false
 }
 
-// Propagate adds context to an existing error.
+// Augment adds context to an existing error.
 // If the error given is not already a terror, a new terror is created.
-// A new stack trace is taken with each call to propagate. This is most likely only useful
-// for the first call, so callers should ensure they examine the causal chain of errors to
-// select the stack trace with the most details.
 // WARNING: This function is considered experimental, and may be changed without notice.
-func Propagate(err error, context string, params map[string]string) error {
+func Augment(err error, context string, params map[string]string) error {
 	switch err := err.(type) {
 	case *Error:
-		terr := addParams(err, params)
-		terr.Message = context
-		terr.cause = err
-		terr.StackFrames = stack.BuildStack(2) // 2 skips 'BuildStack' and 'Propagate'
-		return terr
+		withMergedParams := addParams(err, params)
+		// The underlying terror will already have a stack, so we don't take a new trace here.
+		return &Error{
+			Code:        err.Code,
+			Message:     context,
+			Params:      withMergedParams.Params,
+			StackFrames: stack.Stack{},
+			cause:       err,
+		}
 	default:
 		return NewInternalWithCause(err, context, params, "")
+	}
+}
+
+// Propagate an error without changing it. This is equivalent to `return err`
+// if the error is already a terror. If it is not a terror, this function will
+// create one, and set the given error as the cause.
+// This is a drop-in replacement for `terrors.Wrap(err, nil)` which adds causal
+// chain functionality.
+// WARNING: This function is considered experimental, and may be changed without notice.
+func Propagate(err error) error {
+	switch err := err.(type) {
+	case *Error:
+		return err
+	default:
+		return NewInternalWithCause(err, err.Error(), nil, "")
 	}
 }
 
