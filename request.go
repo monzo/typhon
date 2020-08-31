@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
 )
 
@@ -62,10 +63,21 @@ func (r *Request) Encode(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
-// Decode de-serialises the JSON body into the passed object.
+// Decode de-serialises the body into the passed object.
 func (r Request) Decode(v interface{}) error {
 	b, err := r.BodyBytes(true)
-	if err == nil {
+	if err != nil {
+		return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
+	}
+
+	switch r.Header.Get("Content-Type") {
+	case "application/octet-stream", "application/x-google-protobuf", "application/protobuf":
+		m, ok := v.(proto.Message)
+		if !ok {
+			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
+		}
+		err = proto.Unmarshal(b, m)
+	default:
 		err = json.Unmarshal(b, v)
 	}
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
