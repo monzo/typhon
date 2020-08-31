@@ -63,6 +63,23 @@ func (r *Request) Encode(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
+// EncodeAsProtobuf serialises the passed object as protobuf into the body
+func (r *Request) EncodeAsProtobuf(m proto.Message) {
+	out, err := proto.Marshal(m)
+	if err != nil {
+		r.err = terrors.Wrap(err, nil)
+		return
+	}
+
+	n, err := r.Write(out)
+	if err != nil {
+		r.err = terrors.Wrap(err, nil)
+		return
+	}
+	r.Header.Set("Content-Type", "application/x-protobuf")
+	r.ContentLength = int64(n)
+}
+
 // Decode de-serialises the body into the passed object.
 func (r Request) Decode(v interface{}) error {
 	b, err := r.BodyBytes(true)
