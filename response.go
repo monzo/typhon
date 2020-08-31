@@ -7,7 +7,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
 )
 
@@ -22,15 +24,16 @@ type Response struct {
 	hijacked bool
 }
 
-// Encode serialises the passed object as JSON into the body (and sets appropriate headers).
+// Encode serialises the passed object into the body (and sets appropriate headers).
 func (r *Response) Encode(v interface{}) {
 	if r.Response == nil {
 		r.Response = newHTTPResponse(Request{}, http.StatusOK)
 	}
 
+	// If we have a proto message of a
 	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
 	switch v := v.(type) {
-	case json.Marshaler:
+	case proto.Message, json.Marshaler:
 	case io.ReadCloser:
 		r.Body = v
 		r.ContentLength = -1
@@ -41,11 +44,32 @@ func (r *Response) Encode(v interface{}) {
 		return
 	}
 
+	// If our request indicates protobuf support and we have a protobuf message
+	// then prefer to encode it as a protobuf response body
+	acceptsProtobuf := r.Request != nil && strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf")
+	if m, ok := v.(proto.Message); ok && acceptsProtobuf {
+		r.encodeAsProtobuf(m)
+		return
+	}
+
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.Error = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
+}
+
+func (r *Response) encodeAsProtobuf(m proto.Message) {
+	b, err := proto.Marshal(m)
+	if err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		return
+	}
+
+	n, err := r.Write(b)
+	r.Error = terrors.Wrap(err, nil)
+	r.Header.Set("Content-Type", "application/protobuf")
+	r.ContentLength = int64(n)
 }
 
 // WrapDownstreamErrors is a context key that can be used to enable
@@ -56,7 +80,7 @@ func (r *Response) Encode(v interface{}) {
 // dependency on config to Typhon.
 type WrapDownstreamErrors struct{}
 
-// Decode de-serialises the JSON body into the passed object.
+// Decode de-serialises the body into the passed object.
 func (r *Response) Decode(v interface{}) error {
 	if r.Error != nil {
 		if r.Request != nil && r.Request.Context != nil {
@@ -67,18 +91,31 @@ func (r *Response) Decode(v interface{}) error {
 
 		return r.Error
 	}
-	err := error(nil)
+
 	if r.Response == nil {
-		err = terrors.InternalService("", "Response has no body", nil)
-	} else {
-		var b []byte
-		b, err = r.BodyBytes(true)
-		if err == nil {
-			err = json.Unmarshal(b, v)
-		}
-		err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
+		r.Error = terrors.InternalService("", "Response has no body", nil)
+		return r.Error
 	}
-	if r.Error == nil {
+
+	var b []byte
+	b, err := r.BodyBytes(true)
+	if err != nil {
+		r.Error = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
+		return r.Error
+	}
+
+	switch r.Header.Get("Content-Type") {
+	case "application/octet-stream", "application/x-google-protobuf", "application/protobuf":
+		m, ok := v.(proto.Message)
+		if !ok {
+			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
+		}
+		err = proto.Unmarshal(b, m)
+	default:
+		err = json.Unmarshal(b, v)
+	}
+
+	if err != nil {
 		r.Error = err
 	}
 	return err
