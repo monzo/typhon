@@ -11,6 +11,10 @@
   branch = "master"
 
 [[constraint]]
+  name = "github.com/golang/protobuf"
+  version = "v1.3.2"
+
+[[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.2.2"
 
