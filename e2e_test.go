@@ -320,6 +320,43 @@ func TestE2EError(t *testing.T) {
 	})
 }
 
+func TestE2EErrorWithProtobuf(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		expectedErr := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
+			"param": "value"})
+		svc := Service(func(req Request) Response {
+			rsp := Response{
+				Error: expectedErr}
+			rsp.Write([]byte("throwaway")) // should be removed
+			return rsp
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		g := &prototest.Greeting{Message: "Hello world!", Priority: 1}
+		req := NewRequest(ctx, "GET", flav.URL(s), g)
+		req.Header.Set("Accept", "application/json, application/protobuf")
+		rsp := req.Send().Response()
+		assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
+		assert.Equal(t, "application/protobuf", rsp.Header.Get("Content-Type"))
+		assert.True(t, rsp.ContentLength > 0)
+
+		b, _ := rsp.BodyBytes(false)
+		assert.NotContains(t, string(b), "throwaway")
+
+		require.Error(t, rsp.Error)
+		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
+		terrExpect := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", nil)
+		assert.Equal(t, terrExpect.Message, terr.Message)
+		assert.Equal(t, terrExpect.Code, terr.Code)
+		assert.Equal(t, "value", terr.Params["param"])
+	})
+}
+
 func TestE2ECancellation(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		cancelled := make(chan struct{})

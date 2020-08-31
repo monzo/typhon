@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/monzo/slog"
 	"github.com/monzo/terrors"
 	terrorsproto "github.com/monzo/terrors/proto"
@@ -105,14 +106,22 @@ func ErrorFilter(req Request, svc Service) Response {
 		b, _ := rsp.BodyBytes(false)
 		switch rsp.Header.Get("Terror") {
 		case "1":
+			var err error
 			tp := &terrorsproto.Error{}
-			if err := json.Unmarshal(b, tp); err != nil {
+
+			switch rsp.Header.Get("Content-Type") {
+			case "application/octet-stream", "application/x-google-protobuf", "application/protobuf":
+				err = proto.Unmarshal(b, tp)
+			default:
+				err = json.Unmarshal(b, tp)
+			}
+
+			if err != nil {
 				slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
 				rsp.Error = errors.New(string(b))
 			} else {
 				rsp.Error = terrors.Unmarshal(tp)
 			}
-
 		default:
 			rsp.Error = errors.New(string(b))
 		}
