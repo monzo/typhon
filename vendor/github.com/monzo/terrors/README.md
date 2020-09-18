@@ -39,6 +39,15 @@ err := NotFound("handler_missing", "Handler not found", nil)
 fmt.Println(Matches(err, "not_found.handler_missing")) // true
 ```
 
+### Retryability
+
+Terrors contains the ability to declare whether or not an error is retryable. This property
+is derived from the error code if not specified explicitly.
+
+When using the the wrapping functionality (e.g. `Wrap`, `Augment`, `Propagate`), the retryability
+of an error is preserved as expected. Importantly, it is also preserved when constructing a new error from
+a causal error with `NewInternalWithCause`.
+
 ## API
 
 Full API documentation can be found on
