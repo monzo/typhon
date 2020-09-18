@@ -12,4 +12,10 @@ message Error {
 	string message = 2;
 	map<string, string> params = 3;
 	repeated StackFrame stack = 4;
+	// We don't use google.protobuf.BoolValue as it doesn't serialize properly without jsonpb.
+	BoolValue retryable = 5;
+}
+
+message BoolValue {
+	bool value = 1;
 }

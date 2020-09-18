@@ -6,6 +6,9 @@ import (
 	"github.com/monzo/terrors/stack"
 )
 
+var retryable bool = true
+var notRetryable bool = false
+
 // Wrap takes any error interface and wraps it into an Error.
 // This is useful because an Error contains lots of useful goodies, like the stacktrace of the error.
 // NOTE: If `err` is already an `Error`, it will add the params passed in to the params of the Error
@@ -86,6 +89,13 @@ func errorFactory(code string, message string, params map[string]string) *Error 
 	}
 	if len(code) > 0 {
 		err.Code = code
+
+		err.IsRetryable = &notRetryable
+		for _, c := range retryableCodes {
+			if PrefixMatches(err, c) {
+				err.IsRetryable = &retryable
+			}
+		}
 	}
 	if params != nil {
 		err.Params = params
