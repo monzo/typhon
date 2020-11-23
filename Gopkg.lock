@@ -51,7 +51,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6992c123a5662baa0d874a3580d2a75504b763dfc1b7e53e2d646f6ae61a9562"
+  digest = "1:5c42a5e5384005b921c1fc62378e60e68735a2d66f9482afddbe835b69c1c6ec"
   name = "github.com/monzo/terrors"
   packages = [
     ".",
@@ -59,7 +59,7 @@
     "stack",
   ]
   pruneopts = "UT"
-  revision = "1b34fb1ca9c30f91ae33037d87c790cae8bdc513"
+  revision = "526801726c25137e6d1cd1a1aade1c3da27e6809"
 
 [[projects]]
   branch = "master"
