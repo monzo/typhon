@@ -79,6 +79,12 @@ func PreconditionFailed(code, message string, params map[string]string) *Error {
 	return errorFactory(errCode(ErrPreconditionFailed, code), message, params)
 }
 
+// RateLimited creates a new error indicating that the request has been rate-limited,
+// and that the caller should back-off.
+func RateLimited(code, message string, params map[string]string) *Error {
+	return errorFactory(errCode(ErrRateLimited, code), message, params)
+}
+
 // errorConstructor returns a `*Error` with the specified code, message and params.
 // Builds a stack based on the current call stack
 func errorFactory(code string, message string, params map[string]string) *Error {

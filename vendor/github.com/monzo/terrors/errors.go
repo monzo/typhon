@@ -24,6 +24,27 @@ import (
 	"github.com/monzo/terrors/stack"
 )
 
+// Generic error codes. Each of these has their own constructor for convenience.
+// You can use any string as a code, just use the `New` method.
+const (
+	ErrBadRequest         = "bad_request"
+	ErrBadResponse        = "bad_response"
+	ErrForbidden          = "forbidden"
+	ErrInternalService    = "internal_service"
+	ErrNotFound           = "not_found"
+	ErrPreconditionFailed = "precondition_failed"
+	ErrTimeout            = "timeout"
+	ErrUnauthorized       = "unauthorized"
+	ErrUnknown            = "unknown"
+	ErrRateLimited        = "rate_limited"
+)
+
+var retryableCodes = []string{
+	ErrInternalService,
+	ErrTimeout,
+	ErrUnknown,
+}
+
 // Error is terror's error. It implements Go's error interface.
 type Error struct {
 	Code        string            `json:"code"`
@@ -41,26 +62,6 @@ type Error struct {
 	// should not expect it to contain information about terrors from other downstream
 	// processes.
 	cause error
-}
-
-// Generic error codes. Each of these has their own constructor for convenience.
-// You can use any string as a code, just use the `New` method.
-const (
-	ErrBadRequest         = "bad_request"
-	ErrBadResponse        = "bad_response"
-	ErrForbidden          = "forbidden"
-	ErrInternalService    = "internal_service"
-	ErrNotFound           = "not_found"
-	ErrPreconditionFailed = "precondition_failed"
-	ErrTimeout            = "timeout"
-	ErrUnauthorized       = "unauthorized"
-	ErrUnknown            = "unknown"
-)
-
-var retryableCodes = []string{
-	ErrInternalService,
-	ErrTimeout,
-	ErrUnknown,
 }
 
 // Error returns a string message of the error.
