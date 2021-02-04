@@ -30,8 +30,8 @@ func (r *Response) Encode(v interface{}) {
 		r.Response = newHTTPResponse(Request{}, http.StatusOK)
 	}
 
-	// If we have a proto message of a
-	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
+	// If we were given an io.ReadCloser or an io.Reader (that is not also
+	// a json.Marshaler or proto.Message), use it directly
 	switch v := v.(type) {
 	case proto.Message, json.Marshaler:
 	case io.ReadCloser:
