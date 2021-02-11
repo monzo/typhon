@@ -2,6 +2,7 @@ package typhon
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -60,4 +61,16 @@ func TestRequestEncodeReader(t *testing.T) {
 	body, err = ioutil.ReadAll(req.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("{}\n"), body)
+}
+
+func TestRequestSetMetadata(t *testing.T) {
+	t.Parallel()
+
+	ctx := AppendMetadataToContext(context.Background(), NewMetadata(map[string]string{
+		"meta": "data",
+	}))
+
+	req := NewRequest(ctx, "GET", "/", nil)
+
+	assert.Equal(t, []string{"data"}, req.Request.Header["meta"])
 }

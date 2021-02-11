@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/monzo/terrors"
 )
@@ -175,6 +176,12 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		httpReq.ContentLength = 0
 		httpReq.Body = &bufCloser{}
 		req.Request = *httpReq
+
+		// Attach any metadata in the context to the request as headers.
+		meta := MetadataFromContext(ctx)
+		for k, v := range meta {
+			req.Header[strings.ToLower(k)] = v
+		}
 	}
 	if body != nil && err == nil {
 		req.Encode(body)
