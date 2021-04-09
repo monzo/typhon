@@ -189,10 +189,18 @@ func newHTTPResponse(req Request, statusCode int) *http.Response {
 		Body:          &bufCloser{}}
 }
 
-// NewResponse constructs a Response
+// NewResponse constructs a Response with status code 200.
 func NewResponse(req Request) Response {
 	return Response{
 		Request:  &req,
 		Error:    nil,
 		Response: newHTTPResponse(req, http.StatusOK)}
+}
+
+// NewResponseWithCode constructs a Response with the given status code.
+func NewResponseWithCode(req Request, statusCode int) Response {
+	return Response{
+		Request:  &req,
+		Error:    nil,
+		Response: newHTTPResponse(req, statusCode)}
 }
