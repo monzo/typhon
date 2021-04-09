@@ -25,7 +25,7 @@ type Response struct {
 // Encode serialises the passed object as JSON into the body (and sets appropriate headers).
 func (r *Response) Encode(v interface{}) {
 	if r.Response == nil {
-		r.Response = newHTTPResponse(Request{})
+		r.Response = newHTTPResponse(Request{}, http.StatusOK)
 	}
 
 	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
@@ -87,7 +87,7 @@ func (r *Response) Decode(v interface{}) error {
 // Write writes the passed bytes to the response's body.
 func (r *Response) Write(b []byte) (n int, err error) {
 	if r.Response == nil {
-		r.Response = newHTTPResponse(Request{})
+		r.Response = newHTTPResponse(Request{}, http.StatusOK)
 	}
 	switch rc := r.Body.(type) {
 	// In the "regular" case, the response body will be a bufCloser; we can write
@@ -178,9 +178,9 @@ func (r Response) String() string {
 	return b.String()
 }
 
-func newHTTPResponse(req Request) *http.Response {
+func newHTTPResponse(req Request, statusCode int) *http.Response {
 	return &http.Response{
-		StatusCode:    http.StatusOK, // Seems like a reasonable default
+		StatusCode:    statusCode,
 		Proto:         req.Proto,
 		ProtoMajor:    req.ProtoMajor,
 		ProtoMinor:    req.ProtoMinor,
@@ -194,5 +194,5 @@ func NewResponse(req Request) Response {
 	return Response{
 		Request:  &req,
 		Error:    nil,
-		Response: newHTTPResponse(req)}
+		Response: newHTTPResponse(req, http.StatusOK)}
 }
