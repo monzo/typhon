@@ -23,8 +23,12 @@ type streamer struct {
 //  func streamingService(req typhon.Request) typhon.Response {
 //      body := typhon.Streamer()
 //      go func() {
-//          defer body.Close()
 //          // do something to asynchronously produce output into body
+//          if err != nil {
+//              body.CloseWithError(err)
+//              return
+//          }
+//          body.Close()
 //      }()
 //      return req.Response(body)
 //  }
