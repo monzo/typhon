@@ -50,6 +50,10 @@ func (s *streamer) Close() error {
 	return s.pipeW.Close()
 }
 
+func (s *streamer) CloseWithError(err error) error {
+	return s.pipeW.CloseWithError(err)
+}
+
 // doneReader is a wrapper around a ReadCloser which provides notification when the stream has been fully consumed
 // (ie. when EOF is reached, when the reader is explicitly closed, or if the size of the underlying reader is known,
 // when it has been fully read [even if EOF is not reached.])
