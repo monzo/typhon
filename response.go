@@ -191,10 +191,7 @@ func newHTTPResponse(req Request, statusCode int) *http.Response {
 
 // NewResponse constructs a Response with status code 200.
 func NewResponse(req Request) Response {
-	return Response{
-		Request:  &req,
-		Error:    nil,
-		Response: newHTTPResponse(req, http.StatusOK)}
+	return NewResponseWithCode(req, http.StatusOK)
 }
 
 // NewResponseWithCode constructs a Response with the given status code.
