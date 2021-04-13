@@ -66,7 +66,7 @@ func ErrorFilter(req Request, svc Service) Response {
 	}
 
 	if rsp.Response == nil {
-		rsp.Response = newHTTPResponse(req)
+		rsp.Response = newHTTPResponse(req, http.StatusOK)
 	}
 	if rsp.Request == nil {
 		rsp.Request = &req

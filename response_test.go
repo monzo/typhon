@@ -26,6 +26,7 @@ func TestResponseWriter(t *testing.T) {
 	b, _ := r.BodyBytes(true)
 	assert.Equal(t, []byte("boop"), b)
 	assert.EqualValues(t, 4, r.ContentLength)
+	assert.Equal(t, http.StatusOK, r.StatusCode)
 
 	// Using NewResponse, via ResponseWriter
 	r = NewResponse(req)
@@ -45,6 +46,39 @@ func TestResponseWriter(t *testing.T) {
 	b, _ = r.BodyBytes(true)
 	assert.Equal(t, []byte("boopwoop"), b)
 	assert.EqualValues(t, 8, r.ContentLength)
+	assert.Equal(t, http.StatusOK, r.StatusCode)
+}
+
+func TestResponseWithCodeWriter(t *testing.T) {
+	t.Parallel()
+	req := Request{}
+
+	// Using NewResponseWithCode, vanilla
+	r := NewResponseWithCode(req, http.StatusCreated)
+	r.Write([]byte("boop"))
+	b, _ := r.BodyBytes(true)
+	assert.Equal(t, []byte("boop"), b)
+	assert.EqualValues(t, 4, r.ContentLength)
+	assert.Equal(t, http.StatusCreated, r.StatusCode)
+
+	// Using NewResponseWithCode, via ResponseWriter
+	r = NewResponseWithCode(req, http.StatusCreated)
+	r.Writer().Header().Set("abc", "def")
+	r.Writer().Write([]byte("boop"))
+	b, _ = r.BodyBytes(true)
+	assert.Equal(t, []byte("boop"), b)
+	assert.EqualValues(t, 4, r.ContentLength)
+	assert.Equal(t, http.StatusCreated, r.StatusCode)
+	assert.Equal(t, "def", r.Header.Get("abc"))
+
+	// Using NewResponseWithCode, vanilla and then ResponseWriter
+	r = NewResponseWithCode(req, http.StatusCreated)
+	r.Write([]byte("boop"))
+	r.Writer().Write([]byte("woop"))
+	b, _ = r.BodyBytes(true)
+	assert.Equal(t, []byte("boopwoop"), b)
+	assert.EqualValues(t, 8, r.ContentLength)
+	assert.Equal(t, http.StatusCreated, r.StatusCode)
 }
 
 func TestResponseWriter_Error(t *testing.T) {
