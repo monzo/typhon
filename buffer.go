@@ -14,6 +14,11 @@ func (b *bufCloser) Close() error {
 	return nil // No-op
 }
 
+type StreamerWriter interface {
+	io.ReadWriteCloser
+	CloseWithError(error) error
+}
+
 type streamer struct {
 	pipeR *io.PipeReader
 	pipeW *io.PipeWriter
@@ -35,7 +40,7 @@ type streamer struct {
 //
 // Note that a Streamer may not perform any internal buffering, so callers should take care not to depend on writes
 // being non-blocking. If buffering is needed, Streamer can be wrapped in a bufio.Writer.
-func Streamer() io.ReadWriteCloser {
+func Streamer() StreamerWriter {
 	pipeR, pipeW := io.Pipe()
 	return &streamer{
 		pipeR: pipeR,
