@@ -112,6 +112,11 @@ func HttpHandler(svc Service) http.Handler {
 				// Streaming responses use copyChunked(), which takes care of flushing transparently
 				if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
 					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body: %v", err))
+
+					// Prevent the client from accidentally consuming a truncated stream by aborting the response.
+					// The official way of interrupting an HTTP reply mid-stream is panic(http.ErrAbortHandler), which
+					// works for both HTTP/1.1 and HTTP.2. https://github.com/golang/go/issues/17790
+					panic(http.ErrAbortHandler)
 				}
 			} else {
 				if _, err := io.CopyBuffer(rw, rsp.Body, buf); err != nil {

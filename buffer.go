@@ -14,6 +14,11 @@ func (b *bufCloser) Close() error {
 	return nil // No-op
 }
 
+type StreamerWriter interface {
+	io.ReadWriteCloser
+	CloseWithError(error) error
+}
+
 type streamer struct {
 	pipeR *io.PipeReader
 	pipeW *io.PipeWriter
@@ -23,15 +28,19 @@ type streamer struct {
 //  func streamingService(req typhon.Request) typhon.Response {
 //      body := typhon.Streamer()
 //      go func() {
-//          defer body.Close()
 //          // do something to asynchronously produce output into body
+//          if err != nil {
+//              body.CloseWithError(err)
+//              return
+//          }
+//          body.Close()
 //      }()
 //      return req.Response(body)
 //  }
 //
 // Note that a Streamer may not perform any internal buffering, so callers should take care not to depend on writes
 // being non-blocking. If buffering is needed, Streamer can be wrapped in a bufio.Writer.
-func Streamer() io.ReadWriteCloser {
+func Streamer() StreamerWriter {
 	pipeR, pipeW := io.Pipe()
 	return &streamer{
 		pipeR: pipeR,
@@ -48,6 +57,10 @@ func (s *streamer) Write(p []byte) (int, error) {
 
 func (s *streamer) Close() error {
 	return s.pipeW.Close()
+}
+
+func (s *streamer) CloseWithError(err error) error {
+	return s.pipeW.CloseWithError(err)
 }
 
 // doneReader is a wrapper around a ReadCloser which provides notification when the stream has been fully consumed

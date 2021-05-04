@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -558,6 +559,64 @@ func TestE2EStreamingCancellation(t *testing.T) {
 		req.Send().Response()
 		cancel()
 		<-done
+	})
+}
+
+// TestE2EStreamingServerAbort asserts that closing a streamer midway with an error causes the server to hang up the
+// connection, preventing the client from accidentally consuming a truncated response body.
+func TestE2EStreamingServerAbort(t *testing.T) {
+	someFlavours(t, []string{"http1.1", "http1.1-tls"}, func(t *testing.T, flav e2eFlavour) {
+		done := make(chan struct{})
+		svc := Service(func(req Request) Response {
+			s := Streamer()
+			go func() {
+				defer close(done)
+				io.WriteString(s, "derp\n")
+				s.CloseWithError(errors.New("abc"))
+			}()
+			rsp := req.Response(nil)
+			rsp.Body = s
+			return rsp
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		ctx := context.Background()
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rsp := req.Send().Response()
+		<-done
+		body, err := ioutil.ReadAll(rsp.Body)
+		assert.Equal(t, "derp\n", string(body))
+		assert.EqualError(t, err, io.ErrUnexpectedEOF.Error())
+	})
+
+	someFlavours(t, []string{"http2.0-h2", "http2.0-h2c"}, func(t *testing.T, flav e2eFlavour) {
+		done := make(chan struct{})
+		svc := Service(func(req Request) Response {
+			s := Streamer()
+			go func() {
+				defer close(done)
+				io.WriteString(s, "derp\n")
+				s.CloseWithError(errors.New("abc"))
+			}()
+			rsp := req.Response(nil)
+			rsp.Body = s
+			return rsp
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		ctx := context.Background()
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rsp := req.Send().Response()
+		<-done
+		body, err := ioutil.ReadAll(rsp.Body)
+		assert.Equal(t, "derp\n", string(body))
+		require.IsType(t, http2.StreamError{}, err)
+		streamErr := err.(http2.StreamError)
+		assert.Equal(t, streamErr.Code, http2.ErrCodeInternal)
 	})
 }
 
