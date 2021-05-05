@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"testing"
@@ -26,6 +27,10 @@ func (f http1Flavour) Proto() string {
 	return "HTTP/1.1"
 }
 
+func (f http1Flavour) Context() (context.Context, func()) {
+	return context.WithCancel(context.Background())
+}
+
 type http1TLSFlavour struct {
 	T    *testing.T
 	cert tls.Certificate
@@ -47,4 +52,8 @@ func (f http1TLSFlavour) URL(s *Server) string {
 
 func (f http1TLSFlavour) Proto() string {
 	return "HTTP/1.1"
+}
+
+func (f http1TLSFlavour) Context() (context.Context, func()) {
+	return context.WithCancel(context.Background())
 }
