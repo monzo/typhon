@@ -48,7 +48,7 @@ func (r *Response) Encode(v interface{}) {
 	// then prefer to encode it as a protobuf response body
 	acceptsProtobuf := r.Request != nil && strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf")
 	if m, ok := v.(proto.Message); ok && acceptsProtobuf {
-		r.encodeAsProtobuf(m)
+		r.EncodeAsProtobuf(m)
 		return
 	}
 
@@ -59,7 +59,8 @@ func (r *Response) Encode(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
-func (r *Response) encodeAsProtobuf(m proto.Message) {
+// EncodeAsProtobuf serialises the passed object as protobuf into the body
+func (r *Response) EncodeAsProtobuf(m proto.Message) {
 	b, err := proto.Marshal(m)
 	if err != nil {
 		r.Error = terrors.Wrap(err, nil)
