@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
+
+	"github.com/monzo/typhon/prototest"
 )
 
 type e2eFlavour interface {
@@ -130,6 +132,45 @@ func TestE2E(t *testing.T) {
 		// The response is simple too; shouldn't be chunked
 		assert.NotContains(t, rsp.TransferEncoding, "chunked")
 		assert.EqualValues(t, 10, rsp.ContentLength)
+	})
+}
+
+func TestE2EProtobuf(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		svc := Service(func(req Request) Response {
+			// Simple requests like this shouldn't be chunked
+			assert.NotContains(t, req.TransferEncoding, "chunked")
+			assert.True(t, req.ContentLength > 0)
+			return req.Response(&prototest.Greeting{
+				Message: "👋!",
+				Priority: 2})
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		g := &prototest.Greeting{Message: "Hello world!", Priority: 1}
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		req.Header.Set("Accept", "application/json, application/protobuf")
+		req.EncodeAsProtobuf(g)
+		rsp := req.Send().Response()
+		require.NoError(t, rsp.Error)
+		assert.Equal(t, http.StatusOK, rsp.StatusCode)
+		assert.Equal(t, flav.Proto(), rsp.Proto)
+		assert.Equal(t, "application/protobuf", rsp.Header.Get("Content-Type"))
+		require.NotNil(t, rsp.Request)
+		assert.Equal(t, req, *rsp.Request)
+		body := &prototest.Greeting{}
+		require.NoError(t, rsp.Decode(body))
+		assert.Equal(t, &prototest.Greeting{
+			Message: "👋!",
+			Priority: 2}, body)
+		// The response is simple too; shouldn't be chunked
+		assert.NotContains(t, rsp.TransferEncoding, "chunked")
+		assert.EqualValues(t, 9, rsp.ContentLength)
 	})
 }
 
@@ -265,6 +306,43 @@ func TestE2EError(t *testing.T) {
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
+		assert.True(t, rsp.ContentLength > 0)
+
+		b, _ := rsp.BodyBytes(false)
+		assert.NotContains(t, string(b), "throwaway")
+
+		require.Error(t, rsp.Error)
+		terr := terrors.Wrap(rsp.Error, nil).(*terrors.Error)
+		terrExpect := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", nil)
+		assert.Equal(t, terrExpect.Message, terr.Message)
+		assert.Equal(t, terrExpect.Code, terr.Code)
+		assert.Equal(t, "value", terr.Params["param"])
+	})
+}
+
+func TestE2EErrorWithProtobuf(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		expectedErr := terrors.Unauthorized("ah_ah_ah", "You didn't say the magic word!", map[string]string{
+			"param": "value"})
+		svc := Service(func(req Request) Response {
+			rsp := Response{
+				Error: expectedErr}
+			rsp.Write([]byte("throwaway")) // should be removed
+			return rsp
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		g := &prototest.Greeting{Message: "Hello world!", Priority: 1}
+		req := NewRequest(ctx, "GET", flav.URL(s), g)
+		req.Header.Set("Accept", "application/json, application/protobuf")
+		rsp := req.Send().Response()
+		assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
+		assert.Equal(t, "application/protobuf", rsp.Header.Get("Content-Type"))
 		assert.True(t, rsp.ContentLength > 0)
 
 		b, _ := rsp.BodyBytes(false)

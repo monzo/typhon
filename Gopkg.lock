@@ -167,6 +167,7 @@
   input-imports = [
     "github.com/deckarep/golang-set",
     "github.com/fortytw2/leaktest",
+    "github.com/golang/protobuf/proto",
     "github.com/monzo/slog",
     "github.com/monzo/terrors",
     "github.com/monzo/terrors/proto",
