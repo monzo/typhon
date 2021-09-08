@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/monzo/typhon/prototest"
 )
@@ -186,7 +186,7 @@ func TestResponseDecodeProtobuf(t *testing.T) {
 	t.Parallel()
 
 	g := &prototest.Greeting{
-		Message: "Hello world!",
+		Message:  "Hello world!",
 		Priority: 1}
 	b, _ := proto.Marshal(g)
 	rsp := NewResponse(Request{})
@@ -274,8 +274,8 @@ type protoMarshalerReader struct {
 	io.ReadCloser
 }
 
-func (r protoMarshalerReader) Reset() {}
-func (r protoMarshalerReader) ProtoMessage() {}
+func (r protoMarshalerReader) Reset()         {}
+func (r protoMarshalerReader) ProtoMessage()  {}
 func (r protoMarshalerReader) String() string { return "hello" }
 func (r protoMarshalerReader) Marshal() ([]byte, error) {
 	return []byte("hello"), nil

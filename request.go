@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
+	"google.golang.org/protobuf/proto"
 )
 
 // A Request is Typhon's wrapper around http.Request, used by both clients and servers.

@@ -10,7 +10,7 @@ github.com/deckarep/golang-set
 # github.com/fortytw2/leaktest v1.2.0
 ## explicit
 github.com/fortytw2/leaktest
-# github.com/golang/protobuf v1.4.2
+# github.com/golang/protobuf v1.4.1
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
 # github.com/monzo/slog v0.0.0-20180411100359-4277a1759ecc
