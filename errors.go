@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/monzo/slog"
 	"github.com/monzo/terrors"
 	terrorsproto "github.com/monzo/terrors/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
