@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
+	"google.golang.org/protobuf/proto"
 )
 
 // A Response is Typhon's wrapper around http.Response, used by both clients and servers.
