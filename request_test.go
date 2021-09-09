@@ -71,7 +71,7 @@ func TestRequestEncodeProtobuf(t *testing.T) {
 		Priority: 1}
 	req := NewRequest(nil, "GET", "/", nil)
 	req.EncodeAsProtobuf(g)
-	assert.Equal(t, "application/x-protobuf", req.Header.Get("Content-Type"))
+	assert.Equal(t, "application/protobuf", req.Header.Get("Content-Type"))
 	assert.EqualValues(t, 16, req.ContentLength)
 	body, err := ioutil.ReadAll(req.Body)
 	require.NoError(t, err)

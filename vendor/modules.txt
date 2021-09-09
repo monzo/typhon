@@ -31,8 +31,10 @@ github.com/pmezard/go-difflib/difflib
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# golang.org/x/net v0.0.0-20190311183353-d8887717615a
-## explicit
+# golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
+## explicit; go 1.11
+# golang.org/x/net v0.0.0-20190620200207-3b0461eec859
+## explicit; go 1.11
 golang.org/x/net/context
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -45,14 +47,18 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
+# golang.org/x/tools v0.0.0-20200130002326-2f3ba24bd6e7
+## explicit; go 1.11
 # google.golang.org/protobuf v1.25.0
 ## explicit; go 1.9
+google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
 google.golang.org/protobuf/internal/descopts
 google.golang.org/protobuf/internal/detrand
 google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/json
 google.golang.org/protobuf/internal/encoding/messageset
 google.golang.org/protobuf/internal/encoding/tag
 google.golang.org/protobuf/internal/encoding/text
