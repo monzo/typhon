@@ -145,7 +145,7 @@ func TestE2EProtobuf(t *testing.T) {
 			assert.NotContains(t, req.TransferEncoding, "chunked")
 			assert.True(t, req.ContentLength > 0)
 			return req.Response(&prototest.Greeting{
-				Message: "👋!",
+				Message:  "👋!",
 				Priority: 2})
 		})
 		svc = svc.Filter(ErrorFilter)
@@ -165,9 +165,10 @@ func TestE2EProtobuf(t *testing.T) {
 		assert.Equal(t, req, *rsp.Request)
 		body := &prototest.Greeting{}
 		require.NoError(t, rsp.Decode(body))
-		assert.Equal(t, &prototest.Greeting{
-			Message: "👋!",
-			Priority: 2}, body)
+
+		// proto.Message cannot be compared, so check fields directly.
+		assert.Equal(t, "👋!", body.Message)
+		assert.Equal(t, int32(2), body.Priority)
 		// The response is simple too; shouldn't be chunked
 		assert.NotContains(t, rsp.TransferEncoding, "chunked")
 		assert.EqualValues(t, 9, rsp.ContentLength)
@@ -341,6 +342,7 @@ func TestE2EErrorWithProtobuf(t *testing.T) {
 		req := NewRequest(ctx, "GET", flav.URL(s), g)
 		req.Header.Set("Accept", "application/json, application/protobuf")
 		rsp := req.Send().Response()
+
 		assert.Equal(t, http.StatusUnauthorized, rsp.StatusCode)
 		assert.Equal(t, "application/protobuf", rsp.Header.Get("Content-Type"))
 		assert.True(t, rsp.ContentLength > 0)

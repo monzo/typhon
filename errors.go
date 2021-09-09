@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strings"
 
+	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/monzo/slog"
 	"github.com/monzo/terrors"
 	terrorsproto "github.com/monzo/terrors/proto"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -94,8 +94,8 @@ func ErrorFilter(req Request, svc Service) Response {
 			tp := &terrorsproto.Error{}
 
 			switch rsp.Header.Get("Content-Type") {
-			case "application/octet-stream", "application/x-google-protobuf", "application/protobuf":
-				err = proto.Unmarshal(b, tp)
+			case "application/octet-stream", "application/x-protobuf", "application/protobuf":
+				err = legacyproto.Unmarshal(b, tp)
 			default:
 				err = json.Unmarshal(b, tp)
 			}
