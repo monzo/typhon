@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"strings"
 
+	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,7 +35,7 @@ func (r *Response) Encode(v interface{}) {
 	// If we were given an io.ReadCloser or an io.Reader (that is not also
 	// a json.Marshaler or proto.Message), use it directly
 	switch v := v.(type) {
-	case proto.Message, json.Marshaler:
+	case proto.Message, json.Marshaler, legacyproto.Message:
 	case io.ReadCloser:
 		r.Body = v
 		r.ContentLength = -1
@@ -44,14 +46,30 @@ func (r *Response) Encode(v interface{}) {
 		return
 	}
 
-	// If our request indicates protobuf support and we have a protobuf message
-	// then prefer to encode it as a protobuf response body
-	acceptsProtobuf := r.Request != nil && strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf")
-	if m, ok := v.(proto.Message); ok && acceptsProtobuf {
+	// If we're a proto.Message check for a protobuf type and send that.
+	switch m := v.(type) {
+	case proto.Message:
+		// if we didn't ask for protobuf, send JSON
+		if !strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf") {
+			r.EncodeAsProtobufJSON(m)
+			return
+		}
+
 		r.EncodeAsProtobuf(m)
 		return
+	case legacyproto.Message:
+		// if we asked for protobuf, send it using the legacy encoder for the error filter.
+		if strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf") {
+			r.EncodeAsLegacyProtobuf(m)
+			return
+		}
 	}
 
+	r.EncodeAsJSON(v)
+}
+
+// EncodeAsJSON writes the response as JSON. This is the default encoding type when using Encode.
+func (r *Response) EncodeAsJSON(v interface{}) {
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.Error = terrors.Wrap(err, nil)
 		return
@@ -59,7 +77,7 @@ func (r *Response) Encode(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
-// EncodeAsProtobuf serialises the passed object as protobuf into the body
+// EncodeAsProtobuf writes the passed object as protobuf wire format into the body.
 func (r *Response) EncodeAsProtobuf(m proto.Message) {
 	b, err := proto.Marshal(m)
 	if err != nil {
@@ -70,6 +88,35 @@ func (r *Response) EncodeAsProtobuf(m proto.Message) {
 	n, err := r.Write(b)
 	r.Error = terrors.Wrap(err, nil)
 	r.Header.Set("Content-Type", "application/protobuf")
+	r.ContentLength = int64(n)
+}
+
+// EncodeAsLegacyProtobuf is required as github.com/monzo/terrors still uses the old protobuf code path.
+func (r *Response) EncodeAsLegacyProtobuf(m legacyproto.Message) {
+	b, err := legacyproto.Marshal(m)
+	if err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		return
+	}
+
+	n, err := r.Write(b)
+	r.Error = terrors.Wrap(err, nil)
+	r.Header.Set("Content-Type", "application/protobuf")
+	r.ContentLength = int64(n)
+}
+
+// EncodeAsProtobufJSON writes well-formed protobuf JSON to the response.
+// See https://developers.google.com/protocol-buffers/docs/proto3#json for more info.
+func (r *Response) EncodeAsProtobufJSON(m proto.Message) {
+	b, err := protojson.Marshal(m)
+	if err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		return
+	}
+
+	n, err := r.Write(b)
+	r.Error = terrors.Wrap(err, nil)
+	r.Header.Set("Content-Type", "application/json")
 	r.ContentLength = int64(n)
 }
 
@@ -105,13 +152,34 @@ func (r *Response) Decode(v interface{}) error {
 		return r.Error
 	}
 
-	switch r.Header.Get("Content-Type") {
-	case "application/octet-stream", "application/x-google-protobuf", "application/protobuf":
-		m, ok := v.(proto.Message)
-		if !ok {
-			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
+	switch m := v.(type) {
+	// If we have a proto message, unmarshal it as JSON, so we don't break e.g. timestamp encoding or enums.
+	// This presents a bit of a backwards compatibility issue, though only for those who have been using
+	// proto.Message incorrectly (without encoding/protojson) with Typhon.
+	case proto.Message:
+		switch r.Header.Get("Content-Type") {
+		case "application/octet-stream",
+			"application/x-google-protobuf",
+			"application/protobuf",
+			"application/x-protobuf":
+			err = proto.Unmarshal(b, m)
+		default:
+			err = protojson.Unmarshal(b, m)
 		}
-		err = proto.Unmarshal(b, m)
+
+	// If we have a legacy protobuf message, decode as protobuf if that's signalled, but use standard JSON otherwise.
+	// This is against Google's recommendations, but also doesn't break things for active users of Typhon.
+	// Upgrade to google.golang.org/protobuf/proto.Message as soon as possible.
+	case legacyproto.Message:
+		switch r.Header.Get("Content-Type") {
+		case "application/octet-stream",
+			"application/x-google-protobuf",
+			"application/protobuf",
+			"application/x-protobuf":
+			err = legacyproto.Unmarshal(b, m)
+		default:
+			err = json.Unmarshal(b, m)
+		}
 	default:
 		err = json.Unmarshal(b, v)
 	}
