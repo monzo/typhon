@@ -118,7 +118,7 @@ func HttpHandler(svc Service) http.Handler {
 			if isStreamingRsp(rsp) {
 				// Streaming responses use copyChunked(), which takes care of flushing transparently
 				if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
-					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body: %v", err))
+					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body", err))
 
 					// Prevent the client from accidentally consuming a truncated stream by aborting the response.
 					// The official way of interrupting an HTTP reply mid-stream is panic(http.ErrAbortHandler), which
@@ -127,7 +127,7 @@ func HttpHandler(svc Service) http.Handler {
 				}
 			} else {
 				if _, err := io.CopyBuffer(rw, rsp.Body, buf); err != nil {
-					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body: %v", err))
+					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body", err))
 				}
 			}
 		}
