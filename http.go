@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -62,6 +63,12 @@ func isStreamingRsp(rsp Response) bool {
 // example, a client may disconnect before the response body is copied to it; this doesn't mean the server is
 // misbehaving.
 func copyErrSeverity(err error) slog.Severity {
+
+	switch {
+	case strings.HasSuffix(err.Error(), "read on closed response body"):
+		return slog.DebugSeverity
+	}
+
 	// Annoyingly, these errors can be deeply nested; &net.OpError{&os.SyscallError{syscall.Errno}}
 	switch err := err.(type) {
 	case syscall.Errno:
