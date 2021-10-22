@@ -65,7 +65,8 @@ func isStreamingRsp(rsp Response) bool {
 func copyErrSeverity(err error) slog.Severity {
 
 	switch {
-	case strings.HasSuffix(err.Error(), "read on closed response body"):
+	case strings.HasSuffix(err.Error(), "read on closed response body"),
+		strings.HasSuffix(err.Error(), "connection reset by peer"):
 		return slog.DebugSeverity
 	}
 
