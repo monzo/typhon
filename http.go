@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -62,6 +63,12 @@ func isStreamingRsp(rsp Response) bool {
 // example, a client may disconnect before the response body is copied to it; this doesn't mean the server is
 // misbehaving.
 func copyErrSeverity(err error) slog.Severity {
+
+	switch {
+	case strings.HasSuffix(err.Error(), "read on closed response body"):
+		return slog.DebugSeverity
+	}
+
 	// Annoyingly, these errors can be deeply nested; &net.OpError{&os.SyscallError{syscall.Errno}}
 	switch err := err.(type) {
 	case syscall.Errno:
@@ -111,7 +118,7 @@ func HttpHandler(svc Service) http.Handler {
 			if isStreamingRsp(rsp) {
 				// Streaming responses use copyChunked(), which takes care of flushing transparently
 				if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
-					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body: %v", err))
+					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body", err))
 
 					// Prevent the client from accidentally consuming a truncated stream by aborting the response.
 					// The official way of interrupting an HTTP reply mid-stream is panic(http.ErrAbortHandler), which
@@ -120,7 +127,7 @@ func HttpHandler(svc Service) http.Handler {
 				}
 			} else {
 				if _, err := io.CopyBuffer(rw, rsp.Body, buf); err != nil {
-					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body: %v", err))
+					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body", err))
 				}
 			}
 		}
