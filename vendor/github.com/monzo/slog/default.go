@@ -1,13 +1,12 @@
 package slog
 
 import (
+	"context"
 	"sync"
-
-	"golang.org/x/net/context"
 )
 
 var (
-	defaultLogger  Logger = SeelogLogger()
+	defaultLogger  Logger = StdlibLogger{}
 	defaultLoggerM sync.RWMutex
 )
 
@@ -37,7 +36,7 @@ func Critical(ctx context.Context, msg string, params ...interface{}) {
 	}
 }
 
-// Critical constructs a logging event with error severity, and sends it via the default Logger
+// Error constructs a logging event with error severity, and sends it via the default Logger
 func Error(ctx context.Context, msg string, params ...interface{}) {
 	if l := DefaultLogger(); l != nil {
 		l.Log(Eventf(ErrorSeverity, ctx, msg, params...))
