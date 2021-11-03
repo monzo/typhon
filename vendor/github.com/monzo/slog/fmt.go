@@ -9,7 +9,7 @@ var formatterRe = regexp.MustCompile(`%` +
 	`[\+\-# 0]*` + // Flags
 	`(?:\d*\.|\[(\d+)\]\*\.)?(?:\d+|\[(\d+)\]\*)?` + // Width and precision
 	`(?:\[(\d+)\])?` + // Argument index
-	`[vTtbcdoqxXUbeEfFgGsqxXpt%]`, // Verb
+	`[vTtbcdoOqxXUeEfFgGsp%]`, // Verb
 )
 
 func countFmtOperands(input string) int {
