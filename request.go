@@ -134,13 +134,23 @@ func (r Request) Decode(v interface{}) error {
 		}
 		err = protojson.Unmarshal(b, m)
 
-	default:
+	case "application/json", "text/json":
 		m, ok := v.(proto.Message)
 		if !ok {
 			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
 		}
 		err = json.Unmarshal(b, m)
+
+	default:
+		err = terrors.BadRequest(
+				terrors.ErrBadRequest,
+				"not a supported Content-Type",
+				map[string]string{
+					"content-type": r.Header.Get("Content-Type"),
+				},
+			)
 	}
+
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }
 
