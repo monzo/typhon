@@ -126,7 +126,7 @@ func (r Request) Decode(v interface{}) error {
 	// This is a backward compatibility break for those using google.golang.org/protobuf/proto.Message incorrectly.
 
 	// Older versions of typhon marshal/unmarshal using json, to prevent a regression, we only use protojson if the
-	// content-type hints that this message is protojson
+	// content-type explicitly declares that this message is protojson
 	case "application/jsonpb", "application/protojson":
 		m, ok := v.(proto.Message)
 		if !ok {
