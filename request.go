@@ -42,8 +42,14 @@ func (r *Request) unwrappedContext() context.Context {
 	}
 }
 
-// Encode serialises the passed object as JSON into the body (and sets appropriate headers).
+// Encode maps to to EncodeAsJSON
+// TODO: Remove in the next major release and require encoding to explicitly go through either EncodeAsJSON, EncodeAsProtoJSON or EncodeAsProtobuf
 func (r *Request) Encode(v interface{}) {
+	r.EncodeAsJSON(v)
+}
+
+// EncodeAsJSON serialises the passed object as JSON into the body (and sets appropriate headers).
+func (r *Request) EncodeAsJSON(v interface{}) {
 	// If we were given an io.ReadCloser or an io.Reader (that is not also a json.Marshaler), use it directly
 	switch v := v.(type) {
 	case json.Marshaler:
@@ -56,13 +62,15 @@ func (r *Request) Encode(v interface{}) {
 		r.ContentLength = -1
 		return
 	}
-	
+
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.err = terrors.Wrap(err, nil)
 		return
 	}
 	r.Header.Set("Content-Type", "application/json")
 }
+
+// TODO: Add EncodeAsProtoJSON to replace EncodeAsJSON in a later version (this will break compatibility so needs to be a major release)
 
 // EncodeAsProtobuf serialises the passed object as protobuf into the body
 func (r *Request) EncodeAsProtobuf(m proto.Message) {
@@ -244,7 +252,7 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		}
 	}
 	if body != nil && err == nil {
-		req.Encode(body)
+		req.EncodeAsJSON(body)
 	}
 	return req
 }
