@@ -336,7 +336,7 @@ func TestResponseEncodeReader(t *testing.T) {
 	pm := &protoMarshalerReader{
 		ReadCloser: ioutil.NopCloser(strings.NewReader("this should never see the light of day")),
 		Greeting: &prototest.Greeting{
-			Message:  "hello",
+			Message: "hello",
 		},
 	}
 	assert.Implements(t, (*proto.Message)(nil), pm)
