@@ -70,9 +70,24 @@ func (r *Request) EncodeAsJSON(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
-// TODO: Add EncodeAsProtoJSON to replace EncodeAsJSON in a later version (this will break compatibility so needs to be a major release)
+// EncodeAsProtoJSON serialises the passed object as ProtoJSON into the body (and sets appropriate headers).
+func (r *Request) EncodeAsProtoJSON(m proto.Message) {
+	out, err := protojson.Marshal(m)
+	if err != nil {
+		r.err = terrors.Wrap(err, nil)
+		return
+	}
 
-// EncodeAsProtobuf serialises the passed object as protobuf into the body
+	n, err := r.Write(out)
+	if err != nil {
+		r.err = terrors.Wrap(err, nil)
+		return
+	}
+	r.Header.Set("Content-Type", "application/jsonpb")
+	r.ContentLength = int64(n)
+}
+
+// EncodeAsProtobuf serialises the passed object as protobuf into the body (and sets appropriate headers).
 func (r *Request) EncodeAsProtobuf(m proto.Message) {
 	out, err := proto.Marshal(m)
 	if err != nil {
