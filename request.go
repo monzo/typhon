@@ -146,7 +146,7 @@ func (r Request) Decode(v interface{}) error {
 				terrors.ErrBadRequest,
 				"not a supported Content-Type",
 				map[string]string{
-					"content-type": r.Header.Get("Content-Type"),
+					"Content-Type": r.Header.Get("Content-Type"),
 				},
 			)
 	}
