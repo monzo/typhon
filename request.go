@@ -143,12 +143,12 @@ func (r Request) Decode(v interface{}) error {
 
 	default:
 		err = terrors.BadRequest(
-				terrors.ErrBadRequest,
-				"not a supported Content-Type",
-				map[string]string{
-					"Content-Type": r.Header.Get("Content-Type"),
-				},
-			)
+			terrors.ErrBadRequest,
+			"not a supported Content-Type",
+			map[string]string{
+				"Content-Type": r.Header.Get("Content-Type"),
+			},
+		)
 	}
 
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
