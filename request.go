@@ -56,7 +56,7 @@ func (r *Request) Encode(v interface{}) {
 		r.ContentLength = -1
 		return
 	}
-
+	
 	if err := json.NewEncoder(r).Encode(v); err != nil {
 		r.err = terrors.Wrap(err, nil)
 		return
@@ -98,16 +98,25 @@ func (r Request) Decode(v interface{}) error {
 			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
 		}
 		err = proto.Unmarshal(b, m)
-
 	// Proper JSON handling requires the protojson package in Go. application/jsonpb is a suggestion by grpc-gateway:
 	// https://github.com/grpc-ecosystem/grpc-gateway/blob/f4371f7/runtime/marshaler_registry.go#L89-L90
 	// This is a backward compatibility break for those using google.golang.org/protobuf/proto.Message incorrectly.
-	default:
-		if m, ok := v.(proto.Message); ok {
-			err = protojson.Unmarshal(b, m)
-		} else {
-			err = json.Unmarshal(b, v)
+
+	// Older versions of typhon marshal/unmarshal using json, to prevent a regression, we only use protojson if the
+	// content-type hints that this message is protojson
+	case "application/jsonpb", "application/protojson":
+		m, ok := v.(proto.Message)
+		if !ok {
+			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
 		}
+		err = protojson.Unmarshal(b, m)
+
+	default:
+		m, ok := v.(proto.Message)
+		if !ok {
+			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
+		}
+		err = json.Unmarshal(b, m)
 	}
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 }
