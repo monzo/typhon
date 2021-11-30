@@ -41,10 +41,8 @@ func (r *Request) unwrappedContext() context.Context {
 	}
 }
 
-// Encode maps to to EncodeAsJSON
-// TODO: Remove in the next major release and require encoding to explicitly go through either EncodeAsJSON, EncodeAsProtoJSON or EncodeAsProtobuf
 func (r *Request) Encode(v interface{}) {
-	r.EncodeAsJSON(v)
+	r.EncodeAsProtobuf(v)
 }
 
 // EncodeAsJSON serialises the passed object as JSON into the body (and sets appropriate headers).
