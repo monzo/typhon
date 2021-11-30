@@ -41,8 +41,9 @@ func (r *Request) unwrappedContext() context.Context {
 	}
 }
 
+// Encode maps to to EncodeAsJSON
 func (r *Request) Encode(v interface{}) {
-	r.EncodeAsProtobuf(v)
+	r.EncodeAsJSON(v)
 }
 
 // EncodeAsJSON serialises the passed object as JSON into the body (and sets appropriate headers).
