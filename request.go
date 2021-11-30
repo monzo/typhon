@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/monzo/terrors"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -70,23 +69,6 @@ func (r *Request) EncodeAsJSON(v interface{}) {
 	r.Header.Set("Content-Type", "application/json")
 }
 
-// EncodeAsProtoJSON serialises the passed object as ProtoJSON into the body (and sets appropriate headers).
-func (r *Request) EncodeAsProtoJSON(m proto.Message) {
-	out, err := protojson.Marshal(m)
-	if err != nil {
-		r.err = terrors.Wrap(err, nil)
-		return
-	}
-
-	n, err := r.Write(out)
-	if err != nil {
-		r.err = terrors.Wrap(err, nil)
-		return
-	}
-	r.Header.Set("Content-Type", "application/jsonpb")
-	r.ContentLength = int64(n)
-}
-
 // EncodeAsProtobuf serialises the passed object as protobuf into the body (and sets appropriate headers).
 func (r *Request) EncodeAsProtobuf(m proto.Message) {
 	out, err := proto.Marshal(m)
@@ -121,19 +103,8 @@ func (r Request) Decode(v interface{}) error {
 			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
 		}
 		err = proto.Unmarshal(b, m)
-	// Proper JSON handling requires the protojson package in Go. application/jsonpb is a suggestion by grpc-gateway:
-	// https://github.com/grpc-ecosystem/grpc-gateway/blob/f4371f7/runtime/marshaler_registry.go#L89-L90
-	// This is a backward compatibility break for those using google.golang.org/protobuf/proto.Message incorrectly.
-
-	// Older versions of typhon marshal/unmarshal using json, to prevent a regression, we only use protojson if the
-	// content-type explicitly declares that this message is protojson
-	case "application/jsonpb", "application/protojson":
-		m, ok := v.(proto.Message)
-		if !ok {
-			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
-		}
-		err = protojson.Unmarshal(b, m)
-
+	// As older versions of typhon used json, we don't use protojson here as they are mutually exclusive standards with
+	// major differences in how they handle some types (such as Enums)
 	default:
 		m, ok := v.(proto.Message)
 		if !ok {
