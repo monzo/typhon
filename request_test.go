@@ -3,6 +3,8 @@ package typhon
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"google.golang.org/protobuf/proto"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -69,13 +71,38 @@ func TestRequestEncodeProtobuf(t *testing.T) {
 	g := &prototest.Greeting{
 		Message:  "Hello world!",
 		Priority: 1}
+
+	protoContentForComparison, err := proto.Marshal(g)
+	require.NoError(t, err)
+
 	req := NewRequest(nil, "GET", "/", nil)
 	req.EncodeAsProtobuf(g)
-	assert.Equal(t, "application/protobuf", req.Header.Get("Content-Type"))
-	assert.EqualValues(t, 16, req.ContentLength)
-	body, err := ioutil.ReadAll(req.Body)
+
+	bodyBytes, err := req.BodyBytes(false)
 	require.NoError(t, err)
-	assert.Subset(t, body, []byte("Hello world!"))
+
+	assert.Equal(t, "application/protobuf", req.Header.Get("Content-Type"))
+	assert.EqualValues(t, bodyBytes, protoContentForComparison)
+
+}
+
+func TestRequestEncodeJSON(t *testing.T) {
+	message := map[string]interface{} {
+		"foo": "bar",
+		"bar": 3,
+	}
+
+	jsonContentForComparison, err := json.Marshal(message)
+	require.NoError(t, err)
+
+	req := NewRequest(nil, "GET", "/", nil)
+	req.EncodeAsJSON(message)
+
+	bodyBytes, err := req.BodyBytes(false)
+	require.NoError(t, err)
+
+	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+	assert.EqualValues(t, bodyBytes, jsonContentForComparison)
 }
 
 func TestRequestSetMetadata(t *testing.T) {
