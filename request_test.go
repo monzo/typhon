@@ -78,7 +78,7 @@ func TestRequestEncodeProtobuf(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	req.EncodeAsProtobuf(g)
 
-	bodyBytes, err := req.BodyBytes(false)
+	bodyBytes, err := ioutil.ReadAll(req.Body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "application/protobuf", req.Header.Get("Content-Type"))
@@ -98,7 +98,7 @@ func TestRequestEncodeJSON(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	req.EncodeAsJSON(message)
 
-	bodyBytes, err := req.BodyBytes(false)
+	bodyBytes, err := ioutil.ReadAll(req.Body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
