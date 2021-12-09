@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -92,11 +93,11 @@ func TestRequestEncodeJSON(t *testing.T) {
 		"bar": 3,
 	}
 
-	jsonContentForComparison, err := json.Marshal(message)
+	jsonContentForComparison, err := jsonStreamMarshal(message)
 	require.NoError(t, err)
 
 	req := NewRequest(nil, "GET", "/", nil)
-	req.EncodeAsJSON(message)
+	req.Encode(message)
 
 	bodyBytes, err := ioutil.ReadAll(req.Body)
 	require.NoError(t, err)
@@ -115,4 +116,18 @@ func TestRequestSetMetadata(t *testing.T) {
 	req := NewRequest(ctx, "GET", "/", nil)
 
 	assert.Equal(t, []string{"data"}, req.Request.Header["meta"])
+}
+
+
+func jsonStreamMarshal(v interface{}) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := bufio.NewWriter(&buffer)
+
+	err := json.NewEncoder(writer).Encode(v)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
