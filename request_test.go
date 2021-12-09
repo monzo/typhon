@@ -124,7 +124,11 @@ func jsonStreamMarshal(v interface{}) ([]byte, error) {
 	writer := bufio.NewWriter(&buffer)
 
 	err := json.NewEncoder(writer).Encode(v)
+	if err != nil {
+		return nil, err
+	}
 
+	err = writer.Flush()
 	if err != nil {
 		return nil, err
 	}
