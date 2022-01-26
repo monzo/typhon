@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	legacyproto "github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
+	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
 	"google.golang.org/protobuf/proto"
 )

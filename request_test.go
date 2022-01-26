@@ -5,14 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	legacyproto "github.com/golang/protobuf/proto"
-	"google.golang.org/protobuf/proto"
 	"io/ioutil"
 	"strings"
 	"testing"
 
+	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/monzo/typhon/legacyprototest"
 	"github.com/monzo/typhon/prototest"
