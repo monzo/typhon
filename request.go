@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	legacyproto "github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -97,19 +98,18 @@ func (r Request) Decode(v interface{}) error {
 	// See: https://datatracker.ietf.org/doc/html/draft-rfernando-protocol-buffers-00#section-3.2
 	// See: https://github.com/google/protorpc/blob/eb03145/python/protorpc/protobuf.py#L49-L51
 	case "application/octet-stream", "application/x-google-protobuf", "application/protobuf", "application/x-protobuf":
-		m, ok := v.(proto.Message)
-		if !ok {
+		switch m := v.(type) {
+		case proto.Message:
+			err = proto.Unmarshal(b, m)
+		case legacyproto.Message:
+			err = legacyproto.Unmarshal(b, m)
+		default:
 			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
 		}
-		err = proto.Unmarshal(b, m)
 	// As older versions of typhon used json, we don't use protojson here as they are mutually exclusive standards with
 	// major differences in how they handle some types (such as Enums)
 	default:
-		m, ok := v.(proto.Message)
-		if !ok {
-			return terrors.InternalService("invalid_type", "could not decode proto message", nil)
-		}
-		err = json.Unmarshal(b, m)
+		err = json.Unmarshal(b, v)
 	}
 
 	return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
