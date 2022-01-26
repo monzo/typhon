@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	legacyproto "github.com/golang/protobuf/proto"
 	"google.golang.org/protobuf/proto"
 	"io/ioutil"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/monzo/typhon/legacyprototest"
 	"github.com/monzo/typhon/prototest"
 )
 
@@ -31,6 +33,90 @@ func TestRequestDecodeCloses(t *testing.T) {
 	default:
 		assert.Fail(t, "response body was not closed after Decode()")
 	}
+}
+
+func TestRequestDecodeJSONStruct(t *testing.T) {
+	req := NewRequest(nil, "GET", "/", nil)
+	b := []byte("{\"message\":\"Hello world!\"}\n")
+	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	req.Body = r
+
+	g := &struct {
+		Message string `json:"message"`
+	}{}
+	err := req.Decode(g)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g.Message)
+}
+
+func TestRequestDecodeProto(t *testing.T) {
+	generateRequest := func() Request {
+		req := NewRequest(nil, "GET", "/", nil)
+		b, _ := proto.Marshal(&prototest.Greeting{Message: "Hello world!"})
+		r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+		req.Header.Set("Content-Type", "application/protobuf")
+		req.Body = r
+		return req
+	}
+
+	req1 := generateRequest()
+	g1 := &prototest.Greeting{}
+	err := req1.Decode(g1)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g1.Message)
+
+	req2 := generateRequest()
+	g2 := &legacyprototest.LegacyGreeting{}
+	err = req2.Decode(g2)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g2.Message)
+}
+
+func TestRequestDecodeProtoMaskingAsJSON(t *testing.T) {
+	req := NewRequest(nil, "GET", "/", nil)
+	b := []byte("{\"message\":\"Hello world!\"}\n")
+	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	req.Body = r
+
+	g := &prototest.Greeting{}
+	err := req.Decode(g)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g.Message)
+}
+
+func TestRequestDecodeLegacyProto(t *testing.T) {
+	generateRequest := func() Request {
+		req := NewRequest(nil, "GET", "/", nil)
+		b, _ := legacyproto.Marshal(&legacyprototest.LegacyGreeting{Message: "Hello world!"})
+		r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+		req.Header.Set("Content-Type", "application/protobuf")
+		req.Body = r
+		return req
+	}
+
+	req1 := generateRequest()
+	g1 := &prototest.Greeting{}
+	err := req1.Decode(g1)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g1.Message)
+
+	req2 := generateRequest()
+	g2 := &legacyprototest.LegacyGreeting{}
+	err = req2.Decode(g2)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g2.Message)
+}
+
+func TestRequestDecodeLegacyProtoMaskingAsJSON(t *testing.T) {
+	req := NewRequest(nil, "GET", "/", nil)
+	b := []byte("{\"message\":\"Hello world!\"}\n")
+	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	req.Body = r
+
+	g := &legacyprototest.LegacyGreeting{}
+	err := req.Decode(g)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g.Message)
 }
 
 // TestRequestEncodeReader verifies that passing an io.Reader to request.Encode() uses it properly as the body, and
@@ -88,7 +174,7 @@ func TestRequestEncodeProtobuf(t *testing.T) {
 }
 
 func TestRequestEncodeJSON(t *testing.T) {
-	message := map[string]interface{} {
+	message := map[string]interface{}{
 		"foo": "bar",
 		"bar": 3,
 	}
@@ -117,7 +203,6 @@ func TestRequestSetMetadata(t *testing.T) {
 
 	assert.Equal(t, []string{"data"}, req.Request.Header["meta"])
 }
-
 
 func jsonStreamMarshal(v interface{}) ([]byte, error) {
 	var buffer bytes.Buffer
