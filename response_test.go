@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	legacyproto "github.com/golang/protobuf/proto"
+	"github.com/monzo/typhon/legacyprototest"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -208,6 +210,44 @@ func TestResponseDecodeProtobufWithAltType(t *testing.T) {
 		Message:  "Hello world!",
 		Priority: 1}
 	b, _ := proto.Marshal(g)
+	rsp := NewResponse(Request{})
+	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Header.Set("Content-Type", "application/x-protobuf")
+
+	gout := &prototest.Greeting{}
+	assert.NoError(t, rsp.Decode(gout))
+	assert.Equal(t, "Hello world!", gout.Message)
+	assert.EqualValues(t, 1, gout.Priority)
+}
+
+// TestResponseDecodeLegacyProtobuf verifies decoding of a legacy protobuf message
+func TestResponseDecodeLegacyProtobuf(t *testing.T) {
+	t.Parallel()
+
+	g := &legacyprototest.LegacyGreeting{
+		Message:  "Hello world!",
+		Priority: 1,
+	}
+	b, _ := legacyproto.Marshal(g)
+	rsp := NewResponse(Request{})
+	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Header.Set("Content-Type", "application/protobuf")
+
+	gout := &legacyprototest.LegacyGreeting{}
+	assert.NoError(t, rsp.Decode(gout))
+	assert.Equal(t, "Hello world!", gout.Message)
+	assert.EqualValues(t, 1, gout.Priority)
+}
+
+// TestResponseDecodeLegacyProtobufWithAltType verifies decoding of a legacy protobuf message
+func TestResponseDecodeLegacyProtobufWithAltType(t *testing.T) {
+	t.Parallel()
+
+	g := &legacyprototest.LegacyGreeting{
+		Message:  "Hello world!",
+		Priority: 1,
+	}
+	b, _ := legacyproto.Marshal(g)
 	rsp := NewResponse(Request{})
 	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
 	rsp.Header.Set("Content-Type", "application/x-protobuf")
