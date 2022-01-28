@@ -9,6 +9,7 @@ import (
 	"github.com/monzo/typhon/legacyprototest"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -258,6 +259,16 @@ func TestResponseDecodeLegacyProtobufWithAltType(t *testing.T) {
 	assert.EqualValues(t, 1, gout.Priority)
 }
 
+func TestResponseDecodeErrorGivesTerror(t *testing.T) {
+	rsp := NewResponse(Request{})
+	rsp.Body = ioutil.NopCloser(strings.NewReader("invalid json"))
+
+	bout := map[string]string{}
+	err := rsp.Decode(&bout)
+	assert.True(t, terrors.Is(err, "bad_request"))
+	assert.True(t, terrors.Matches(err, "invalid character 'i'"))
+}
+
 // rc is a helper type used in tests involving a generic io.ReadCloser
 type rc struct {
 	strings.Reader
@@ -389,4 +400,11 @@ func TestResponseEncodeReader(t *testing.T) {
 	body, err = ioutil.ReadAll(rsp.Body)
 	require.NoError(t, err)
 	assert.Subset(t, body, []byte("hello"), "'hello' should appear in the wire format")
+}
+
+func TestResponseEncodeErrorGivesTerror(t *testing.T) {
+	rsp := NewResponse(Request{})
+	rsp.Encode(math.Inf(1))
+	assert.True(t, terrors.Is(rsp.Error, "internal_service"))
+	assert.True(t, terrors.Matches(rsp.Error, "unsupported value"))
 }

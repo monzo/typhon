@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/monzo/terrors"
 	"io/ioutil"
+	"math"
 	"strings"
 	"testing"
 
@@ -119,6 +121,16 @@ func TestRequestDecodeLegacyProtoMaskingAsJSON(t *testing.T) {
 	assert.Equal(t, "Hello world!", g.Message)
 }
 
+func TestRequestDecodeErrorGivesTerror(t *testing.T) {
+	req := NewRequest(nil, "GET", "/", nil)
+	req.Body = ioutil.NopCloser(strings.NewReader("invalid json"))
+
+	bout := map[string]string{}
+	err := req.Decode(&bout)
+	assert.True(t, terrors.Is(err, "bad_request"))
+	assert.True(t, terrors.Matches(err, "invalid character 'i'"))
+}
+
 // TestRequestEncodeReader verifies that passing an io.Reader to request.Encode() uses it properly as the body, and
 // does not attempt to encode it as JSON
 func TestRequestEncodeReader(t *testing.T) {
@@ -170,7 +182,6 @@ func TestRequestEncodeProtobuf(t *testing.T) {
 
 	assert.Equal(t, "application/protobuf", req.Header.Get("Content-Type"))
 	assert.EqualValues(t, bodyBytes, protoContentForComparison)
-
 }
 
 func TestRequestEncodeJSON(t *testing.T) {
@@ -190,6 +201,13 @@ func TestRequestEncodeJSON(t *testing.T) {
 
 	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
 	assert.EqualValues(t, bodyBytes, jsonContentForComparison)
+}
+
+func TestRequestEncodeErrorGivesTerror(t *testing.T) {
+	req := NewRequest(nil, "GET", "/", nil)
+	req.Encode(math.Inf(1))
+	assert.True(t, terrors.Is(req.err, "internal_service"))
+	assert.True(t, terrors.Matches(req.err, "unsupported value"))
 }
 
 func TestRequestSetMetadata(t *testing.T) {
