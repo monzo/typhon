@@ -184,7 +184,7 @@ func (r *Response) Decode(v interface{}) error {
 		err = json.Unmarshal(b, v)
 	}
 
-	err = terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
+	err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
 	if err != nil {
 		r.Error = err
 	}
