@@ -265,7 +265,7 @@ func TestResponseDecodeErrorGivesTerror(t *testing.T) {
 
 	bout := map[string]string{}
 	err := rsp.Decode(&bout)
-	assert.True(t, terrors.Is(err, "bad_request"))
+	assert.True(t, terrors.Is(err, "bad_response"))
 	assert.True(t, terrors.Matches(err, "invalid character 'i'"))
 }
 
