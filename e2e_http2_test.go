@@ -1,6 +1,7 @@
 package typhon
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"testing"
@@ -28,6 +29,36 @@ func (f http2H2cFlavour) Proto() string {
 	return "HTTP/2.0"
 }
 
+func (f http2H2cFlavour) Context() (context.Context, func()) {
+	return context.WithCancel(context.Background())
+}
+
+type http2H2cPriorKnowledgeFlavour struct {
+	T      *testing.T
+	client Service
+}
+
+func (f http2H2cPriorKnowledgeFlavour) Serve(svc Service) *Server {
+	svc = svc.Filter(H2cFilter)
+	s, err := Listen(svc, "localhost:0")
+	require.NoError(f.T, err)
+	return s
+}
+
+func (f http2H2cPriorKnowledgeFlavour) URL(s *Server) string {
+	return fmt.Sprintf("http://%s", s.Listener().Addr())
+}
+
+func (f http2H2cPriorKnowledgeFlavour) Proto() string {
+	return "HTTP/2.0"
+}
+
+func (f http2H2cPriorKnowledgeFlavour) Context() (context.Context, func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	ctx = WithH2C(ctx)
+	return ctx, cancel
+}
+
 type http2H2Flavour struct {
 	T      *testing.T
 	client Service
@@ -51,4 +82,8 @@ func (f http2H2Flavour) URL(s *Server) string {
 
 func (f http2H2Flavour) Proto() string {
 	return "HTTP/2.0"
+}
+
+func (f http2H2Flavour) Context() (context.Context, func()) {
+	return context.WithCancel(context.Background())
 }

@@ -1,23 +1,41 @@
 package typhon
 
 import (
+	"context"
+	"crypto/tls"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/monzo/terrors"
+	"golang.org/x/net/http2"
 )
 
 var (
 	// Client is used to send all requests by default. It can be overridden globally but MUST only be done before use
 	// takes place; access is not synchronised.
 	Client Service = BareClient
-	// RoundTripper is used by default in Typhon clients
-	RoundTripper http.RoundTripper = &http.Transport{
+	// RoundTripper chooses HTTP1, or H2C based on a context flag (see WithH2C)
+	RoundTripper http.RoundTripper = dynamicRoundTripper{}
+
+	// HTTPRoundTripper is a HTTP1 and TLS HTTP2 client
+	HTTPRoundTripper http.RoundTripper = &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		DisableKeepAlives:   false,
 		DisableCompression:  false,
 		IdleConnTimeout:     10 * time.Minute,
-		MaxIdleConnsPerHost: 10}
+		MaxIdleConnsPerHost: 10,
+	}
+
+	// H2cRoundTripper is a prior-knowledge H2c client. It does not support ProxyFromEnvironment.
+	H2cRoundTripper http.RoundTripper = &http2.Transport{
+		AllowHTTP: true,
+		// This monstrosity is needed to get the http2 Transport to dial over cleartext.
+		// See https://github.com/thrawn01/h2c-golang-example
+		DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
+			return net.Dial(network, addr)
+		},
+	}
 )
 
 // A ResponseFuture is a container for a Response which will materialise at some point.
@@ -90,4 +108,25 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 //  SendVia(req, Client)
 func Send(req Request) *ResponseFuture {
 	return SendVia(req, Client)
+}
+
+type withH2C struct{}
+
+// WithH2C instructs the dynamicRoundTripper to use prior-knowledge cleartext HTTP2 instead of HTTP1.1
+func WithH2C(ctx context.Context) context.Context {
+	return context.WithValue(ctx, withH2C{}, true)
+}
+
+func isH2C(ctx context.Context) bool {
+	b, _ := ctx.Value(withH2C{}).(bool)
+	return b
+}
+
+type dynamicRoundTripper struct{}
+
+func (d dynamicRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.URL.Scheme == "http" && isH2C(r.Context()) {
+		return H2cRoundTripper.RoundTrip(r)
+	}
+	return HTTPRoundTripper.RoundTrip(r)
 }
