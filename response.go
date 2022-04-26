@@ -152,18 +152,28 @@ func (r *Response) Decode(v interface{}) error {
 		return r.Error
 	}
 
+	contentType := r.Header.Get("Content-Type")
+
+	params := map[string]string{
+		"response_content_type": contentType,
+	}
+
 	switch m := v.(type) {
 	// If we have a proto message, unmarshal it as JSON, so we don't break e.g. timestamp encoding or enums.
 	// This presents a bit of a backwards compatibility issue, though only for those who have been using
 	// proto.Message incorrectly (without encoding/protojson) with Typhon.
 	case proto.Message:
-		switch r.Header.Get("Content-Type") {
+		params["response_object_type"] = "protobuf"
+
+		switch contentType {
 		case "application/octet-stream",
 			"application/x-google-protobuf",
 			"application/protobuf",
 			"application/x-protobuf":
+
 			err = proto.Unmarshal(b, m)
 		default:
+
 			err = protojson.Unmarshal(b, m)
 		}
 
@@ -171,20 +181,24 @@ func (r *Response) Decode(v interface{}) error {
 	// This is against Google's recommendations, but also doesn't break things for active users of Typhon.
 	// Upgrade to google.golang.org/protobuf/proto.Message as soon as possible.
 	case legacyproto.Message:
-		switch r.Header.Get("Content-Type") {
+		params["response_object_type"] = "legacyproto"
+		switch contentType {
 		case "application/octet-stream",
 			"application/x-google-protobuf",
 			"application/protobuf",
 			"application/x-protobuf":
+
 			err = legacyproto.Unmarshal(b, m)
 		default:
 			err = json.Unmarshal(b, m)
 		}
 	default:
+		params["response_object_type"] = "json"
+
 		err = json.Unmarshal(b, v)
 	}
 
-	err = terrors.WrapWithCode(err, nil, terrors.ErrBadResponse)
+	err = terrors.WrapWithCode(err, params, terrors.ErrBadResponse)
 	if err != nil {
 		r.Error = err
 	}
