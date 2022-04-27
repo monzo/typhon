@@ -1,0 +1,23 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.17
+        working_directory: /go/src/github.com/monzo/typhon
+        resource_class: small # = 1 vCPU, 2GB RAM
+
+    steps:
+      - checkout
+      - run: |
+          go get -v golang.org/x/lint/golint
+      - run: go vet ./...
+      - run: golint .
+      - run: go test -v ./...
+      - run: go test -v -race ./...
+
+
+workflows:
+  version: 2
+  build-workflow:
+    jobs:
+      - build
