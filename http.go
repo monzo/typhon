@@ -66,7 +66,8 @@ func copyErrSeverity(err error) slog.Severity {
 
 	switch {
 	case strings.HasSuffix(err.Error(), "read on closed response body"),
-		strings.HasSuffix(err.Error(), "connection reset by peer"):
+		strings.HasSuffix(err.Error(), "connection reset by peer"),
+		strings.HasSuffix(err.Error(), "http2: stream closed"):
 		return slog.DebugSeverity
 	}
 
