@@ -3,13 +3,13 @@ package typhon
 import (
 	"context"
 	"fmt"
+	"github.com/monzo/slog"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"sync"
-
-	"github.com/monzo/slog"
+	"time"
 )
 
 type Server struct {
@@ -20,6 +20,9 @@ type Server struct {
 	shutdownFuncs  []func(context.Context)
 	shutdownFuncsM sync.Mutex
 }
+
+// ServerOption allows customizing the underling http.Server
+type ServerOption func(*Server)
 
 // Listener returns the network listener that this server is active on.
 func (s *Server) Listener() net.Listener {
@@ -72,8 +75,8 @@ func (s *Server) addShutdownFunc(f func(context.Context)) {
 	s.shutdownFuncs = append(s.shutdownFuncs, f)
 }
 
-// Serve starts a HTTP server, binding the passed Service to the passed listener.
-func Serve(svc Service, l net.Listener) (*Server, error) {
+// Serve starts a HTTP server, binding the passed Service to the passed listener and applying the passed ServerOptions.
+func Serve(svc Service, l net.Listener, opts ...ServerOption) (*Server, error) {
 	s := &Server{
 		l:            l,
 		shuttingDown: make(chan struct{})}
@@ -83,7 +86,14 @@ func Serve(svc Service, l net.Listener) (*Server, error) {
 	})
 	s.srv = &http.Server{
 		Handler:        HttpHandler(svc),
-		MaxHeaderBytes: http.DefaultMaxHeaderBytes}
+		MaxHeaderBytes: http.DefaultMaxHeaderBytes,
+	}
+
+	// Apply any given ServerOptions
+	for _, opt := range opts {
+		opt(s)
+	}
+
 	go func() {
 		err := s.srv.Serve(l)
 		if err != nil && err != http.ErrServerClosed {
@@ -97,7 +107,7 @@ func Serve(svc Service, l net.Listener) (*Server, error) {
 	return s, nil
 }
 
-func Listen(svc Service, addr string) (*Server, error) {
+func Listen(svc Service, addr string, opts ...ServerOption) (*Server, error) {
 	// Determine on which address to listen, choosing in order one of:
 	// 1. The passed addr
 	// 2. PORT variable (listening on all interfaces)
@@ -120,5 +130,26 @@ func Listen(svc Service, addr string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Serve(svc, l)
+	return Serve(svc, l, opts...)
+}
+
+// TimeoutOptions specifies various server timeouts. See http.Server for details of what these do.
+// There's a nice post explaining them here: https://ieftimov.com/posts/make-resilient-golang-net-http-servers-using-timeouts-deadlines-context-cancellation/#server-timeouts---first-principles
+// WARNING: Due to a Go bug, connections using h2c do not respect these timeouts.
+// See https://github.com/golang/go/issues/52868
+type TimeoutOptions struct {
+	Read       time.Duration
+	ReadHeader time.Duration
+	Write      time.Duration
+	Idle       time.Duration
+}
+
+// WithTimeout sets the server timeouts.
+func WithTimeout(opts TimeoutOptions) ServerOption {
+	return func(s *Server) {
+		s.srv.ReadTimeout = opts.Read
+		s.srv.ReadHeaderTimeout = opts.ReadHeader
+		s.srv.WriteTimeout = opts.Write
+		s.srv.IdleTimeout = opts.Idle
+	}
 }
