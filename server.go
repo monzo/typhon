@@ -3,13 +3,14 @@ package typhon
 import (
 	"context"
 	"fmt"
-	"github.com/monzo/slog"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/monzo/slog"
 )
 
 type Server struct {

@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	legacyproto "github.com/golang/protobuf/proto"
-	"github.com/monzo/typhon/legacyprototest"
 	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
 	"strings"
 	"testing"
+
+	legacyproto "github.com/golang/protobuf/proto"
+	"github.com/monzo/typhon/legacyprototest"
 
 	"github.com/monzo/terrors"
 	"github.com/monzo/typhon/prototest"
