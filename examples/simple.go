@@ -22,7 +22,7 @@ func main() {
 	svc := router.Serve().
 		Filter(typhon.ErrorFilter).
 		Filter(typhon.H2cFilter)
-	srv, err := typhon.Listen(svc, ":8000")
+	srv, err := typhon.Listen(svc, ":8000", typhon.WithTimeout(typhon.TimeoutOptions{Read: time.Second * 10}))
 	if err != nil {
 		panic(err)
 	}

@@ -5,11 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/monzo/terrors"
 	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
+
+	"github.com/monzo/terrors"
 
 	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"

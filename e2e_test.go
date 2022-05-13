@@ -23,10 +23,12 @@ import (
 )
 
 type e2eFlavour interface {
-	Serve(Service) *Server
+	Serve(Service, ...ServerOption) *Server
 	URL(*Server) string
 	Proto() string
 	Context() (context.Context, func())
+
+	AssertConnectionResetError(t *testing.T, terr *terrors.Error)
 }
 
 // flavours runs the passed E2E test with all test flavours (HTTP/1.1, HTTP/2.0/h2c, etc.)
@@ -803,5 +805,38 @@ func TestE2EDraining(t *testing.T) {
 		rsp := rspF.Response()
 		require.NoError(t, rsp.Error)
 		<-serverClosed
+	})
+}
+
+func TestE2EServerTimeouts(t *testing.T) {
+	someFlavours(t, []string{
+		"http1.1",
+		"http1.1-tls",
+		"http2.0-h2",
+
+		// The Go h2c implementation doesn't currently support server timeouts
+		// See https://github.com/golang/go/issues/52868
+		//"http2.0-h2c",
+		//"http2.0-h2c-prior-knowledge",
+	}, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := flav.Context()
+		defer cancel()
+
+		srv := Service(func(req Request) Response {
+			time.Sleep(1 * time.Second)
+			return NewResponse(req)
+		})
+		srv = srv.Filter(ErrorFilter)
+		s := flav.Serve(srv, WithTimeout(TimeoutOptions{Write: 10 * time.Millisecond}))
+		defer s.Stop(ctx)
+
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rsp := req.Send().Response()
+		if assert.Error(t, rsp.Error) {
+			terr, ok := rsp.Error.(*terrors.Error)
+			if assert.Truef(t, ok, "expected terror, got %T", rsp.Error) {
+				flav.AssertConnectionResetError(t, terr)
+			}
+		}
 	})
 }
