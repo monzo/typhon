@@ -87,6 +87,20 @@ func copyErrSeverity(err error) slog.Severity {
 	}
 }
 
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body. This is taken directly from the net/http package.
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
+}
+
 // HttpHandler transforms the given Service into a standard library HTTP handler. It is one of the main "bridges"
 // between Typhon and net/http.
 func HttpHandler(svc Service) http.Handler {
@@ -113,7 +127,7 @@ func HttpHandler(svc Service) http.Handler {
 			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
-		if rsp.Body != nil {
+		if rsp.Body != nil && bodyAllowedForStatus(rsp.StatusCode) {
 			defer rsp.Body.Close()
 			buf := *httpChunkBufPool.Get().(*[]byte)
 			defer httpChunkBufPool.Put(&buf)
