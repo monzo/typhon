@@ -103,27 +103,32 @@ func ErrorFilter(req Request, svc Service) Response {
 		}
 	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
 		// There is an error in the underlying response; unmarshal
-		b, _ := rsp.BodyBytes(false)
-		switch rsp.Header.Get("Terror") {
-		case "1":
-			var err error
-			tp := &terrorsproto.Error{}
+		b, err := rsp.BodyBytes(false)
+		if err != nil {
+			// Don't attempt to parse a partially read error response. Return the underlying read error when this occurs.
+			rsp.Error = terrors.Wrap(err, nil)
+		} else {
+			switch rsp.Header.Get("Terror") {
+			case "1":
+				var err error
+				tp := &terrorsproto.Error{}
 
-			switch rsp.Header.Get("Content-Type") {
-			case "application/octet-stream", "application/x-protobuf", "application/protobuf":
-				err = legacyproto.Unmarshal(b, tp)
+				switch rsp.Header.Get("Content-Type") {
+				case "application/octet-stream", "application/x-protobuf", "application/protobuf":
+					err = legacyproto.Unmarshal(b, tp)
+				default:
+					err = json.Unmarshal(b, tp)
+				}
+
+				if err != nil {
+					slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
+					rsp.Error = errors.New(string(b))
+				} else {
+					rsp.Error = terrors.Unmarshal(tp)
+				}
 			default:
-				err = json.Unmarshal(b, tp)
-			}
-
-			if err != nil {
-				slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
 				rsp.Error = errors.New(string(b))
-			} else {
-				rsp.Error = terrors.Unmarshal(tp)
 			}
-		default:
-			rsp.Error = errors.New(string(b))
 		}
 	}
 
