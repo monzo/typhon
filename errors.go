@@ -106,7 +106,7 @@ func ErrorFilter(req Request, svc Service) Response {
 		b, err := rsp.BodyBytes(false)
 		if err != nil {
 			// Don't attempt to parse a partially read error response. Return the underlying read error when this occurs.
-			rsp.Error = terrors.Wrap(err, nil)
+			rsp.Error = terrors.NewInternalWithCause(err, "reading error response body", nil, "body_read_error")
 		} else {
 			switch rsp.Header.Get("Terror") {
 			case "1":
