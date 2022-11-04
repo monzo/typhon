@@ -1,11 +1,13 @@
 package typhon
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/monzo/slog"
@@ -105,8 +107,18 @@ func ErrorFilter(req Request, svc Service) Response {
 		// There is an error in the underlying response; unmarshal
 		b, err := rsp.BodyBytes(false)
 		if err != nil {
+			var errParams map[string]string
+			if utf8.Valid(b) {
+				errParams = map[string]string{
+					"partially_read_body": string(b),
+				}
+			} else {
+				errParams = map[string]string{
+					"partially_read_body_base_64": base64.StdEncoding.EncodeToString(b),
+				}
+			}
 			// Don't attempt to parse a partially read error response. Return the underlying read error when this occurs.
-			rsp.Error = terrors.NewInternalWithCause(err, "reading error response body", nil, "body_read_error")
+			rsp.Error = terrors.NewInternalWithCause(err, "reading error response body", errParams, "body_read_error")
 		} else {
 			switch rsp.Header.Get("Terror") {
 			case "1":
