@@ -1,11 +1,13 @@
 package typhon
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/monzo/slog"
@@ -103,27 +105,42 @@ func ErrorFilter(req Request, svc Service) Response {
 		}
 	} else if rsp.StatusCode >= 400 && rsp.StatusCode <= 599 {
 		// There is an error in the underlying response; unmarshal
-		b, _ := rsp.BodyBytes(false)
-		switch rsp.Header.Get("Terror") {
-		case "1":
-			var err error
-			tp := &terrorsproto.Error{}
-
-			switch rsp.Header.Get("Content-Type") {
-			case "application/octet-stream", "application/x-protobuf", "application/protobuf":
-				err = legacyproto.Unmarshal(b, tp)
-			default:
-				err = json.Unmarshal(b, tp)
-			}
-
-			if err != nil {
-				slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
-				rsp.Error = errors.New(string(b))
+		b, err := rsp.BodyBytes(false)
+		if err != nil {
+			var errParams map[string]string
+			if utf8.Valid(b) {
+				errParams = map[string]string{
+					"partially_read_body": string(b),
+				}
 			} else {
-				rsp.Error = terrors.Unmarshal(tp)
+				errParams = map[string]string{
+					"partially_read_body_base_64": base64.StdEncoding.EncodeToString(b),
+				}
 			}
-		default:
-			rsp.Error = errors.New(string(b))
+			// Don't attempt to parse a partially read error response. Return the underlying read error when this occurs.
+			rsp.Error = terrors.NewInternalWithCause(err, "reading error response body", errParams, "body_read_error")
+		} else {
+			switch rsp.Header.Get("Terror") {
+			case "1":
+				var err error
+				tp := &terrorsproto.Error{}
+
+				switch rsp.Header.Get("Content-Type") {
+				case "application/octet-stream", "application/x-protobuf", "application/protobuf":
+					err = legacyproto.Unmarshal(b, tp)
+				default:
+					err = json.Unmarshal(b, tp)
+				}
+
+				if err != nil {
+					slog.Warn(rsp.Request, "Failed to unmarshal terror: %v", err)
+					rsp.Error = errors.New(string(b))
+				} else {
+					rsp.Error = terrors.Unmarshal(tp)
+				}
+			default:
+				rsp.Error = errors.New(string(b))
+			}
 		}
 	}
 
