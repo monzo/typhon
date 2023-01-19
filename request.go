@@ -158,6 +158,13 @@ func (r *Request) Write(b []byte) (n int, err error) {
 //
 // If consume is true, this is equivalent to ioutil.ReadAll; if false, the caller will observe the body to be in
 // the same state that it was before (ie. any remaining unread body can be read again).
+//
+// Deprecated: call io.ReadAll(request.Body) instead. If you were previously relying on consume == false,
+// then you should pass around the read bytes, rather than re-reading from the request body.
+// Background: we experienced confusion and bugs in the case that consume == false and BodyBytes is called on a Request
+// (not a pointer to a Request). In this case, calling BodyBytes with consume == false on one copy of the Request
+// would cause the body in other copies of the Request to be consumed, but not re-assigned.
+// Subsequent reads in one of these copies would read 0 bytes rather than error, making this hard to debug.
 func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
