@@ -250,12 +250,8 @@ func (r *Response) Write(b []byte) (n int, err error) {
 // BodyBytes fully reads the response body and returns the bytes read. If consume is false, the body is copied into a
 // new buffer such that it may be read again.
 //
-// Deprecated: call io.ReadAll(response.Body) instead. If you were previously relying on consume == false,
-// then you should pass around the read bytes, rather than re-reading from the response body.
-// Background: we experienced confusion and bugs in the case that consume == false and BodyBytes is called on a Response
-// (not a pointer to a Response). In this case, calling BodyBytes with consume == false on one copy of the Response
-// would cause the body in other copies of the Response to be consumed, but not re-assigned.
-// Subsequent reads in one of these copies would read 0 bytes rather than error, making this hard to debug.
+// Warning: if consume is false, you must ensure this is called on a pointer receiver (*Response) and not a
+// Response value. This is because the Response.Body referenced by the caller needs to be mutated.
 func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
