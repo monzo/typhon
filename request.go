@@ -158,6 +158,9 @@ func (r *Request) Write(b []byte) (n int, err error) {
 //
 // If consume is true, this is equivalent to ioutil.ReadAll; if false, the caller will observe the body to be in
 // the same state that it was before (ie. any remaining unread body can be read again).
+//
+// Warning: if consume is false, you must ensure this is called on a pointer receiver (*Request) and not a
+// Request value. This is because the Response.Body referenced by the caller needs to be mutated.
 func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()

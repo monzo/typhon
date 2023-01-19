@@ -249,6 +249,9 @@ func (r *Response) Write(b []byte) (n int, err error) {
 
 // BodyBytes fully reads the response body and returns the bytes read. If consume is false, the body is copied into a
 // new buffer such that it may be read again.
+//
+// Warning: if consume is false, you must ensure this is called on a pointer receiver (*Response) and not a
+// Response value. This is because the Response.Body referenced by the caller needs to be mutated.
 func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
