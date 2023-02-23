@@ -18,7 +18,7 @@ jobs:
         go vet ./...
     - name: Run Lint
       run: |
-        go get -v golang.org/x/lint/golint
+        go install golang.org/x/lint/golint@latest
         golint . || true
     - name: Run Tests
       run: |
@@ -26,4 +26,3 @@ jobs:
     - name: Run Tests with Race Detector
       run: |
         go test -v -race ./...
-
