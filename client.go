@@ -32,8 +32,9 @@ var (
 		AllowHTTP: true,
 		// This monstrosity is needed to get the http2 Transport to dial over cleartext.
 		// See https://github.com/thrawn01/h2c-golang-example
-		DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-			return net.Dial(network, addr)
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, network, addr)
 		},
 	}
 )
