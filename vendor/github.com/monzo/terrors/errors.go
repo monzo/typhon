@@ -4,14 +4,17 @@
 // user defined error parameters.
 //
 // Terrors can be used to wrap any object that satisfies the error interface:
+//
 //	terr := terrors.Wrap(err, map[string]string{"context": "my_context"})
 //
 // Terrors can be instantiated directly:
-// 	err := terrors.New("not_found", "object not found", map[string]string{
+//
+//	err := terrors.New("not_found", "object not found", map[string]string{
 //		"context": "my_context"
 //	})
 //
 // Terrors offers built-in functions for instantiating Errors with common codes:
+//
 //	err := terrors.NotFound("config_file", "config file not found", map[string]string{
 //		"context": my_context
 //	})
@@ -43,6 +46,7 @@ var retryableCodes = []string{
 	ErrInternalService,
 	ErrTimeout,
 	ErrUnknown,
+	ErrRateLimited,
 }
 
 // Error is terror's error. It implements Go's error interface.
@@ -54,6 +58,16 @@ type Error struct {
 
 	// exported for serialization, but you should use Retryable to read the value.
 	IsRetryable *bool `json:"is_retryable"`
+
+	// Incremented each time the error is marshalled so that we can tell (approximately) how many services the error
+	// has propagated through.  Higher level code can use this to influence decisions, for example it may only be
+	// desirable to retry on an error that's only been marshalled once to avoid retries on top of retries... ad nauseam
+	MarshalCount int `json:"marshal_count"`
+
+	// When errors are marshalled certain information is lost (e.g. the 'cause').  This means if an error travels through
+	// a number of services (and it's potentially augmented at each hop) that the core error message may be lost. The
+	// history of an error is often a helpful debugging aid, so MessageChain is used to track this.
+	MessageChain []string `json:"message_chain"`
 
 	// Cause is the initial cause of this error, and will be populated
 	// when using the Propagate function. This is intentionally not exported
@@ -105,7 +119,6 @@ func (p *Error) legacyErrString() string {
 }
 
 // Unwrap retruns the cause of the error. It may be nil.
-// WARNING: This function is considered experimental, and may be changed without notice.
 func (p *Error) Unwrap() error {
 	return p.cause
 }
@@ -165,22 +178,39 @@ func New(code string, message string, params map[string]string) *Error {
 // error is attached as the `cause`, and can be tested with the `Is` function.
 // You probably want to use the `Augment` func instead;
 // only use this if you need to set a subcode on an error.
-// WARNING: This function is considered experimental, and may be changed without notice.
 func NewInternalWithCause(err error, message string, params map[string]string, subCode string) *Error {
 	newErr := errorFactory(errCode(ErrInternalService, subCode), message, params)
 	newErr.cause = err
 
+	switch v := err.(type) {
+	case *Error:
+		newErr.MessageChain = append([]string{v.Message}, v.MessageChain...)
+	default:
+		newErr.MessageChain = []string{err.Error()}
+	}
+
+	switch v := err.(type) {
 	// If the causal error is a terror with retryability set, inherit that value.
 	// Otherwise, we'll default to retryable based on the ErrInternalService code above.
 	// This allows us to have an non-retryable InternalService error if the cause was not-retryable,
 	// which allows the retryability of errors to propagate through the system by default, even
 	// if an error handling case is missed in an upstream.
-	terr, ok := err.(*Error)
-	if ok && terr.IsRetryable != nil {
-		newErr.IsRetryable = terr.IsRetryable
+	case *Error:
+		newErr.MarshalCount = v.MarshalCount
+		if v.IsRetryable != nil {
+			newErr.IsRetryable = v.IsRetryable
+		}
+	// Test if the causal error is anything else that implements the same interface and is retryable.
+	case retryableError:
+		r := v.Retryable()
+		newErr.IsRetryable = &r
 	}
 
 	return newErr
+}
+
+type retryableError interface {
+	Retryable() bool
 }
 
 // addParams returns a new error with new params merged into the original error's
@@ -194,17 +224,21 @@ func addParams(err *Error, params map[string]string) *Error {
 	}
 
 	return &Error{
-		Code:        err.Code,
-		Message:     err.Message,
-		Params:      copiedParams,
-		StackFrames: err.StackFrames,
-		IsRetryable: err.IsRetryable,
+		Code:         err.Code,
+		Message:      err.Message,
+		MessageChain: err.MessageChain,
+		Params:       copiedParams,
+		StackFrames:  err.StackFrames,
+		IsRetryable:  err.IsRetryable,
+		MarshalCount: err.MarshalCount,
+		cause:        err.cause,
 	}
 }
 
 // Matches returns whether the string returned from error.Error() contains the given param string. This means you can
 // match the error on different levels e.g. dotted codes `bad_request` or `bad_request.missing_param` or even on the
 // more descriptive message
+// Deprecated: Please use `Is` instead. See docs for `Matches` for breaking change risks.
 func (p *Error) Matches(match string) bool {
 	return strings.Contains(p.Error(), match)
 }
@@ -213,6 +247,7 @@ func (p *Error) Matches(match string) bool {
 // you can match the error on different levels e.g. dotted codes `bad_request` or `bad_request.missing_param`. Each
 // dotted part can be passed as a separate argument e.g. `terr.PrefixMatches(terrors.ErrBadRequest, "missing_param")`
 // is the same as `terr.PrefixMatches("bad_request.missing_param")`
+// Deprecated: Please use `Is` instead.
 func (p *Error) PrefixMatches(prefixParts ...string) bool {
 	prefix := strings.Join(prefixParts, ".")
 
@@ -222,6 +257,14 @@ func (p *Error) PrefixMatches(prefixParts ...string) bool {
 // Matches returns true if the error is a terror error and the string returned from error.Error() contains the given
 // param string. This means you can match the error on different levels e.g. dotted codes `bad_request` or
 // `bad_request.missing_param` or even on the more descriptive message
+// Deprecated: Please use `Is` instead. Note that `Is` will attempt to match each error in the stack using
+// `PrefixMatches`, so if you were previously matching against a part of the string returned from error.Error() that
+// is _not_ the prefix, then this will be a breaking change. In this case you should update the string to match the
+// prefix. If this is not possible, you can match against the entire error string explicitly, for example:
+//
+//	strings.Contains(err.Error(), "context deadline exceeded")
+//
+// But we consider this bad practice and is part of the motivation for deprecating Matches in the first place.
 func Matches(err error, match string) bool {
 	if terr, ok := Wrap(err, nil).(*Error); ok {
 		return terr.Matches(match)
@@ -235,6 +278,7 @@ func Matches(err error, match string) bool {
 // `bad_request.missing_param`. Each dotted part can be passed as a separate argument
 // e.g. `terrors.PrefixMatches(terr, terrors.ErrBadRequest, "missing_param")` is the same as
 // terrors.PrefixMatches(terr, "bad_request.missing_param")`
+// Deprecated: Please use `Is` instead.
 func PrefixMatches(err error, prefixParts ...string) bool {
 	if terr, ok := Wrap(err, nil).(*Error); ok {
 		return terr.PrefixMatches(prefixParts...)
@@ -243,9 +287,17 @@ func PrefixMatches(err error, prefixParts ...string) bool {
 	return false
 }
 
+// IsRetryable returns true if the error is a terror and whether the error was caused by an action which can be
+// retried.
+func IsRetryable(err error) bool {
+	if r, ok := Propagate(err).(*Error); ok {
+		return r.Retryable()
+	}
+	return false
+}
+
 // Augment adds context to an existing error.
 // If the error given is not already a terror, a new terror is created.
-// WARNING: This function is considered experimental, and may be changed without notice.
 func Augment(err error, context string, params map[string]string) error {
 	if err == nil {
 		return nil
@@ -255,12 +307,14 @@ func Augment(err error, context string, params map[string]string) error {
 		withMergedParams := addParams(err, params)
 		// The underlying terror will already have a stack, so we don't take a new trace here.
 		return &Error{
-			Code:        err.Code,
-			Message:     context,
-			Params:      withMergedParams.Params,
-			StackFrames: stack.Stack{},
-			IsRetryable: err.IsRetryable,
-			cause:       err,
+			Code:         err.Code,
+			Message:      context,
+			MessageChain: append([]string{err.Message}, err.MessageChain...),
+			Params:       withMergedParams.Params,
+			StackFrames:  stack.Stack{},
+			IsRetryable:  err.IsRetryable,
+			MarshalCount: err.MarshalCount,
+			cause:        err,
 		}
 	default:
 		return NewInternalWithCause(err, context, params, "")
@@ -272,7 +326,6 @@ func Augment(err error, context string, params map[string]string) error {
 // create one, and set the given error as the cause.
 // This is a drop-in replacement for `terrors.Wrap(err, nil)` which adds causal
 // chain functionality.
-// WARNING: This function is considered experimental, and may be changed without notice.
 func Propagate(err error) error {
 	if err == nil {
 		return nil
@@ -288,10 +341,11 @@ func Propagate(err error) error {
 // Is checks whether an error is a given code. Similarly to `errors.Is`,
 // this unwinds the error stack and checks each underlying error for the code.
 // If any match, this returns true.
+// Note that Is only behaves differently to PrefixMatches when errors in the stack have different codes.
+// For example, this is the case when errors are initialized with NewInternalWithCause, but not with Augment.
 // We prefer this over using a method receiver on the terrors Error, as the function
 // signature requires an error to test against, and checking against terrors would
 // requite creating a new terror with the specific code.
-// WARNING: This function is considered experimental, and may be changed without notice.
 func Is(err error, code ...string) bool {
 	switch err := err.(type) {
 	case *Error:

@@ -14,6 +14,8 @@ message Error {
 	repeated StackFrame stack = 4;
 	// We don't use google.protobuf.BoolValue as it doesn't serialize properly without jsonpb.
 	BoolValue retryable = 5;
+	int32 marshal_count = 6;
+	repeated string message_chain = 7;
 }
 
 message BoolValue {

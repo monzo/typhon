@@ -21,11 +21,13 @@ func Marshal(e *Error) *pe.Error {
 	}
 
 	err := &pe.Error{
-		Code:      e.Code,
-		Message:   e.Message,
-		Stack:     stackToProto(e.StackFrames),
-		Params:    e.Params,
-		Retryable: retryable,
+		Code:         e.Code,
+		Message:      e.Message,
+		MessageChain: e.MessageChain,
+		Stack:        stackToProto(e.StackFrames),
+		Params:       e.Params,
+		Retryable:    retryable,
+		MarshalCount: int32(e.MarshalCount + 1),
 	}
 	if err.Code == "" {
 		err.Code = ErrUnknown
@@ -49,11 +51,13 @@ func Unmarshal(p *pe.Error) *Error {
 	}
 
 	err := &Error{
-		Code:        p.Code,
-		Message:     p.Message,
-		StackFrames: protoToStack(p.Stack),
-		Params:      p.Params,
-		IsRetryable: retryable,
+		Code:         p.Code,
+		Message:      p.Message,
+		MessageChain: p.MessageChain,
+		StackFrames:  protoToStack(p.Stack),
+		Params:       p.Params,
+		IsRetryable:  retryable,
+		MarshalCount: int(p.MarshalCount),
 	}
 	if err.Code == "" {
 		err.Code = ErrUnknown

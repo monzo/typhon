@@ -12,12 +12,18 @@ var notRetryable bool = false
 // Wrap takes any error interface and wraps it into an Error.
 // This is useful because an Error contains lots of useful goodies, like the stacktrace of the error.
 // NOTE: If `err` is already an `Error`, it will add the params passed in to the params of the Error
+// Deprecated: Use Augment instead.
 func Wrap(err error, params map[string]string) error {
 	return WrapWithCode(err, params, ErrInternalService)
 }
 
 // WrapWithCode wraps an error with a custom error code. If `err` is already
 // an `Error`, it will add the params passed in to the params of the error
+// Deprecated: Use Augment instead. If you need to set the code of the error,
+// then you should return a new error instead. For example
+//  terrors.WrapWithCode(err, map[string]string{"foo": "bar"}, "bad_request.failed")
+// would become
+//  terrors.BadRequest("failed", err.Error(), map[string]string{"foo": "bar"})
 func WrapWithCode(err error, params map[string]string, code string) error {
 	if err == nil {
 		return nil
