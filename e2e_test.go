@@ -14,10 +14,11 @@ import (
 	"time"
 
 	"github.com/fortytw2/leaktest"
-	"github.com/monzo/terrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
+
+	"github.com/monzo/terrors"
 
 	"github.com/monzo/typhon/prototest"
 )
@@ -838,5 +839,41 @@ func TestE2EServerTimeouts(t *testing.T) {
 				flav.AssertConnectionResetError(t, terr)
 			}
 		}
+	})
+}
+
+// TestE2EMaxConnectionAge_ConnectionAgeSet tests that when using the
+// WithMaxConnectionAge server option the connection age is available
+// to the handler. This is a fairly weak test as it doesn't actually
+// test that connections are closed. Unfortunately our test framework
+// seems to always close connections so this is as good as we can get.
+func TestE2EMaxConnectionAge_ConnectionAgeSet(t *testing.T) {
+	addConnectionStartTimeHeader = true
+
+	someFlavours(t, []string{
+		"http1.1",
+		"http1.1-tls",
+		"http2.0-h2",
+
+		// The Go h2c implementation doesn't currently support max
+		// connection age.
+	}, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := flav.Context()
+		defer cancel()
+
+		srv := Service(func(req Request) Response {
+			time.Sleep(100 * time.Millisecond)
+			return NewResponse(req)
+		})
+
+		srv = srv.Filter(ErrorFilter)
+		s := flav.Serve(srv, WithMaxConnectionAge(time.Hour))
+		defer s.Stop(ctx)
+
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rsp := req.Send().Response()
+		assert.NoError(t, rsp.Error)
+		connectionStart := rsp.Header.Get(connectionStartTimeHeaderKey)
+		require.NotEmpty(t, connectionStart)
 	})
 }
