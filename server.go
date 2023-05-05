@@ -154,3 +154,81 @@ func WithTimeout(opts TimeoutOptions) ServerOption {
 		s.srv.IdleTimeout = opts.Idle
 	}
 }
+
+var (
+	connectionStartTimeHeaderKey = "X-Typhon-Connection-Start"
+	// addConnectionStartTimeHeader is set to true within tests to
+	// make it easier to test the server option.
+	addConnectionStartTimeHeader = false
+)
+
+// WithMaxConnectionAge returns a server option that will enforce a max
+// connection age. When a connection has reached the max connection age
+// then the next request that is processed on that connection will result
+// in the connection being gracefully closed. This does mean that if a
+// connection is not being used then it can outlive the maximum connection
+// age.
+func WithMaxConnectionAge(maxAge time.Duration) ServerOption {
+	// We have no ability within a handler to get access to the
+	// underlying net.Conn that the request came on. However,
+	// the http.Server has a ConnContext field that can be used
+	// to specify a function that can modify the context used for
+	// that connection. We can use this to store the connection
+	// start time in the context and then in the handler we can
+	// read that out and whenever the maxAge has been exceeded we
+	// can close the connection.
+	//
+	// We could close the connection by calling the Close method
+	// on the net.Conn. This would have the benefit that we could
+	// close the connection exactly at the expiry but would have
+	// the disadvantage that it does not gracefully close the
+	// connection – it would kill all in-flight requests. Instead,
+	// we set the 'Connection: close' response header which will
+	// be translated into an HTTP2 GOAWAY frame and result in the
+	// connection being gracefully closed.
+
+	return func(s *Server) {
+		// Wrap the current ConnContext (if set) to store a reference
+		// to the connection start time in the context.
+		origConnContext := s.srv.ConnContext
+		s.srv.ConnContext = func(ctx context.Context, conn net.Conn) context.Context {
+			if origConnContext != nil {
+				ctx = origConnContext(ctx, conn)
+			}
+
+			return setConnectionStartTimeInContext(ctx, time.Now())
+		}
+
+		// Wrap the handler to set the 'Connection: close' response
+		// header if the max age has been exceeded.
+		origHandler := s.srv.Handler
+		s.srv.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			connectionStart, ok := readConnectionStartTimeFromContext(request.Context())
+			if ok {
+				if time.Since(connectionStart) > maxAge {
+					h := writer.Header()
+					h.Add("Connection", "close")
+				}
+
+				// This is used within tests
+				if addConnectionStartTimeHeader {
+					h := writer.Header()
+					h.Add(connectionStartTimeHeaderKey, connectionStart.String())
+				}
+			}
+
+			origHandler.ServeHTTP(writer, request)
+		})
+	}
+}
+
+type connectionContextKey struct{}
+
+func setConnectionStartTimeInContext(parent context.Context, t time.Time) context.Context {
+	return context.WithValue(parent, connectionContextKey{}, t)
+}
+
+func readConnectionStartTimeFromContext(ctx context.Context) (time.Time, bool) {
+	conn, ok := ctx.Value(connectionContextKey{}).(time.Time)
+	return conn, ok
+}
