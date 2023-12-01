@@ -183,7 +183,7 @@ func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 // Send round-trips the request via the default Client. It does not block, instead returning a ResponseFuture
 // representing the asynchronous operation to produce the response. It is equivalent to:
 //
-//  r.SendVia(Client)
+//	r.SendVia(Client)
 func (r Request) Send() *ResponseFuture {
 	return Send(r)
 }
@@ -211,6 +211,22 @@ func (r Request) ResponseWithCode(body interface{}, statusCode int) Response {
 		rsp.Encode(body)
 	}
 	return rsp
+}
+
+// RouterEndpointPattern finds the router pattern that matches the request. This is only callable while the request
+// is being served.
+func (r Request) RouterEndpointPattern() string {
+	if router := RouterForRequest(r); router != nil {
+		if pathPattern := router.Pattern(r); pathPattern != "" {
+			return pathPattern
+		}
+	}
+	return ""
+}
+
+// RequestMethod returns the HTTP method of the request
+func (r Request) RequestMethod() string {
+	return r.Method
 }
 
 func (r Request) String() string {
