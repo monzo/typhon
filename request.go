@@ -213,15 +213,9 @@ func (r Request) ResponseWithCode(body interface{}, statusCode int) Response {
 	return rsp
 }
 
-// RouterEndpointPattern finds the router pattern that matches the request. This is only callable while the request
-// is being served.
-func (r Request) RouterEndpointPattern() string {
-	if router := RouterForRequest(r); router != nil {
-		if pathPattern := router.Pattern(r); pathPattern != "" {
-			return pathPattern
-		}
-	}
-	return ""
+// RequestPathPattern finds the router entry pattern that matches the request
+func (r Request) RequestPathPattern() string {
+	return routerEntryPathPatternForRequest(r)
 }
 
 // RequestMethod returns the HTTP method of the request

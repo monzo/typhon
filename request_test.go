@@ -226,13 +226,13 @@ func TestRequestSetMetadata(t *testing.T) {
 
 func TestRouterEndpointPattern(t *testing.T) {
 	req := NewRequest(context.Background(), http.MethodGet, "/foo/some-url-identifier", nil)
-	assert.Equal(t, "", req.RouterEndpointPattern()) // should be empty if request has not been served by a router
+	assert.Equal(t, "", req.RequestPathPattern()) // should be empty if request has not been served by a router
 
 	router := Router{}
 	routerEndpointPattern := "/foo/:id"
 	router.GET(routerEndpointPattern, func(req Request) Response {
 		// as we are currently serving the request, we should be able to get the router endpoint pattern
-		assert.Equal(t, routerEndpointPattern, req.RouterEndpointPattern())
+		assert.Equal(t, routerEndpointPattern, req.RequestPathPattern())
 		return req.Response(nil)
 	})
 
