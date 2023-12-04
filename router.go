@@ -13,12 +13,12 @@ import (
 // directly means we'd get a collision with any other package that does the same.
 // https://play.golang.org/p/MxhRiL37R-9
 type routerContextKeyType struct{}
-type routerPathContextKeyType struct{}
+type routerRequestPatternContextKeyType struct{}
 
 var (
-	routerContextKey     = routerContextKeyType{}
-	routerPathContextKey = routerPathContextKeyType{}
-	routerComponentsRe   = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
+	routerContextKey               = routerContextKeyType{}
+	routerRequestPatternContextKey = routerRequestPatternContextKeyType{}
+	routerComponentsRe             = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
 )
 
 type routerEntry struct {
@@ -47,7 +47,7 @@ func RouterForRequest(r Request) *Router {
 }
 
 func routerEntryPathPatternForRequest(r Request) string {
-	if v := r.Context.Value(routerPathContextKey); v != nil {
+	if v := r.Context.Value(routerRequestPatternContextKey); v != nil {
 		return v.(string)
 	}
 	return ""
@@ -133,7 +133,7 @@ func (r Router) Serve() Service {
 			return rsp
 		}
 		req.Context = context.WithValue(req.Context, routerContextKey, &r)
-		req.Context = context.WithValue(req.Context, routerPathContextKey, pathPattern)
+		req.Context = context.WithValue(req.Context, routerRequestPatternContextKey, pathPattern)
 		rsp := svc(req)
 		if rsp.Request == nil {
 			rsp.Request = &req
