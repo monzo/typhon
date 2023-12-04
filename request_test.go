@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"math"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -221,6 +222,27 @@ func TestRequestSetMetadata(t *testing.T) {
 	req := NewRequest(ctx, "GET", "/", nil)
 
 	assert.Equal(t, []string{"data"}, req.Request.Header["meta"])
+}
+
+func TestRouterEndpointPattern(t *testing.T) {
+	req := NewRequest(context.Background(), http.MethodGet, "/foo/some-url-identifier", nil)
+	assert.Equal(t, "", req.RequestPathPattern()) // should be empty if request has not been served by a router
+
+	router := Router{}
+	routerEndpointPattern := "/foo/:id"
+	router.GET(routerEndpointPattern, func(req Request) Response {
+		// as we are currently serving the request, we should be able to get the router endpoint pattern
+		assert.Equal(t, routerEndpointPattern, req.RequestPathPattern())
+		return req.Response(nil)
+	})
+
+	rsp := req.SendVia(router.Serve()).Response()
+	require.NoError(t, rsp.Error) // check we didn't get a "route not found" error
+}
+
+func TestRequestMethod(t *testing.T) {
+	req := NewRequest(context.Background(), http.MethodGet, "", nil)
+	assert.Equal(t, http.MethodGet, req.RequestMethod())
 }
 
 func jsonStreamMarshal(v interface{}) ([]byte, error) {

@@ -13,10 +13,12 @@ import (
 // directly means we'd get a collision with any other package that does the same.
 // https://play.golang.org/p/MxhRiL37R-9
 type routerContextKeyType struct{}
+type routerRequestPatternContextKeyType struct{}
 
 var (
-	routerContextKey   = routerContextKeyType{}
-	routerComponentsRe = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
+	routerContextKey               = routerContextKeyType{}
+	routerRequestPatternContextKey = routerRequestPatternContextKeyType{}
+	routerComponentsRe             = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
 )
 
 type routerEntry struct {
@@ -42,6 +44,13 @@ func RouterForRequest(r Request) *Router {
 		return v.(*Router)
 	}
 	return nil
+}
+
+func routerPathPatternForRequest(r Request) string {
+	if v := r.Context.Value(routerRequestPatternContextKey); v != nil {
+		return v.(string)
+	}
+	return ""
 }
 
 func (r *Router) compile(pattern string) *regexp.Regexp {
@@ -116,7 +125,7 @@ func (r Router) Lookup(method, path string) (Service, string, map[string]string,
 // Serve returns a Service which will route inbound requests to the enclosed routes.
 func (r Router) Serve() Service {
 	return func(req Request) Response {
-		svc, _, ok := r.lookup(req.Method, req.URL.Path, nil)
+		svc, pathPattern, ok := r.lookup(req.Method, req.URL.Path, nil)
 		if !ok {
 			txt := fmt.Sprintf("No handler for %s %s", req.Method, req.URL.Path)
 			rsp := NewResponse(req)
@@ -124,6 +133,7 @@ func (r Router) Serve() Service {
 			return rsp
 		}
 		req.Context = context.WithValue(req.Context, routerContextKey, &r)
+		req.Context = context.WithValue(req.Context, routerRequestPatternContextKey, pathPattern)
 		rsp := svc(req)
 		if rsp.Request == nil {
 			rsp.Request = &req
