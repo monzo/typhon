@@ -157,46 +157,36 @@ func (r Router) Params(req Request) map[string]string {
 // Sugar
 
 // GET is shorthand for:
-//
 //	r.Register("GET", pattern, svc)
 func (r *Router) GET(pattern string, svc Service) { r.Register("GET", pattern, svc) }
 
 // CONNECT is shorthand for:
-//
 //	r.Register("CONNECT", pattern, svc)
 func (r *Router) CONNECT(pattern string, svc Service) { r.Register("CONNECT", pattern, svc) }
 
 // DELETE is shorthand for:
-//
 //	r.Register("DELETE", pattern, svc)
 func (r *Router) DELETE(pattern string, svc Service) { r.Register("DELETE", pattern, svc) }
 
 // HEAD is shorthand for:
-//
 //	r.Register("HEAD", pattern, svc)
 func (r *Router) HEAD(pattern string, svc Service) { r.Register("HEAD", pattern, svc) }
 
 // OPTIONS is shorthand for:
-//
 //	r.Register("OPTIONS", pattern, svc)
 func (r *Router) OPTIONS(pattern string, svc Service) { r.Register("OPTIONS", pattern, svc) }
 
 // PATCH is shorthand for:
-//
 //	r.Register("PATCH", pattern, svc)
 func (r *Router) PATCH(pattern string, svc Service) { r.Register("PATCH", pattern, svc) }
 
 // POST is shorthand for:
-//
 //	r.Register("POST", pattern, svc)
 func (r *Router) POST(pattern string, svc Service) { r.Register("POST", pattern, svc) }
 
 // PUT is shorthand for:
-//
-//	r.Register("PUT", pattern, svc)
 func (r *Router) PUT(pattern string, svc Service) { r.Register("PUT", pattern, svc) }
 
 // TRACE is shorthand for:
-//
 //	r.Register("TRACE", pattern, svc)
 func (r *Router) TRACE(pattern string, svc Service) { r.Register("TRACE", pattern, svc) }
