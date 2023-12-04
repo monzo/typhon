@@ -215,7 +215,7 @@ func (r Request) ResponseWithCode(body interface{}, statusCode int) Response {
 
 // RequestPathPattern finds the router entry pattern that matches the request
 func (r Request) RequestPathPattern() string {
-	return routerEntryPathPatternForRequest(r)
+	return routerPathPatternForRequest(r)
 }
 
 // RequestMethod returns the HTTP method of the request

@@ -46,7 +46,7 @@ func RouterForRequest(r Request) *Router {
 	return nil
 }
 
-func routerEntryPathPatternForRequest(r Request) string {
+func routerPathPatternForRequest(r Request) string {
 	if v := r.Context.Value(routerRequestPatternContextKey); v != nil {
 		return v.(string)
 	}
