@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"strings"
@@ -160,7 +159,7 @@ func TestResponseDecodeCloses(t *testing.T) {
 	t.Parallel()
 	rsp := NewResponse(Request{})
 	b := []byte(`{"a":"b"}` + "\n")
-	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 	rsp.Body = r
 
 	bout := map[string]string{}
@@ -178,7 +177,7 @@ func TestResponseDecodeCloses(t *testing.T) {
 func TestResponseDecodeJSON_TrailingSpace(t *testing.T) {
 	t.Parallel()
 	rsp := NewResponse(Request{})
-	rsp.Body = ioutil.NopCloser(strings.NewReader(`{"foo":"bar"}` + "\n\n\n\n"))
+	rsp.Body = io.NopCloser(strings.NewReader(`{"foo":"bar"}` + "\n\n\n\n"))
 
 	bout := map[string]string{}
 	assert.NoError(t, rsp.Decode(&bout))
@@ -195,7 +194,7 @@ func TestResponseDecodeProtobuf(t *testing.T) {
 		Priority: 1}
 	b, _ := proto.Marshal(g)
 	rsp := NewResponse(Request{})
-	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Body = io.NopCloser(bytes.NewReader(b))
 	rsp.Header.Set("Content-Type", "application/protobuf")
 
 	gout := &prototest.Greeting{}
@@ -213,7 +212,7 @@ func TestResponseDecodeProtobufWithAltType(t *testing.T) {
 		Priority: 1}
 	b, _ := proto.Marshal(g)
 	rsp := NewResponse(Request{})
-	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Body = io.NopCloser(bytes.NewReader(b))
 	rsp.Header.Set("Content-Type", "application/x-protobuf")
 
 	gout := &prototest.Greeting{}
@@ -232,7 +231,7 @@ func TestResponseDecodeLegacyProtobuf(t *testing.T) {
 	}
 	b, _ := legacyproto.Marshal(g)
 	rsp := NewResponse(Request{})
-	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Body = io.NopCloser(bytes.NewReader(b))
 	rsp.Header.Set("Content-Type", "application/protobuf")
 
 	gout := &legacyprototest.LegacyGreeting{}
@@ -251,7 +250,7 @@ func TestResponseDecodeLegacyProtobufWithAltType(t *testing.T) {
 	}
 	b, _ := legacyproto.Marshal(g)
 	rsp := NewResponse(Request{})
-	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Body = io.NopCloser(bytes.NewReader(b))
 	rsp.Header.Set("Content-Type", "application/x-protobuf")
 
 	gout := &prototest.Greeting{}
@@ -262,7 +261,7 @@ func TestResponseDecodeLegacyProtobufWithAltType(t *testing.T) {
 
 func TestResponseDecodeErrorGivesTerror(t *testing.T) {
 	rsp := NewResponse(Request{})
-	rsp.Body = ioutil.NopCloser(strings.NewReader("invalid json"))
+	rsp.Body = io.NopCloser(strings.NewReader("invalid json"))
 
 	bout := map[string]string{}
 	err := rsp.Decode(&bout)
@@ -352,7 +351,7 @@ func TestResponseEncodeReader(t *testing.T) {
 	t.Parallel()
 
 	// io.ReadCloser: this should be used with no modification
-	rc := ioutil.NopCloser(strings.NewReader("hello world"))
+	rc := io.NopCloser(strings.NewReader("hello world"))
 	rsp := Response{}
 	rsp.Encode(rc)
 	assert.Nil(t, rsp.Error)
@@ -360,33 +359,33 @@ func TestResponseEncodeReader(t *testing.T) {
 	assert.EqualValues(t, -1, rsp.ContentLength)
 	assert.Empty(t, rsp.Header.Get("Content-Type"))
 
-	// io.Reader: this should be wrapped in an ioutil.NopCloser
+	// io.Reader: this should be wrapped in an io.NopCloser
 	r := strings.NewReader("hello world, again")
 	rsp = Response{}
 	rsp.Encode(r)
 	assert.Nil(t, rsp.Error)
 	assert.EqualValues(t, -1, rsp.ContentLength)
 	assert.Empty(t, rsp.Header.Get("Content-Type"))
-	body, err := ioutil.ReadAll(rsp.Body)
+	body, err := io.ReadAll(rsp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("hello world, again"), body)
 
 	// an io.ReadCloser that happens to implement json.Marshaler should not be used directly and should be marshaled
 	jm := jsonMarshalerReader{
-		ReadCloser: ioutil.NopCloser(strings.NewReader("this should never see the light of day"))}
+		ReadCloser: io.NopCloser(strings.NewReader("this should never see the light of day"))}
 	assert.Implements(t, (*json.Marshaler)(nil), jm)
 	rsp = Response{}
 	rsp.Encode(jm)
 	assert.Nil(t, rsp.Error)
 	assert.EqualValues(t, 3, rsp.ContentLength)
 	assert.Equal(t, "application/json", rsp.Header.Get("Content-Type"))
-	body, err = ioutil.ReadAll(rsp.Body)
+	body, err = io.ReadAll(rsp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("{}\n"), body)
 
 	// an io.ReadCloser that implements proto.Message should be marshaled
 	pm := &protoMarshalerReader{
-		ReadCloser: ioutil.NopCloser(strings.NewReader("this should never see the light of day")),
+		ReadCloser: io.NopCloser(strings.NewReader("this should never see the light of day")),
 		Greeting: &prototest.Greeting{
 			Message: "hello",
 		},
@@ -398,7 +397,7 @@ func TestResponseEncodeReader(t *testing.T) {
 	rsp.Encode(pm)
 	assert.Nil(t, rsp.Error)
 	assert.Equal(t, "application/protobuf", rsp.Header.Get("Content-Type"))
-	body, err = ioutil.ReadAll(rsp.Body)
+	body, err = io.ReadAll(rsp.Body)
 	require.NoError(t, err)
 	assert.Subset(t, body, []byte("hello"), "'hello' should appear in the wire format")
 }
