@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -41,7 +40,7 @@ func (r *Response) Encode(v interface{}) {
 		r.ContentLength = -1
 		return
 	case io.Reader:
-		r.Body = ioutil.NopCloser(v)
+		r.Body = io.NopCloser(v)
 		r.ContentLength = -1
 		return
 	}
@@ -255,7 +254,7 @@ func (r *Response) Write(b []byte) (n int, err error) {
 func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
-		return ioutil.ReadAll(r.Body)
+		return io.ReadAll(r.Body)
 	}
 
 	switch rc := r.Body.(type) {
@@ -268,7 +267,7 @@ func (r *Response) BodyBytes(consume bool) ([]byte, error) {
 		rdr := io.TeeReader(rc, buf)
 		// rc will never again be accessible: once it's copied it must be closed
 		defer rc.Close()
-		return ioutil.ReadAll(rdr)
+		return io.ReadAll(rdr)
 	}
 }
 
