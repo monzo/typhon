@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
 	"strings"
@@ -27,7 +27,7 @@ func TestRequestDecodeCloses(t *testing.T) {
 	t.Parallel()
 	req := NewRequest(nil, "GET", "/", nil)
 	b := []byte("{\"a\":\"b\"}\n")
-	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 	req.Body = r
 
 	bout := map[string]string{}
@@ -42,7 +42,7 @@ func TestRequestDecodeCloses(t *testing.T) {
 func TestRequestDecodeJSONStruct(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	b := []byte("{\"message\":\"Hello world!\"}\n")
-	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 	req.Body = r
 
 	g := &struct {
@@ -57,7 +57,7 @@ func TestRequestDecodeProto(t *testing.T) {
 	generateRequest := func() Request {
 		req := NewRequest(nil, "GET", "/", nil)
 		b, _ := proto.Marshal(&prototest.Greeting{Message: "Hello world!"})
-		r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+		r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 		req.Header.Set("Content-Type", "application/protobuf")
 		req.Body = r
 		return req
@@ -79,7 +79,7 @@ func TestRequestDecodeProto(t *testing.T) {
 func TestRequestDecodeProtoMaskingAsJSON(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	b := []byte("{\"message\":\"Hello world!\"}\n")
-	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 	req.Body = r
 
 	g := &prototest.Greeting{}
@@ -92,7 +92,7 @@ func TestRequestDecodeLegacyProto(t *testing.T) {
 	generateRequest := func() Request {
 		req := NewRequest(nil, "GET", "/", nil)
 		b, _ := legacyproto.Marshal(&legacyprototest.LegacyGreeting{Message: "Hello world!"})
-		r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+		r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 		req.Header.Set("Content-Type", "application/protobuf")
 		req.Body = r
 		return req
@@ -114,7 +114,7 @@ func TestRequestDecodeLegacyProto(t *testing.T) {
 func TestRequestDecodeLegacyProtoMaskingAsJSON(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	b := []byte("{\"message\":\"Hello world!\"}\n")
-	r := newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+	r := newDoneReader(io.NopCloser(bytes.NewReader(b)), -1)
 	req.Body = r
 
 	g := &legacyprototest.LegacyGreeting{}
@@ -125,7 +125,7 @@ func TestRequestDecodeLegacyProtoMaskingAsJSON(t *testing.T) {
 
 func TestRequestDecodeErrorGivesTerror(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
-	req.Body = ioutil.NopCloser(strings.NewReader("invalid json"))
+	req.Body = io.NopCloser(strings.NewReader("invalid json"))
 
 	bout := map[string]string{}
 	err := req.Decode(&bout)
@@ -139,31 +139,31 @@ func TestRequestEncodeReader(t *testing.T) {
 	t.Parallel()
 
 	// io.ReadCloser: this should be used with no modification
-	rc := ioutil.NopCloser(strings.NewReader("hello world"))
+	rc := io.NopCloser(strings.NewReader("hello world"))
 	req := NewRequest(nil, "GET", "/", nil)
 	req.Encode(rc)
 	assert.Equal(t, req.Body, rc)
 	assert.EqualValues(t, -1, req.ContentLength)
 	assert.Empty(t, req.Header.Get("Content-Type"))
 
-	// io.Reader: this should be wrapped in an ioutil.NopCloser
+	// io.Reader: this should be wrapped in an io.NopCloser
 	r := strings.NewReader("hello world, again")
 	req = NewRequest(nil, "GET", "/", nil)
 	req.Encode(r)
 	assert.EqualValues(t, -1, req.ContentLength)
 	assert.Empty(t, req.Header.Get("Content-Type"))
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("hello world, again"), body)
 
 	// an io.ReadCloser that happens to implement json.Marshaler should not be used directly and should be marshaled
 	jm := jsonMarshalerReader{
-		ReadCloser: ioutil.NopCloser(strings.NewReader("this should never see the light of day"))}
+		ReadCloser: io.NopCloser(strings.NewReader("this should never see the light of day"))}
 	req = NewRequest(nil, "GET", "/", nil)
 	req.Encode(jm)
 	assert.EqualValues(t, 3, req.ContentLength)
 	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
-	body, err = ioutil.ReadAll(req.Body)
+	body, err = io.ReadAll(req.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("{}\n"), body)
 }
@@ -179,7 +179,7 @@ func TestRequestEncodeProtobuf(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	req.EncodeAsProtobuf(g)
 
-	bodyBytes, err := ioutil.ReadAll(req.Body)
+	bodyBytes, err := io.ReadAll(req.Body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "application/protobuf", req.Header.Get("Content-Type"))
@@ -198,7 +198,7 @@ func TestRequestEncodeJSON(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	req.Encode(message)
 
-	bodyBytes, err := ioutil.ReadAll(req.Body)
+	bodyBytes, err := io.ReadAll(req.Body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
