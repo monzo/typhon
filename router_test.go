@@ -126,3 +126,25 @@ func TestRouterSetsRequest(t *testing.T) {
 	req.Context = rsp.Request.Context
 	assert.Equal(t, req, *rsp.Request)
 }
+
+func TestRouterSetsContextValues(t *testing.T) {
+	t.Parallel()
+
+	router := Router{}
+	router.GET("/", func(req Request) Response {
+		return Response{}
+	})
+
+	ctx := context.Background()
+	req := NewRequest(ctx, "GET", "/", map[string]string{"r": "foo"})
+	rsp := router.Serve()(req)
+	require.NotNil(t, rsp.Request)
+
+	ctxPattern, ok := RequestPatternFromContext(rsp.Request.Context)
+	assert.True(t, ok)
+	assert.Equal(t, "/", ctxPattern)
+
+	ctxMethod, ok := RequestMethodFromContext(rsp.Request.Context)
+	assert.True(t, ok)
+	assert.Equal(t, "GET", ctxMethod)
+}
