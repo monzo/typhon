@@ -13,6 +13,10 @@ It provides a number of conveniences and tries to promote safety wherever possib
 * **Middleware "filters"**  
   Filters are decorators around `Service`s; in Typhon servers and clients share common functionality by composing it functionally.
 
+  Filters are something your request goes through before it's processed. They can handle both outgoing and incoming requests
+
+  An example is a service.ping which runs a Typhon filter to see if the request is for /ping. In which case, it responds with a pong rather than routing the request.
+
 * **Body encoding and decoding**  
   Marshalling and unmarshalling request bodies to structs is such a common operation that our `Request` and `Response` objects support them directly. If the operations fail, the errors are propagated automatically since that's nearly always what a server will want.
 
