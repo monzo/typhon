@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -57,7 +56,7 @@ func (r *Request) EncodeAsJSON(v interface{}) {
 		r.ContentLength = -1
 		return
 	case io.Reader:
-		r.Body = ioutil.NopCloser(v)
+		r.Body = io.NopCloser(v)
 		r.ContentLength = -1
 		return
 	}
@@ -156,7 +155,7 @@ func (r *Request) Write(b []byte) (n int, err error) {
 
 // BodyBytes fully reads the request body and returns the bytes read.
 //
-// If consume is true, this is equivalent to ioutil.ReadAll; if false, the caller will observe the body to be in
+// If consume is true, this is equivalent to io.ReadAll; if false, the caller will observe the body to be in
 // the same state that it was before (ie. any remaining unread body can be read again).
 //
 // Warning: if consume is false, you must ensure this is called on a pointer receiver (*Request) and not a
@@ -164,7 +163,7 @@ func (r *Request) Write(b []byte) (n int, err error) {
 func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 	if consume {
 		defer r.Body.Close()
-		return ioutil.ReadAll(r.Body)
+		return io.ReadAll(r.Body)
 	}
 
 	switch rc := r.Body.(type) {
@@ -176,7 +175,7 @@ func (r *Request) BodyBytes(consume bool) ([]byte, error) {
 		rdr := io.TeeReader(rc, buf)
 		// rc will never again be accessible: once it's copied it must be closed
 		defer rc.Close()
-		return ioutil.ReadAll(rdr)
+		return io.ReadAll(rdr)
 	}
 }
 

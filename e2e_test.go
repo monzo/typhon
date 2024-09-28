@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"testing"
@@ -500,7 +499,7 @@ func TestE2EInfiniteContext(t *testing.T) {
 		require.NoError(t, rsp.Error)
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
 
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.NoError(t, err)
 		assert.Equal(t, "{\"b\":\"a\"}\n", string(b))
 
@@ -680,7 +679,7 @@ func TestE2EStreamingServerAbort(t *testing.T) {
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		<-done
-		body, err := ioutil.ReadAll(rsp.Body)
+		body, err := io.ReadAll(rsp.Body)
 		assert.Equal(t, "derp\n", string(body))
 		assert.EqualError(t, err, io.ErrUnexpectedEOF.Error())
 	})
@@ -708,7 +707,7 @@ func TestE2EStreamingServerAbort(t *testing.T) {
 		req := NewRequest(ctx, "GET", flav.URL(s), nil)
 		rsp := req.Send().Response()
 		<-done
-		body, err := ioutil.ReadAll(rsp.Body)
+		body, err := io.ReadAll(rsp.Body)
 		assert.Equal(t, "derp\n", string(body))
 		require.IsType(t, http2.StreamError{}, err)
 		streamErr := err.(http2.StreamError)

@@ -2,7 +2,7 @@ package typhon
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -32,7 +32,7 @@ func BenchmarkResponseProtobufDecode(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rsp.Body = ioutil.NopCloser(bytes.NewReader(out))
+		rsp.Body = io.NopCloser(bytes.NewReader(out))
 		g := &prototest.Greeting{}
 		rsp.Decode(g)
 	}
