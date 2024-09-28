@@ -106,7 +106,7 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 // Send round-trips the request via the default Client. It does not block, instead returning a ResponseFuture
 // representing the asynchronous operation to produce the response. It is equivalent to:
 //
-//  SendVia(req, Client)
+//	SendVia(req, Client)
 func Send(req Request) *ResponseFuture {
 	return SendVia(req, Client)
 }
@@ -123,10 +123,14 @@ func isH2C(ctx context.Context) bool {
 	return b
 }
 
+func isHTTP(r *http.Request) bool {
+	return r.URL != nil && r.URL.Scheme == "http"
+}
+
 type dynamicRoundTripper struct{}
 
 func (d dynamicRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	if r.URL.Scheme == "http" && isH2C(r.Context()) {
+	if isHTTP(r) && isH2C(r.Context()) {
 		return H2cRoundTripper.RoundTrip(r)
 	}
 	return HTTPRoundTripper.RoundTrip(r)
