@@ -230,7 +230,8 @@ func (r Request) String() string {
 	return fmt.Sprintf("Request(%s %s://%s%s)", r.Method, r.URL.Scheme, r.Host, r.URL.Path)
 }
 
-// NewRequest constructs a new Request with the given parameters, and if non-nil, encodes the given body into it.
+// NewRequest constructs a new Request with the given parameters. If the body is non-nil, it'll get encoded as JSON
+// unless you pass in a raw io.ReadCloser or io.Reader
 func NewRequest(ctx context.Context, method, url string, body interface{}) Request {
 	if ctx == nil {
 		ctx = context.Background()
@@ -254,4 +255,10 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		req.EncodeAsJSON(body)
 	}
 	return req
+}
+
+// NewRawRequest constructs a new Request with the given parameters and raw body
+func NewRawRequest(ctx context.Context, method, url string, body io.ReadCloser) Request {
+	// as an io.ReadCloser, the body won't be encoded as JSON
+	return NewRequest(ctx, method, url, body)
 }
