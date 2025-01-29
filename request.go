@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	legacyproto "github.com/golang/protobuf/proto"
+	"github.com/monzo/terrors"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
-
-	legacyproto "github.com/golang/protobuf/proto"
-	"github.com/monzo/terrors"
-	"google.golang.org/protobuf/proto"
+	"time"
 )
 
 // A Request is Typhon's wrapper around http.Request, used by both clients and servers.
@@ -261,4 +261,36 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 func NewRawRequest(ctx context.Context, method, url string, body io.ReadCloser) Request {
 	// as an io.ReadCloser, the body won't be encoded as JSON
 	return NewRequest(ctx, method, url, body)
+}
+
+// Deadline wraps the embedded context.Context method to return no deadline if the inner context is nil.
+func (r Request) Deadline() (time.Time, bool) {
+	if r.Context == nil {
+		return time.Time{}, false
+	}
+	return r.Context.Deadline()
+}
+
+// Done wraps the embedded context.Context method to return nil if the inner context is nil.
+func (r Request) Done() <-chan struct{} {
+	if r.Context == nil {
+		return nil
+	}
+	return r.Context.Done()
+}
+
+// Err wraps the embedded context.Context method to return nil if the inner context is nil.
+func (r Request) Err() error {
+	if r.Context == nil {
+		return nil
+	}
+	return r.Context.Err()
+}
+
+// Value wraps the embedded context.Context method to return a nil if the inner context is nil.
+func (r Request) Value(key any) any {
+	if r.Context == nil {
+		return nil
+	}
+	return r.Context.Value(key)
 }

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/monzo/terrors"
 
@@ -243,6 +244,61 @@ func TestRouterEndpointPattern(t *testing.T) {
 func TestRequestMethod(t *testing.T) {
 	req := NewRequest(context.Background(), http.MethodGet, "", nil)
 	assert.Equal(t, http.MethodGet, req.RequestMethod())
+}
+
+func TestRequestContextImplementation(t *testing.T) {
+	// This test asserts that typhon.Request correctly implements the `context.Context`
+	// interface (including not panicking when these methods are called on the empty
+	// request).
+
+	t.Run("Deadline", func(t *testing.T) {
+		t.Run("returns false on an empty Request", func(t *testing.T) {
+			_, ok := Request{}.Deadline()
+			assert.False(t, ok)
+		})
+
+		t.Run("passes through a non-zero deadline", func(t *testing.T) {
+			ctx, cancel := context.WithDeadline(context.Background(), time.Time{})
+			defer cancel()
+			_, ok := Request{Context: ctx}.Deadline()
+			assert.True(t, ok)
+		})
+	})
+
+	t.Run("Done", func(t *testing.T) {
+		t.Run("returns nil on an empty Request", func(t *testing.T) {
+			assert.Nil(t, Request{}.Done())
+		})
+
+		t.Run("passes through a non-zero Done", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			assert.NotNil(t, Request{Context: ctx}.Done())
+		})
+	})
+
+	t.Run("Err", func(t *testing.T) {
+		t.Run("returns nil on an empty Request", func(t *testing.T) {
+			assert.Nil(t, Request{}.Err())
+		})
+
+		t.Run("passes through a non-zero Err", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			assert.NotNil(t, Request{Context: ctx}.Err())
+		})
+	})
+
+	t.Run("Value", func(t *testing.T) {
+		t.Run("returns nil on an empty Request", func(t *testing.T) {
+			assert.Nil(t, Request{}.Value(struct{}{}))
+		})
+
+		t.Run("passes through a non-zero Value", func(t *testing.T) {
+			ctx := context.WithValue(context.Background(), struct{}{}, true)
+			assert.NotNil(t, Request{Context: ctx}.Value(struct{}{}))
+		})
+	})
 }
 
 func jsonStreamMarshal(v interface{}) ([]byte, error) {
