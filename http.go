@@ -127,11 +127,16 @@ func HttpHandler(svc Service) http.Handler {
 			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
-		if rsp.Body == nil || !bodyAllowedForStatus(rsp.StatusCode) {
+		if rsp.Body == nil {
 			return
 		}
 
 		defer rsp.Body.Close()
+
+		if !bodyAllowedForStatus(rsp.StatusCode) {
+			return
+		}
+
 		buf := *httpChunkBufPool.Get().(*[]byte)
 		defer httpChunkBufPool.Put(&buf)
 		if isStreamingRsp(rsp) {

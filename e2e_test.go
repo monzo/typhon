@@ -878,15 +878,36 @@ func TestE2EMaxConnectionAge_ConnectionAgeSet(t *testing.T) {
 	})
 }
 
+type closeTrackingReadCloser struct {
+	inner    io.ReadCloser
+	isClosed *bool
+}
+
+func (c *closeTrackingReadCloser) Read(p []byte) (n int, err error) {
+	return c.inner.Read(p)
+}
+
+func (c *closeTrackingReadCloser) Close() error {
+	*c.isClosed = true
+	return c.inner.Close()
+}
+
 func TestE2EStatusCodesWithoutAResponseBody(t *testing.T) {
 	flavours(t, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := flav.Context()
 		defer cancel()
 
+		responseBodyWasClosed := false
+
 		svc := Service(func(req Request) Response {
 			response := req.Response([]byte("hello"))
 			response.Header.Set("content-type", "text/plain")
 			response.StatusCode = http.StatusNotModified // Not Modified
+			oldBody := response.Body
+			response.Body = &closeTrackingReadCloser{
+				inner:    oldBody,
+				isClosed: &responseBodyWasClosed,
+			}
 			return response
 		})
 		svc = svc.Filter(ErrorFilter)
@@ -900,5 +921,6 @@ func TestE2EStatusCodesWithoutAResponseBody(t *testing.T) {
 		rspBody, err := rsp.BodyBytes(true)
 		require.NoError(t, err)
 		assert.Empty(t, rspBody)
+		assert.True(t, responseBodyWasClosed)
 	})
 }
