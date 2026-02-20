@@ -877,3 +877,28 @@ func TestE2EMaxConnectionAge_ConnectionAgeSet(t *testing.T) {
 		require.NotEmpty(t, connectionStart)
 	})
 }
+
+func TestE2EStatusCodesWithoutAResponseBody(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := flav.Context()
+		defer cancel()
+
+		svc := Service(func(req Request) Response {
+			response := req.Response([]byte("hello"))
+			response.Header.Set("content-type", "text/plain")
+			response.StatusCode = http.StatusNotModified // Not Modified
+			return response
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+		defer s.Stop(context.Background())
+
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rsp := req.Send().Response()
+		require.NoError(t, rsp.Error)
+		assert.Equal(t, http.StatusNotModified, rsp.StatusCode)
+		rspBody, err := rsp.BodyBytes(true)
+		require.NoError(t, err)
+		assert.Empty(t, rspBody)
+	})
+}
