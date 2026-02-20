@@ -117,9 +117,14 @@ func HttpHandler(svc Service) http.Handler {
 		}
 		rsp := svc(req)
 
-		// If the connection was hijacked, we should not attempt to write anything out
 		if rsp.hijacked {
 			return
+		}
+
+		// If the connection has been hijacked, the hijacker is responsible for any
+		// resource cleanup (as per http.Hijacker)
+		if rsp.Body != nil {
+			defer rsp.Body.Close()
 		}
 
 		rwHeader := rw.Header()
@@ -127,13 +132,7 @@ func HttpHandler(svc Service) http.Handler {
 			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
-		if rsp.Body == nil {
-			return
-		}
-
-		defer rsp.Body.Close()
-
-		if !bodyAllowedForStatus(rsp.StatusCode) {
+		if rsp.Body == nil || !bodyAllowedForStatus(rsp.StatusCode) {
 			return
 		}
 
