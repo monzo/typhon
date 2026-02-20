@@ -117,9 +117,14 @@ func HttpHandler(svc Service) http.Handler {
 		}
 		rsp := svc(req)
 
-		// If the connection was hijacked, we should not attempt to write anything out
 		if rsp.hijacked {
 			return
+		}
+
+		// If the connection has been hijacked, the hijacker is responsible for any
+		// resource cleanup (as per http.Hijacker)
+		if rsp.Body != nil {
+			defer rsp.Body.Close()
 		}
 
 		rwHeader := rw.Header()
@@ -127,24 +132,25 @@ func HttpHandler(svc Service) http.Handler {
 			rwHeader[k] = v
 		}
 		rw.WriteHeader(rsp.StatusCode)
-		if rsp.Body != nil && bodyAllowedForStatus(rsp.StatusCode) {
-			defer rsp.Body.Close()
-			buf := *httpChunkBufPool.Get().(*[]byte)
-			defer httpChunkBufPool.Put(&buf)
-			if isStreamingRsp(rsp) {
-				// Streaming responses use copyChunked(), which takes care of flushing transparently
-				if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
-					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body", err))
+		if rsp.Body == nil || !bodyAllowedForStatus(rsp.StatusCode) {
+			return
+		}
 
-					// Prevent the client from accidentally consuming a truncated stream by aborting the response.
-					// The official way of interrupting an HTTP reply mid-stream is panic(http.ErrAbortHandler), which
-					// works for both HTTP/1.1 and HTTP.2. https://github.com/golang/go/issues/17790
-					panic(http.ErrAbortHandler)
-				}
-			} else {
-				if _, err := io.CopyBuffer(rw, rsp.Body, buf); err != nil {
-					slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body", err))
-				}
+		buf := *httpChunkBufPool.Get().(*[]byte)
+		defer httpChunkBufPool.Put(&buf)
+		if isStreamingRsp(rsp) {
+			// Streaming responses use copyChunked(), which takes care of flushing transparently
+			if _, err := copyChunked(rw, rsp.Body, buf); err != nil {
+				slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send streaming response body", err))
+
+				// Prevent the client from accidentally consuming a truncated stream by aborting the response.
+				// The official way of interrupting an HTTP reply mid-stream is panic(http.ErrAbortHandler), which
+				// works for both HTTP/1.1 and HTTP.2. https://github.com/golang/go/issues/17790
+				panic(http.ErrAbortHandler)
+			}
+		} else {
+			if _, err := io.CopyBuffer(rw, rsp.Body, buf); err != nil {
+				slog.Log(slog.Eventf(copyErrSeverity(err), req, "Couldn't send response body", err))
 			}
 		}
 	})
