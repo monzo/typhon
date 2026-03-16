@@ -125,8 +125,8 @@ func ErrorFilter(req Request, svc Service) Response {
 				var err error
 				tp := &terrorsproto.Error{}
 
-				switch rsp.Header.Get("Content-Type") {
-				case "application/octet-stream", "application/x-protobuf", "application/protobuf":
+				switch {
+				case isProtobufMediaType(rsp.Header.Get("Content-Type")):
 					err = legacyproto.Unmarshal(b, tp)
 				default:
 					err = json.Unmarshal(b, tp)

@@ -77,6 +77,18 @@ func TestRequestDecodeProto(t *testing.T) {
 	assert.Equal(t, "Hello world!", g2.Message)
 }
 
+func TestRequestDecodeProtoWithMediaTypeParameters(t *testing.T) {
+	req := NewRequest(nil, "GET", "/", nil)
+	b, _ := proto.Marshal(&prototest.Greeting{Message: "Hello world!"})
+	req.Header.Set("Content-Type", "application/protobuf; charset=binary")
+	req.Body = newDoneReader(ioutil.NopCloser(bytes.NewReader(b)), -1)
+
+	g := &prototest.Greeting{}
+	err := req.Decode(g)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello world!", g.Message)
+}
+
 func TestRequestDecodeProtoMaskingAsJSON(t *testing.T) {
 	req := NewRequest(nil, "GET", "/", nil)
 	b := []byte("{\"message\":\"Hello world!\"}\n")

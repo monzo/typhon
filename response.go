@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	legacyproto "github.com/golang/protobuf/proto"
 	"github.com/monzo/terrors"
@@ -50,7 +49,7 @@ func (r *Response) Encode(v interface{}) {
 	switch m := v.(type) {
 	case proto.Message:
 		// if we didn't ask for protobuf, send JSON
-		if !strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf") {
+		if !acceptsProtobuf(requestHeader(r.Request)) {
 			r.EncodeAsProtobufJSON(m)
 			return
 		}
@@ -59,7 +58,7 @@ func (r *Response) Encode(v interface{}) {
 		return
 	case legacyproto.Message:
 		// if we asked for protobuf, send it using the legacy encoder for the error filter.
-		if strings.Contains(r.Request.Header.Get("Accept"), "application/protobuf") {
+		if acceptsProtobuf(requestHeader(r.Request)) {
 			r.EncodeAsLegacyProtobuf(m)
 			return
 		}
@@ -152,7 +151,7 @@ func (r *Response) Decode(v interface{}) error {
 		return r.Error
 	}
 
-	contentType := r.Header.Get("Content-Type")
+	contentType := canonicalMediaType(r.Header.Get("Content-Type"))
 
 	params := map[string]string{
 		"response_content_type": contentType,
@@ -165,15 +164,10 @@ func (r *Response) Decode(v interface{}) error {
 	case proto.Message:
 		params["response_object_type"] = "protobuf"
 
-		switch contentType {
-		case "application/octet-stream",
-			"application/x-google-protobuf",
-			"application/protobuf",
-			"application/x-protobuf":
-
+		switch {
+		case isProtobufMediaType(contentType):
 			err = proto.Unmarshal(b, m)
 		default:
-
 			err = protojson.Unmarshal(b, m)
 		}
 
@@ -182,12 +176,8 @@ func (r *Response) Decode(v interface{}) error {
 	// Upgrade to google.golang.org/protobuf/proto.Message as soon as possible.
 	case legacyproto.Message:
 		params["response_object_type"] = "legacyproto"
-		switch contentType {
-		case "application/octet-stream",
-			"application/x-google-protobuf",
-			"application/protobuf",
-			"application/x-protobuf":
-
+		switch {
+		case isProtobufMediaType(contentType):
 			err = legacyproto.Unmarshal(b, m)
 		default:
 			err = json.Unmarshal(b, m)
@@ -300,6 +290,13 @@ func (r Response) String() string {
 	}
 	fmt.Fprint(b, ")")
 	return b.String()
+}
+
+func requestHeader(req *Request) http.Header {
+	if req == nil {
+		return nil
+	}
+	return req.Header
 }
 
 func newHTTPResponse(req Request, statusCode int) *http.Response {

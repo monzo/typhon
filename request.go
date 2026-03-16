@@ -93,11 +93,11 @@ func (r Request) Decode(v interface{}) error {
 		return terrors.WrapWithCode(err, nil, terrors.ErrBadRequest)
 	}
 
-	switch r.Header.Get("Content-Type") {
+	switch {
 	// application/x-protobuf is the "canonical" use, application/protobuf is defined in an expired IETF draft.
 	// See: https://datatracker.ietf.org/doc/html/draft-rfernando-protocol-buffers-00#section-3.2
 	// See: https://github.com/google/protorpc/blob/eb03145/python/protorpc/protobuf.py#L49-L51
-	case "application/octet-stream", "application/x-google-protobuf", "application/protobuf", "application/x-protobuf":
+	case isProtobufMediaType(r.Header.Get("Content-Type")):
 		switch m := v.(type) {
 		case proto.Message:
 			err = proto.Unmarshal(b, m)
