@@ -36,6 +36,8 @@ var (
 			var d net.Dialer
 			return d.DialContext(ctx, network, addr)
 		},
+		ReadIdleTimeout: 30 * time.Second,
+		PingTimeout:     10 * time.Second,
 	}
 )
 
@@ -106,7 +108,7 @@ func SendVia(req Request, svc Service) *ResponseFuture {
 // Send round-trips the request via the default Client. It does not block, instead returning a ResponseFuture
 // representing the asynchronous operation to produce the response. It is equivalent to:
 //
-//  SendVia(req, Client)
+//	SendVia(req, Client)
 func Send(req Request) *ResponseFuture {
 	return SendVia(req, Client)
 }
