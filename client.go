@@ -125,10 +125,14 @@ func isH2C(ctx context.Context) bool {
 	return b
 }
 
+func isHTTP(r *http.Request) bool {
+	return r.URL != nil && r.URL.Scheme == "http"
+}
+
 type dynamicRoundTripper struct{}
 
 func (d dynamicRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	if r.URL.Scheme == "http" && isH2C(r.Context()) {
+	if isHTTP(r) && isH2C(r.Context()) {
 		return H2cRoundTripper.RoundTrip(r)
 	}
 	return HTTPRoundTripper.RoundTrip(r)
