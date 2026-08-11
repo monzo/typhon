@@ -1,9 +1,6 @@
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/deckarep/golang-set v1.8.0
-## explicit; go 1.17
-github.com/deckarep/golang-set
 # github.com/fortytw2/leaktest v1.3.0
 ## explicit
 github.com/fortytw2/leaktest
@@ -36,7 +33,6 @@ github.com/stretchr/testify/require
 ## explicit; go 1.17
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
-golang.org/x/net/http2/h2c
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 # golang.org/x/text v0.7.0

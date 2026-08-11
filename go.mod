@@ -1,9 +1,8 @@
 module github.com/monzo/typhon
 
-go 1.19
+go 1.24
 
 require (
-	github.com/deckarep/golang-set v1.8.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/golang/protobuf v1.5.2
 	github.com/monzo/slog v0.0.0-20211123154010-52a5ddb2ba55

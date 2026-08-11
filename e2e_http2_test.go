@@ -69,7 +69,7 @@ func (f http2H2cPriorKnowledgeFlavour) Context() (context.Context, func()) {
 
 func (f http2H2cPriorKnowledgeFlavour) AssertConnectionResetError(t *testing.T, terr *terrors.Error) {
 	assert.Equal(t, terrors.ErrInternalService, terr.Code)
-	assert.Equal(t, "EOF", terr.Message)
+	assert.Contains(t, terr.Message, "INTERNAL_ERROR")
 }
 
 type http2H2Flavour struct {

@@ -3,6 +3,7 @@ package typhon
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -14,12 +15,10 @@ import (
 )
 
 type Server struct {
-	l              net.Listener
-	srv            *http.Server
-	shuttingDown   chan struct{}
-	shutdownOnce   sync.Once
-	shutdownFuncs  []func(context.Context)
-	shutdownFuncsM sync.Mutex
+	l            net.Listener
+	srv          *http.Server
+	shuttingDown chan struct{}
+	shutdownOnce sync.Once
 }
 
 // ServerOption allows customizing the underling http.Server
@@ -39,41 +38,19 @@ func (s *Server) Done() <-chan struct{} {
 // Stop shuts down the server, returning when there are no more connections still open. Graceful shutdown will be
 // attempted until the passed context expires, at which time all connections will be forcibly terminated.
 func (s *Server) Stop(ctx context.Context) {
-	s.shutdownFuncsM.Lock()
-	defer s.shutdownFuncsM.Unlock()
 	s.shutdownOnce.Do(func() {
 		close(s.shuttingDown)
-		// Shut down the HTTP server in parallel to calling any custom shutdown functions
-		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := s.srv.Shutdown(ctx); err != nil {
-				slog.Debug(ctx, "Graceful shutdown failed; forcibly closing connections 👢")
-				if err := s.srv.Close(); err != nil {
-					slog.Critical(ctx, "Forceful shutdown failed, exiting 😱: %v", err)
-					panic(err) // Something is super hosed here
-				}
+		// Gracefully shut down the HTTP server, draining in-flight requests until the context
+		// expires. Since Go 1.24 this drains h2c connections just like HTTP/1.1 ones, so no bespoke
+		// connection tracking is required (see H2cFilter).
+		if err := s.srv.Shutdown(ctx); err != nil {
+			slog.Debug(ctx, "Graceful shutdown failed; forcibly closing connections 👢")
+			if err := s.srv.Close(); err != nil {
+				slog.Critical(ctx, "Forceful shutdown failed, exiting 😱: %v", err)
+				panic(err) // Something is super hosed here
 			}
-		}()
-		for _, f := range s.shutdownFuncs {
-			f := f // capture range variable
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				f(ctx)
-			}()
 		}
-		wg.Wait()
 	})
-}
-
-// addShutdownFunc registers a function that will be called when the server is stopped. The function is expected to try
-// to shutdown gracefully until the context expires, at which time it should terminate its work forcefully.
-func (s *Server) addShutdownFunc(f func(context.Context)) {
-	s.shutdownFuncsM.Lock()
-	defer s.shutdownFuncsM.Unlock()
-	s.shutdownFuncs = append(s.shutdownFuncs, f)
 }
 
 // Serve starts a HTTP server, binding the passed Service to the passed listener and applying the passed ServerOptions.
@@ -81,13 +58,25 @@ func Serve(svc Service, l net.Listener, opts ...ServerOption) (*Server, error) {
 	s := &Server{
 		l:            l,
 		shuttingDown: make(chan struct{})}
-	svc = svc.Filter(func(req Request, svc Service) Response {
-		req.server = s
-		return svc(req)
-	})
+
+	// Enable HTTP/1.1, TLS HTTP/2, and unencrypted HTTP/2 (h2c, prior knowledge). Since Go 1.24
+	// net/http supports h2c natively, so we no longer need golang.org/x/net/http2/h2c and its
+	// connection-draining workarounds: h2c connections now drain during graceful shutdown just like
+	// HTTP/1.1 ones. See https://github.com/golang/go/issues/26682.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	s.srv = &http.Server{
 		Handler:        HttpHandler(svc),
 		MaxHeaderBytes: http.DefaultMaxHeaderBytes,
+		Protocols:      protocols,
+		HTTP2: &http.HTTP2Config{
+			// We're copying envoy and grpc by setting this to the max uint32.
+			// The Go default is 250 which is not ideal for long lived streaming requests.
+			MaxConcurrentStreams: math.MaxUint32,
+		},
 	}
 
 	// Apply any given ServerOptions
@@ -136,8 +125,6 @@ func Listen(svc Service, addr string, opts ...ServerOption) (*Server, error) {
 
 // TimeoutOptions specifies various server timeouts. See http.Server for details of what these do.
 // There's a nice post explaining them here: https://ieftimov.com/posts/make-resilient-golang-net-http-servers-using-timeouts-deadlines-context-cancellation/#server-timeouts---first-principles
-// WARNING: Due to a Go bug, connections using h2c do not respect these timeouts.
-// See https://github.com/golang/go/issues/52868
 type TimeoutOptions struct {
 	Read       time.Duration
 	ReadHeader time.Duration

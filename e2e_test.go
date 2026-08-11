@@ -710,9 +710,11 @@ func TestE2EStreamingServerAbort(t *testing.T) {
 		<-done
 		body, err := ioutil.ReadAll(rsp.Body)
 		assert.Equal(t, "derp\n", string(body))
-		require.IsType(t, http2.StreamError{}, err)
-		streamErr := err.(http2.StreamError)
-		assert.Equal(t, streamErr.Code, http2.ErrCodeInternal)
+		// The client sees an HTTP/2 stream error carrying INTERNAL_ERROR. We match on the error
+		// string rather than a concrete type because the error comes from x/net/http2 for some
+		// flavours and from net/http's (unexported) native HTTP/2 for the prior-knowledge flavour.
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), http2.ErrCodeInternal.String())
 	})
 }
 
@@ -809,16 +811,61 @@ func TestE2EDraining(t *testing.T) {
 	})
 }
 
+// TestE2EForcefulShutdown verifies that when graceful shutdown can't complete before the context
+// expires, the server forcibly terminates in-flight connections rather than hanging. This exercises
+// the srv.Close() fallback in Server.Stop, which (for h2c) used to be provided by hand-rolled
+// connection tracking but is now delegated to net/http.
+func TestE2EForcefulShutdown(t *testing.T) {
+	flavours(t, func(t *testing.T, flav e2eFlavour) {
+		ctx, cancel := flav.Context()
+		defer cancel()
+
+		returnRsp := make(chan bool)
+		svc := Service(func(req Request) Response {
+			<-returnRsp
+			return NewResponse(req)
+		})
+		svc = svc.Filter(ErrorFilter)
+		s := flav.Serve(svc)
+
+		// Send a request, which will hang in the handler until we send to returnRsp
+		req := NewRequest(ctx, "GET", flav.URL(s), nil)
+		rspF := req.Send()
+		time.Sleep(10 * time.Millisecond) // allow connection to be established
+
+		// Stop the server with an already-expired context. Graceful shutdown can't complete (the
+		// handler is still blocked), so the server must fall back to forcibly closing connections
+		// and Stop must return promptly rather than waiting for the handler.
+		expiredCtx, cancelExpired := context.WithCancel(ctx)
+		cancelExpired()
+		serverClosed := make(chan struct{})
+		go func() {
+			s.Stop(expiredCtx)
+			close(serverClosed)
+		}()
+		select {
+		case <-serverClosed:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "Stop did not return promptly with an expired context")
+		}
+
+		// The in-flight request should error out because its connection was forcibly closed.
+		rsp := rspF.Response()
+		require.Error(t, rsp.Error)
+
+		// Unblock the (still-blocked) handler so its goroutine doesn't leak; its write races against
+		// the forcibly-closed connection, which is fine.
+		returnRsp <- true
+	})
+}
+
 func TestE2EServerTimeouts(t *testing.T) {
 	someFlavours(t, []string{
 		"http1.1",
 		"http1.1-tls",
 		"http2.0-h2",
-
-		// The Go h2c implementation doesn't currently support server timeouts
-		// See https://github.com/golang/go/issues/52868
-		//"http2.0-h2c",
-		//"http2.0-h2c-prior-knowledge",
+		"http2.0-h2c",
+		"http2.0-h2c-prior-knowledge",
 	}, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := flav.Context()
 		defer cancel()
@@ -854,9 +901,8 @@ func TestE2EMaxConnectionAge_ConnectionAgeSet(t *testing.T) {
 		"http1.1",
 		"http1.1-tls",
 		"http2.0-h2",
-
-		// The Go h2c implementation doesn't currently support max
-		// connection age.
+		"http2.0-h2c",
+		"http2.0-h2c-prior-knowledge",
 	}, func(t *testing.T, flav e2eFlavour) {
 		ctx, cancel := flav.Context()
 		defer cancel()

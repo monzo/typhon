@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	legacyproto "github.com/golang/protobuf/proto"
-	"github.com/monzo/terrors"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	legacyproto "github.com/golang/protobuf/proto"
+	"github.com/monzo/terrors"
+	"google.golang.org/protobuf/proto"
 )
 
 // A Request is Typhon's wrapper around http.Request, used by both clients and servers.
@@ -23,7 +24,6 @@ type Request struct {
 	context.Context
 	err      error // Any error from request construction; read by ErrorFilter
 	hijacker http.Hijacker
-	server   *Server
 }
 
 // unwrappedContext returns the most "unwrapped" Context possible for that in the request.
