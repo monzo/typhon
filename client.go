@@ -2,13 +2,10 @@ package typhon
 
 import (
 	"context"
-	"crypto/tls"
-	"net"
 	"net/http"
 	"time"
 
 	"github.com/monzo/terrors"
-	"golang.org/x/net/http2"
 )
 
 var (
@@ -28,18 +25,25 @@ var (
 	}
 
 	// H2cRoundTripper is a prior-knowledge H2c client. It does not support ProxyFromEnvironment.
-	H2cRoundTripper http.RoundTripper = &http2.Transport{
-		AllowHTTP: true,
-		// This monstrosity is needed to get the http2 Transport to dial over cleartext.
-		// See https://github.com/thrawn01/h2c-golang-example
-		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, network, addr)
-		},
-		ReadIdleTimeout: 30 * time.Second,
-		PingTimeout:     10 * time.Second,
-	}
+	H2cRoundTripper http.RoundTripper = newH2cRoundTripper()
 )
+
+// newH2cRoundTripper builds a transport that speaks unencrypted HTTP/2 (h2c) with prior knowledge
+func newH2cRoundTripper() *http.Transport {
+	t := &http.Transport{
+		HTTP2: &http.HTTP2Config{
+			// Health-check idle connections: send a ping after 30s without a frame, and close the
+			// connection if no response arrives within 10s.
+			SendPingTimeout: 30 * time.Second,
+			PingTimeout:     10 * time.Second,
+		},
+	}
+	// Enabling UnencryptedHTTP2 without HTTP1 makes the transport use h2c (prior knowledge) for
+	// http:// URLs with no HTTP/1.1 fallback.
+	t.Protocols = new(http.Protocols)
+	t.Protocols.SetUnencryptedHTTP2(true)
+	return t
+}
 
 // A ResponseFuture is a container for a Response which will materialise at some point.
 type ResponseFuture struct {
