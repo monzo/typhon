@@ -1,6 +1,6 @@
 module github.com/monzo/typhon
 
-go 1.19
+go 1.24
 
 require (
 	github.com/deckarep/golang-set v1.8.0
