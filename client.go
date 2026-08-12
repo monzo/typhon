@@ -1,7 +1,9 @@
 package typhon
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -67,7 +69,18 @@ func (f *ResponseFuture) Response() Response {
 func HttpService(rt http.RoundTripper) Service {
 	return func(req Request) Response {
 		ctx := req.unwrappedContext()
-		httpRsp, err := rt.RoundTrip(req.Request.WithContext(ctx))
+		httpReq := req.Request.WithContext(ctx)
+		// Expose GetBody for buffered bodies so the HTTP/2 transport can rewind and transparently
+		// retry the request when a connection is torn down before the response arrives (eg. a
+		// graceful-shutdown GOAWAY). Without GetBody the transport can't replay the body and the
+		// request fails outright. Streaming bodies aren't a *bufCloser, so they stay non-replayable.
+		if buf, ok := httpReq.Body.(*bufCloser); ok {
+			body := buf.Bytes()
+			httpReq.GetBody = func() (io.ReadCloser, error) {
+				return io.NopCloser(bytes.NewReader(body)), nil
+			}
+		}
+		httpRsp, err := rt.RoundTrip(httpReq)
 		// When the calling context is cancelled, close the response body
 		// This protects callers that forget to call Close(), or those which proxy responses upstream
 		//
