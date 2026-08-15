@@ -49,7 +49,7 @@ func ErrorStatusCode(err error) int {
 }
 
 // terr2StatusCode converts HTTP status codes to a roughly equivalent terrors' code
-func status2TerrCode(code int) string {
+func Status2TerrCode(code int) string {
 	if c, ok := mapStatus2Terr[code]; ok {
 		return c
 	}
