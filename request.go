@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -248,7 +249,7 @@ func NewRequest(ctx context.Context, method, url string, body interface{}) Reque
 		// Attach any metadata in the context to the request as headers.
 		meta := MetadataFromContext(ctx)
 		for k, v := range meta {
-			req.Header[strings.ToLower(k)] = v
+			req.Header[strings.ToLower(k)] = slices.Clone(v)
 		}
 	}
 	if body != nil && err == nil {
