@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -223,6 +225,106 @@ func TestRequestSetMetadata(t *testing.T) {
 	req := NewRequest(ctx, "GET", "/", nil)
 
 	assert.Equal(t, []string{"data"}, req.Request.Header["meta"])
+}
+
+func TestRequestMetadataValuesAreIndependent(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []string
+	}{
+		{name: "single value", values: []string{"original"}},
+		{name: "multiple values", values: []string{"first", "second"}},
+		{name: "nil values"},
+		{name: "empty values", values: []string{}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			md := Metadata{"MeTa": tt.values}
+			ctx := AppendMetadataToContext(context.Background(), md)
+			first := NewRequest(ctx, "GET", "/first", nil)
+			second := NewRequest(ctx, "GET", "/second", nil)
+
+			_, exists := first.Header["meta"]
+			assert.True(t, exists)
+			_, exists = second.Header["meta"]
+			assert.True(t, exists)
+			assert.Equal(t, tt.values, first.Header["meta"])
+			assert.Equal(t, tt.values, second.Header["meta"])
+			if len(tt.values) == 0 {
+				return
+			}
+
+			original := tt.values[0]
+			first.Header["meta"][0] = "first request"
+			assert.Equal(t, original, MetadataFromContext(ctx)["MeTa"][0])
+			assert.Equal(t, original, second.Header["meta"][0])
+
+			md["MeTa"][0] = "changed metadata"
+			assert.Equal(t, "first request", first.Header["meta"][0])
+			assert.Equal(t, original, second.Header["meta"][0])
+		})
+	}
+}
+
+func TestSeparateRequestsCanEditMetadataHeadersConcurrently(t *testing.T) {
+	ctx := AppendMetadataToContext(context.Background(), NewMetadata(map[string]string{
+		"meta": "original",
+	}))
+	first := NewRequest(ctx, "GET", "/first", nil)
+	second := NewRequest(ctx, "GET", "/second", nil)
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for _, tt := range []struct {
+		req   Request
+		value string
+	}{
+		{req: first, value: "first"},
+		{req: second, value: "second"},
+	} {
+		wg.Add(1)
+		go func(req Request, value string) {
+			defer wg.Done()
+			<-start
+			for i := 0; i < 1000; i++ {
+				req.Header["meta"][0] = value
+			}
+		}(tt.req, tt.value)
+	}
+	close(start)
+	wg.Wait()
+
+	assert.Equal(t, "first", first.Header["meta"][0])
+	assert.Equal(t, "second", second.Header["meta"][0])
+	assert.Equal(t, "original", MetadataFromContext(ctx)["meta"][0])
+}
+
+func TestRequestMetadataHeadersSentIndependently(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(r.Header.Get("Meta")))
+	}))
+	defer server.Close()
+
+	ctx := AppendMetadataToContext(context.Background(), NewMetadata(map[string]string{
+		"meta": "original",
+	}))
+	first := NewRequest(ctx, "GET", server.URL, nil)
+	first.Header["meta"][0] = "first"
+	second := NewRequest(ctx, "GET", server.URL, nil)
+
+	service := HttpService(http.DefaultTransport)
+	for _, tt := range []struct {
+		req  Request
+		want string
+	}{
+		{req: first, want: "first"},
+		{req: second, want: "original"},
+	} {
+		rsp := tt.req.SendVia(service).Response()
+		require.NoError(t, rsp.Error)
+		body, err := rsp.BodyBytes(true)
+		require.NoError(t, err)
+		assert.Equal(t, tt.want, string(body))
+	}
 }
 
 func TestRouterEndpointPattern(t *testing.T) {
