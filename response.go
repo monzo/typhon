@@ -86,7 +86,10 @@ func (r *Response) EncodeAsProtobuf(m proto.Message) {
 	}
 
 	n, err := r.Write(b)
-	r.Error = terrors.Wrap(err, nil)
+	if err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		return
+	}
 	r.Header.Set("Content-Type", "application/protobuf")
 	r.ContentLength = int64(n)
 }
@@ -100,7 +103,10 @@ func (r *Response) EncodeAsLegacyProtobuf(m legacyproto.Message) {
 	}
 
 	n, err := r.Write(b)
-	r.Error = terrors.Wrap(err, nil)
+	if err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		return
+	}
 	r.Header.Set("Content-Type", "application/protobuf")
 	r.ContentLength = int64(n)
 }
@@ -115,7 +121,10 @@ func (r *Response) EncodeAsProtobufJSON(m proto.Message) {
 	}
 
 	n, err := r.Write(b)
-	r.Error = terrors.Wrap(err, nil)
+	if err != nil {
+		r.Error = terrors.Wrap(err, nil)
+		return
+	}
 	r.Header.Set("Content-Type", "application/json")
 	r.ContentLength = int64(n)
 }
