@@ -28,6 +28,8 @@ type routerEntry struct {
 	Pattern string
 	Service Service
 	re      *regexp.Regexp
+	// m is a faster, equivalent alternative to re for common patterns; nil if the pattern needs the regexp
+	m *routeMatcher
 }
 
 func (e routerEntry) String() string {
@@ -110,7 +112,8 @@ func (r *Router) Register(method, pattern string, svc Service) {
 		Method:  strings.ToUpper(method),
 		Pattern: pattern,
 		Service: svc,
-		re:      re})
+		re:      re,
+		m:       newRouteMatcher(pattern)})
 }
 
 // lookup is the internal version of Lookup, but it extracts path parameters into the passed map (and skips it if the
@@ -119,7 +122,16 @@ func (r Router) lookup(method, path string, params map[string]string) (Service, 
 	method = strings.ToUpper(method)
 	for i := len(r.entries) - 1; i >= 0; i-- { // iterate in reverse to prefer routes registered later
 		e := r.entries[i]
-		if (e.Method == method || e.Method == `*`) && e.re.MatchString(path) {
+		if e.Method != method && e.Method != `*` {
+			continue
+		}
+		if e.m != nil {
+			if e.m.match(path, params) {
+				return e.Service, e.Pattern, true
+			}
+			continue
+		}
+		if e.re.MatchString(path) {
 			// We have a match
 			if params != nil && e.re.NumSubexp() > 0 { // extract params
 				names := e.re.SubexpNames()[1:]
@@ -150,15 +162,45 @@ func (r Router) Serve() Service {
 			rsp.Error = terrors.NotFound("no_handler", txt, nil)
 			return rsp
 		}
-		req.Context = context.WithValue(req.Context, routerContextKey, &r)
-		req.Context = context.WithValue(req.Context, routerRequestPatternContextKey, pathPattern)
-		req.Context = context.WithValue(req.Context, routerRequestMethodContextKey, req.Method)
+		req.Context = newRoutedContext(req.Context, &r, pathPattern, req.Method)
 		rsp := svc(req)
 		if rsp.Request == nil {
 			rsp.Request = &req
 		}
 		return rsp
 	}
+}
+
+// routedContext carries the values Serve attaches to a routed request. It answers all three router keys from a single
+// allocation, instead of stacking three context.WithValue layers (plus boxing the two strings) on every request.
+type routedContext struct {
+	context.Context
+	router  *Router
+	pattern string
+	method  string
+}
+
+func newRoutedContext(parent context.Context, router *Router, pattern, method string) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent") // matches context.WithValue
+	}
+	return &routedContext{Context: parent, router: router, pattern: pattern, method: method}
+}
+
+func (c *routedContext) Value(key interface{}) interface{} {
+	switch key {
+	case routerContextKey:
+		return c.router
+	case routerRequestPatternContextKey:
+		return c.pattern
+	case routerRequestMethodContextKey:
+		return c.method
+	}
+	return c.Context.Value(key)
+}
+
+func (c *routedContext) String() string {
+	return fmt.Sprintf("%v.WithRoute(%s %s)", c.Context, c.method, c.pattern)
 }
 
 // Pattern returns the registered pattern which matches the given request.
