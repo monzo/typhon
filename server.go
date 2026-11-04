@@ -149,6 +149,29 @@ var (
 	addConnectionStartTimeHeader = false
 )
 
+// WithFullDuplex returns a server option that enables full-duplex communication for HTTP/1.1 requests, allowing a
+// Service to continue reading from the request body after it has started writing the response body (e.g. when
+// streaming a response derived from a streaming request).
+//
+// By default, the net/http HTTP/1.1 server is half-duplex: it consumes any unread portion of the request body before
+// writing the response, and the request body cannot be read after the response has started. HTTP/2 connections are
+// always full-duplex, so this option has no effect on them.
+//
+// Note that some HTTP/1.1 clients do not support full-duplex communication, and may deadlock if the server interleaves
+// reads and writes.
+func WithFullDuplex() ServerOption {
+	return func(s *Server) {
+		origHandler := s.srv.Handler
+		s.srv.Handler = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			// This must be called before the handler reads from the request body or writes to the response. Errors
+			// are ignored: they indicate the underlying ResponseWriter doesn't support full-duplex mode (for example
+			// HTTP/2, which is always full-duplex anyway), in which case there's nothing more we can do.
+			_ = http.NewResponseController(rw).EnableFullDuplex()
+			origHandler.ServeHTTP(rw, req)
+		})
+	}
+}
+
 // WithMaxConnectionAge returns a server option that will enforce a max
 // connection age. When a connection has reached the max connection age
 // then the next request that is processed on that connection will result
