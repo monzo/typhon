@@ -409,3 +409,30 @@ func TestResponseEncodeErrorGivesTerror(t *testing.T) {
 	assert.True(t, terrors.Is(rsp.Error, "internal_service"))
 	assert.True(t, terrors.Matches(rsp.Error, "unsupported value"))
 }
+
+func TestResponseProtobufEncodersKeepExistingError(t *testing.T) {
+	t.Parallel()
+
+	encoders := map[string]func(*Response){
+		"EncodeAsProtobuf": func(r *Response) {
+			r.EncodeAsProtobuf(&prototest.Greeting{Message: "hello"})
+		},
+		"EncodeAsProtobufJSON": func(r *Response) {
+			r.EncodeAsProtobufJSON(&prototest.Greeting{Message: "hello"})
+		},
+		"EncodeAsLegacyProtobuf": func(r *Response) {
+			r.EncodeAsLegacyProtobuf(&legacyprototest.LegacyGreeting{Message: "hello"})
+		},
+	}
+
+	for name, encode := range encoders {
+		encode := encode
+		t.Run(name, func(t *testing.T) {
+			rsp := NewResponse(Request{})
+			rsp.Error = terrors.NotFound("thing", "thing not found", nil)
+			encode(&rsp)
+			require.Error(t, rsp.Error)
+			assert.True(t, terrors.Is(rsp.Error, "not_found.thing"))
+		})
+	}
+}
