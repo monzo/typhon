@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,4 +64,23 @@ func TestHttpServiceStreamingBodyHasNoGetBody(t *testing.T) {
 	require.NoError(t, rsp.Error)
 
 	assert.Nil(t, captured.GetBody, "GetBody must stay nil for a streaming body")
+}
+
+func TestDynamicRoundTripperInvalidURL(t *testing.T) {
+	for _, url := range []string{"127.0.0.1:80/test", "notaurl^^"} {
+		t.Run(url, func(t *testing.T) {
+			req := NewRequest(context.Background(), http.MethodGet, url, nil)
+			var rsp Response
+			require.NotPanics(t, func() { rsp = BareClient(req) })
+			if rsp.Error == nil {
+				t.Fatalf("sending invalid URL %q succeeded", url)
+			}
+			if rsp.Response == nil {
+				t.Fatal("missing error response")
+			}
+			if !strings.Contains(rsp.Error.Error(), "cannot send request without a valid URL") {
+				t.Errorf("unexpected error: %v", rsp.Error)
+			}
+		})
+	}
 }

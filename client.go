@@ -3,6 +3,7 @@ package typhon
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -145,6 +146,16 @@ func isH2C(ctx context.Context) bool {
 type dynamicRoundTripper struct{}
 
 func (d dynamicRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	// NewRequest stores construction errors on the Request but still produces
+	// a Request with a nil URL. Sending it would panic here, so return the
+	// underlying error (or a clear one) instead.
+	if r.URL == nil || r.URL.Scheme == "" {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Header:     make(http.Header),
+			Body:       http.NoBody,
+		}, fmt.Errorf("typhon: cannot send request without a valid URL")
+	}
 	if r.URL.Scheme == "http" && isH2C(r.Context()) {
 		return H2cRoundTripper.RoundTrip(r)
 	}
