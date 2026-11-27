@@ -148,3 +148,48 @@ func TestRouterSetsContextValues(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "GET", ctxMethod)
 }
+
+func TestRouterSetsContextParams(t *testing.T) {
+	t.Parallel()
+
+	router := Router{}
+	router.GET("/users/:userID/orders/:orderID", func(req Request) Response {
+		return Response{}
+	})
+
+	req := NewRequest(context.Background(), "GET", "/users/u-123/orders/o-456", nil)
+	rsp := router.Serve()(req)
+	require.NotNil(t, rsp.Request)
+
+	params, ok := RequestParamsFromContext(rsp.Request.Context)
+	require.True(t, ok)
+	assert.Equal(t, map[string]string{
+		"userID":  "u-123",
+		"orderID": "o-456",
+	}, params)
+}
+
+func TestRouterParamsUsesCapturedParamsWhenPathChanges(t *testing.T) {
+	t.Parallel()
+
+	router := Router{}
+	router.GET("/users/:userID/orders/:orderID", func(req Request) Response {
+		req.URL.Path = "/mutated/path"
+
+		params := router.Params(req)
+		assert.Equal(t, map[string]string{
+			"userID":  "u-123",
+			"orderID": "o-456",
+		}, params)
+
+		// Ensure callers don't get a shared mutable map back.
+		params["userID"] = "changed"
+		again := router.Params(req)
+		assert.Equal(t, "u-123", again["userID"])
+		return Response{}
+	})
+
+	req := NewRequest(context.Background(), "GET", "/users/u-123/orders/o-456", nil)
+	rsp := router.Serve()(req)
+	require.NotNil(t, rsp.Request)
+}

@@ -222,6 +222,24 @@ func TestResponseDecodeProtobufWithAltType(t *testing.T) {
 	assert.EqualValues(t, 1, gout.Priority)
 }
 
+func TestResponseDecodeProtobufWithMediaTypeParameters(t *testing.T) {
+	t.Parallel()
+
+	g := &prototest.Greeting{
+		Message:  "Hello world!",
+		Priority: 1,
+	}
+	b, _ := proto.Marshal(g)
+	rsp := NewResponse(Request{})
+	rsp.Body = ioutil.NopCloser(bytes.NewReader(b))
+	rsp.Header.Set("Content-Type", "application/protobuf; charset=binary")
+
+	gout := &prototest.Greeting{}
+	assert.NoError(t, rsp.Decode(gout))
+	assert.Equal(t, "Hello world!", gout.Message)
+	assert.EqualValues(t, 1, gout.Priority)
+}
+
 // TestResponseDecodeLegacyProtobuf verifies decoding of a legacy protobuf message
 func TestResponseDecodeLegacyProtobuf(t *testing.T) {
 	t.Parallel()
@@ -408,4 +426,32 @@ func TestResponseEncodeErrorGivesTerror(t *testing.T) {
 	rsp.Encode(math.Inf(1))
 	assert.True(t, terrors.Is(rsp.Error, "internal_service"))
 	assert.True(t, terrors.Matches(rsp.Error, "unsupported value"))
+}
+
+func TestResponseEncodeProtobufWithoutRequestFallsBackToJSON(t *testing.T) {
+	t.Parallel()
+
+	rsp := Response{}
+	rsp.Encode(&prototest.Greeting{Message: "hello"})
+
+	assert.NoError(t, rsp.Error)
+	assert.Equal(t, "application/json", rsp.Header.Get("Content-Type"))
+	body, err := ioutil.ReadAll(rsp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "\"message\":\"hello\"")
+}
+
+func TestResponseEncodeProtobufWithComplexAcceptHeader(t *testing.T) {
+	t.Parallel()
+
+	req := NewRequest(nil, "GET", "/", nil)
+	req.Header.Set("Accept", "application/json;q=0.5, application/protobuf; charset=binary")
+	rsp := Response{Request: &req}
+	rsp.Encode(&prototest.Greeting{Message: "hello"})
+
+	assert.NoError(t, rsp.Error)
+	assert.Equal(t, "application/protobuf", rsp.Header.Get("Content-Type"))
+	body, err := ioutil.ReadAll(rsp.Body)
+	require.NoError(t, err)
+	assert.Subset(t, body, []byte("hello"), "'hello' should appear in the wire format")
 }

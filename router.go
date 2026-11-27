@@ -15,11 +15,13 @@ import (
 type routerContextKeyType struct{}
 type routerRequestPatternContextKeyType struct{}
 type routerRequestMethodContextKeyType struct{}
+type routerRequestParamsContextKeyType struct{}
 
 var (
 	routerContextKey               = routerContextKeyType{}
 	routerRequestPatternContextKey = routerRequestPatternContextKeyType{}
 	routerRequestMethodContextKey  = routerRequestMethodContextKeyType{}
+	routerRequestParamsContextKey  = routerRequestParamsContextKeyType{}
 	routerComponentsRe             = regexp.MustCompile(`(?:^|/)(\*\w*|:\w+)`)
 )
 
@@ -69,6 +71,27 @@ func RequestMethodFromContext(ctx context.Context) (string, bool) {
 		return v.(string), true
 	}
 	return "", false
+}
+
+// RequestParamsFromContext returns the route params captured for the request, if available.
+func RequestParamsFromContext(ctx context.Context) (map[string]string, bool) {
+	if v := ctx.Value(routerRequestParamsContextKey); v != nil {
+		params := v.(map[string]string)
+		return cloneRouteParams(params), true
+	}
+	return nil, false
+}
+
+func cloneRouteParams(params map[string]string) map[string]string {
+	if len(params) == 0 {
+		return map[string]string{}
+	}
+
+	cloned := make(map[string]string, len(params))
+	for key, value := range params {
+		cloned[key] = value
+	}
+	return cloned
 }
 
 func (r *Router) compile(pattern string) *regexp.Regexp {
@@ -143,7 +166,8 @@ func (r Router) Lookup(method, path string) (Service, string, map[string]string,
 // Serve returns a Service which will route inbound requests to the enclosed routes.
 func (r Router) Serve() Service {
 	return func(req Request) Response {
-		svc, pathPattern, ok := r.lookup(req.Method, req.URL.Path, nil)
+		params := map[string]string{}
+		svc, pathPattern, ok := r.lookup(req.Method, req.URL.Path, params)
 		if !ok {
 			txt := fmt.Sprintf("No handler for %s %s", req.Method, req.URL.Path)
 			rsp := NewResponse(req)
@@ -153,6 +177,7 @@ func (r Router) Serve() Service {
 		req.Context = context.WithValue(req.Context, routerContextKey, &r)
 		req.Context = context.WithValue(req.Context, routerRequestPatternContextKey, pathPattern)
 		req.Context = context.WithValue(req.Context, routerRequestMethodContextKey, req.Method)
+		req.Context = context.WithValue(req.Context, routerRequestParamsContextKey, cloneRouteParams(params))
 		rsp := svc(req)
 		if rsp.Request == nil {
 			rsp.Request = &req
@@ -169,6 +194,9 @@ func (r Router) Pattern(req Request) string {
 
 // Params returns extracted path parameters, assuming the request has been routed and has captured parameters.
 func (r Router) Params(req Request) map[string]string {
+	if params, ok := RequestParamsFromContext(req.Context); ok {
+		return params
+	}
 	_, _, params, _ := r.Lookup(req.Method, req.URL.Path)
 	return params
 }
